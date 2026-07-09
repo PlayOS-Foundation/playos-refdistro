@@ -1,0 +1,16 @@
+[Unit]
+Description=PlayOS Bluetooth
+After=playos-compositor.service
+PartOf=playos-async.target
+
+[Service]
+Type=dbus
+BusName=org.bluez
+ExecStart=/usr/lib/bluetooth/bluetoothd
+Restart=on-failure
+Nice=5
+CPUWeight=1000
+IOWeight=1000
+
+[Install]
+WantedBy=playos-async.target

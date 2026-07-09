@@ -1,0 +1,18 @@
+[Unit]
+Description=PlayOS Audio Stack
+After=playos-compositor.service
+PartOf=playos-async.target
+
+[Service]
+Type=simple
+User=playos
+Group=playos
+Environment=XDG_RUNTIME_DIR=/run/playos
+ExecStart=/usr/lib/playos/start-audio.sh
+Restart=on-failure
+Nice=0
+CPUWeight=5000
+IOWeight=5000
+
+[Install]
+WantedBy=playos-async.target

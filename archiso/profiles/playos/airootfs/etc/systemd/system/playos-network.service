@@ -1,0 +1,15 @@
+[Unit]
+Description=PlayOS Network
+After=playos-compositor.service
+PartOf=playos-async.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/NetworkManager --no-daemon
+Restart=on-failure
+Nice=5
+CPUWeight=1000
+IOWeight=1000
+
+[Install]
+WantedBy=playos-async.target

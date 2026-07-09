@@ -1,0 +1,6 @@
+[Unit]
+Description=PlayOS Background Services Slice
+
+[Slice]
+CPUWeight=100
+IOWeight=100

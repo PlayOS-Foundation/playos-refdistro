@@ -1,0 +1,36 @@
+[Unit]
+Description=PlayOS Compositor
+After=local-fs.target systemd-udevd.service systemd-udev-trigger.service seatd.service
+Wants=seatd.service
+Before=playos-async.target
+
+[Service]
+Type=simple
+User=playos
+Group=playos
+WorkingDirectory=/var/lib/playos
+
+Environment=XDG_RUNTIME_DIR=/run/playos
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=PLAYOS_BOOT_MODE=fast-visual
+Environment=PLAYOS_SHELL=/usr/bin/playos-shell
+
+RuntimeDirectory=playos
+RuntimeDirectoryMode=0755
+
+ExecStart=/usr/bin/playos-compositor --shell /usr/bin/playos-shell --boot-fast
+ExecStartPost=/usr/bin/systemctl --no-block start playos-async.target
+
+Restart=always
+RestartSec=1
+
+Slice=playos-ui.slice
+Nice=-10
+CPUWeight=10000
+IOWeight=10000
+OOMScoreAdjust=-900
+LimitMEMLOCK=infinity
+LimitRTPRIO=20
+
+[Install]
+WantedBy=playos-visual.target

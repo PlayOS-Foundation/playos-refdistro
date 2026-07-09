@@ -1,0 +1,6 @@
+[Unit]
+Description=PlayOS Visual Boot Target
+Documentation=man:systemd.special(7)
+Requires=local-fs.target
+After=local-fs.target systemd-udev-trigger.service
+AllowIsolate=yes

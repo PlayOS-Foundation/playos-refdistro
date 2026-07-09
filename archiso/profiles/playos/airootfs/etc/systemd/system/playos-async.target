@@ -1,0 +1,8 @@
+[Unit]
+Description=PlayOS Async Background Services
+After=playos-compositor.service
+Wants=playos-audio.service
+Wants=playos-network.service
+Wants=playos-bluetooth.service
+Wants=playos-library.service
+Wants=playos-update.service

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[PlayOS] playos-compositor placeholder starting"
+echo "[PlayOS] Args: $*"
+echo "[PlayOS] XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-unset}"
+echo "[PlayOS] WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-unset}"
+
+if [ -x /usr/bin/playos-shell ]; then
+  /usr/bin/playos-shell &
+fi
+
+# v0.1 placeholder keeps the graphical session alive.
+# Real implementation will own DRM/KMS, Wayland, input routing, and shell lifecycle.
+while true; do
+  sleep 3600
+done

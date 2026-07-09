@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p /var/log/playos/boot
+
+systemd-analyze > /var/log/playos/boot/summary.txt || true
+systemd-analyze blame > /var/log/playos/boot/blame.txt || true
+systemd-analyze critical-chain > /var/log/playos/boot/critical-chain.txt || true
+journalctl -b -u playos-compositor.service > /var/log/playos/boot/compositor.txt || true
+journalctl -b -u playos-async.target > /var/log/playos/boot/async-target.txt || true
+
+echo "PlayOS boot report written to /var/log/playos/boot"

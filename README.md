@@ -24,11 +24,22 @@ Do not wait for network, Bluetooth, audio, cloud, updates, or library indexing.
 | 2.0 s | **first shell frame visible** |
 | 2.0 s+ | audio, network, Bluetooth, library, updates start async |
 
+## Current state (v0.1)
+
+- ✅ ISO boots to PlayOS visual target
+- ✅ wlroots compositor takes over display (DRM/KMS)
+- ✅ Raylib shell UI appears with game library
+- ✅ Keyboard navigation (arrows, Enter, Esc)
+- ✅ Sample games launch and return to shell
+- ✅ SSH access (root, empty password)
+- ⚠️ VMware needs `WLR_RENDERER=pixman` override
+- ⬚ ROG Ally — pending test
+
 ## Host requirements
 
-- Windows host (primary development platform)
-- Docker Desktop (ISO build environment)
-- VirtualBox (UEFI boot test)
+- Windows, macOS, or Linux host
+- Docker Desktop (ISO build) or native Arch Linux with archiso
+- VMware Workstation / VirtualBox (UEFI boot test)
 - Git
 - VS Code
 

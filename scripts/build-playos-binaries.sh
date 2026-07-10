@@ -5,7 +5,7 @@ set -euo pipefail
 
 AIROOTFS="${1:?usage: $0 <airootfs-dir>}"
 
-BUILD_DIR="/tmp/playos-iso-build"
+BUILD_DIR="/var/tmp/playos-iso-build"
 REPOS=(
   "https://github.com/PlayOS-Foundation/playos-platform-api.git"
   "https://github.com/PlayOS-Foundation/playos-runtime.git"

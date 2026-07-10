@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROFILE="$ROOT/archiso/profiles/playos"
 OUT="$ROOT/out"
-WORK="/tmp/playos-archiso-work"
+WORK="/var/tmp/playos-archiso-work"
 AIROOTFS="$PROFILE/airootfs"
 
 if [ ! -d "$PROFILE" ]; then

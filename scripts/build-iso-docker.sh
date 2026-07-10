@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="/workspace"
 PROFILE="$ROOT/archiso/profiles/playos"
 OUT="$ROOT/out"
-WORK="/tmp/playos-archiso-work"
+WORK="/var/tmp/playos-archiso-work"
 TMP_PROFILE="/tmp/playos-profile"
 
 if [ ! -d "$PROFILE" ]; then

@@ -1,5 +1,5 @@
 [Unit]
-Description=Pre-configure system settings before firstboot prompts
+Description=Pre-configure system settings on first boot
 Before=systemd-firstboot.service
 ConditionFirstBoot=yes
 
@@ -9,6 +9,8 @@ RemainAfterExit=yes
 ExecStart=/usr/bin/timedatectl set-timezone UTC
 ExecStart=/usr/bin/localectl set-locale LANG=en_US.UTF-8
 ExecStart=/usr/bin/localectl set-keymap us
+ExecStart=/usr/bin/systemctl enable sshd
+ExecStart=/usr/bin/systemctl start sshd
 
 [Install]
 WantedBy=sysinit.target

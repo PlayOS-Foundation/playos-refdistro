@@ -42,4 +42,5 @@ vulkan-tools
 syslinux
 tzdata
 wlroots0.19
+open-vm-tools
 virtualbox-guest-utils-nox

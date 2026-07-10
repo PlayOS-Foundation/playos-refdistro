@@ -40,4 +40,5 @@ tree
 evtest
 vulkan-tools
 syslinux
+tzdata
 virtualbox-guest-utils-nox

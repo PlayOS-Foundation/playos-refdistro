@@ -1,4 +1,5 @@
 # Archiso build requirements (needed for ISO creation)
+grub
 mkinitcpio
 mkinitcpio-archiso
 
@@ -35,7 +36,6 @@ git
 openssh
 jq
 tree
-drm_info
 evtest
 vulkan-tools
 syslinux

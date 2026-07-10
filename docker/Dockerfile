@@ -10,6 +10,7 @@ RUN pacman -Syu --noconfirm && \
       ninja \
       gcc \
       pkgconf \
+      grub \
       qemu-system-x86 \
       edk2-ovmf \
       sudo \

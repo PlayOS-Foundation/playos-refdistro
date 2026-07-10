@@ -23,7 +23,9 @@ RUN pacman -Syu --noconfirm && \
       mtools \
       squashfs-tools \
       xorriso \
-      libisoburn && \
+      libisoburn \
+      wlroots0.19 \
+      wayland-protocols && \
     pacman -Scc --noconfirm
 
 WORKDIR /workspace

@@ -41,4 +41,5 @@ evtest
 vulkan-tools
 syslinux
 tzdata
+wlroots0.19
 virtualbox-guest-utils-nox

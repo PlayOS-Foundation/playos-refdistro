@@ -55,6 +55,10 @@ find "$AIROOTFS/usr/lib/playos" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev
 
 echo "==> Symlinks and permissions set up"
 
+# ── Build PlayOS binaries from source ────────────────────────────────────
+
+"$ROOT/scripts/build-playos-binaries.sh" "$AIROOTFS"
+
 # ── Build ISO from the tmp profile ────────────────────────────────────────
 
 mkdir -p "$OUT"

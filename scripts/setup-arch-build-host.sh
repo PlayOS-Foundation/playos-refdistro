@@ -5,6 +5,16 @@
 set -euo pipefail
 
 echo "==> Installing archiso and build dependencies"
-sudo pacman -S --needed --noconfirm archiso grub
+sudo pacman -S --needed --noconfirm \
+  archiso \
+  grub \
+  base-devel \
+  git \
+  cmake \
+  ninja \
+  gcc \
+  pkgconf \
+  wlroots0.19 \
+  wayland-protocols
 
 echo "==> Done. Run scripts/build-iso-vmware.sh to build the ISO."

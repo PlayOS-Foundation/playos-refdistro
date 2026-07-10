@@ -34,6 +34,8 @@ Do not wait for network, Bluetooth, audio, cloud, updates, or library indexing.
 
 ## Quick start
 
+### Option A: Docker Desktop (Windows host)
+
 ```powershell
 # 1. Build the Docker builder image
 .\scripts\docker-build-builder.ps1
@@ -48,6 +50,21 @@ docker run --rm -it --privileged `
 .\scripts\docker-build-iso.ps1
 
 # 4. Boot in VirtualBox (UEFI, attach out/*.iso)
+```
+
+### Option B: Native Arch Linux (VM or bare metal)
+
+```bash
+# 1. One-time setup
+./scripts/setup-arch-build-host.sh
+
+# 2. Initialize the Arch ISO profile (first time only)
+./scripts/init-archiso-profile.sh
+
+# 3. Build the ISO
+./scripts/build-iso-vmware.sh
+
+# 4. ISO at out/archlinux-baseline-*.iso
 ```
 
 ## Repository layout

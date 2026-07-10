@@ -5,7 +5,7 @@ ROOT="/workspace"
 PROFILE="$ROOT/archiso/profiles/playos"
 OUT="$ROOT/out"
 WORK="/tmp/playos-archiso-work"
-AIROOTFS="$PROFILE/airootfs"
+TMP_PROFILE="/tmp/playos-profile"
 
 if [ ! -d "$PROFILE" ]; then
   echo "Missing archiso profile: $PROFILE"
@@ -13,12 +13,20 @@ if [ ! -d "$PROFILE" ]; then
   exit 1
 fi
 
-# ── Create systemd symlinks (must be done on Linux; cannot be done on Windows) ─
+# ── Copy profile to Linux-native tmpfs (symlinks don't work on Windows mounts) ─
+
+echo "==> Copying profile to Linux-native filesystem"
+rm -rf "$TMP_PROFILE"
+cp -a "$PROFILE" "$TMP_PROFILE"
+AIROOTFS="$TMP_PROFILE/airootfs"
+
+# ── Create systemd symlinks ───────────────────────────────────────────────
 
 echo "==> Setting up systemd symlinks"
 
-# Default target: playos-visual.target
 mkdir -p "$AIROOTFS/etc/systemd/system"
+
+# Default target: playos-visual.target
 ln -sf /etc/systemd/system/playos-visual.target \
   "$AIROOTFS/etc/systemd/system/default.target"
 
@@ -41,13 +49,13 @@ for svc in playos-audio.service playos-network.service playos-bluetooth.service 
     "$AIROOTFS/etc/systemd/system/playos-async.target.wants/$svc"
 done
 
-# Fix script permissions (lost on Windows)
+# Fix script permissions
 find "$AIROOTFS/usr/bin" -type f -exec chmod +x {} \; 2>/dev/null || true
 find "$AIROOTFS/usr/lib/playos" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 
 echo "==> Symlinks and permissions set up"
 
-# ── Build ISO ─
+# ── Build ISO from the tmp profile ────────────────────────────────────────
 
 mkdir -p "$OUT"
 rm -rf "$WORK"
@@ -55,4 +63,7 @@ rm -rf "$WORK"
 mkarchiso -v \
   -w "$WORK" \
   -o "$OUT" \
-  "$PROFILE"
+  "$TMP_PROFILE"
+
+echo "==> Cleaning up"
+rm -rf "$TMP_PROFILE"

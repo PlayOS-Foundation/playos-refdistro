@@ -60,10 +60,11 @@ echo "==> Symlinks and permissions set up"
 mkdir -p "$OUT"
 rm -rf "$WORK"
 
-mkarchiso -v \
+echo "==> Building PlayOS ISO (non-interactive)..."
+yes '' | mkarchiso -v \
   -w "$WORK" \
   -o "$OUT" \
-  "$TMP_PROFILE" < /dev/null
+  "$TMP_PROFILE"
 
 echo "==> Cleaning up"
 rm -rf "$TMP_PROFILE"

@@ -1,15 +1,19 @@
 [Unit]
 Description=PlayOS system bootstrap (network, SSH, locale)
 Before=systemd-firstboot.service
+After=dbus.service
+Wants=dbus.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/timedatectl set-timezone UTC
-ExecStart=/usr/bin/localectl set-locale LANG=en_US.UTF-8
-ExecStart=/usr/bin/localectl set-keymap us
-ExecStart=/usr/bin/systemctl enable --now NetworkManager
-ExecStart=/usr/bin/systemctl enable --now sshd
+ExecStart=/usr/bin/ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+ExecStart=/usr/bin/bash -c "echo LANG=en_US.UTF-8 > /etc/locale.conf"
+ExecStart=/usr/bin/bash -c "echo KEYMAP=us > /etc/vconsole.conf"
+ExecStart=/usr/bin/systemctl enable NetworkManager
+ExecStart=/usr/bin/systemctl enable sshd
+ExecStart=/usr/bin/systemctl start NetworkManager
+ExecStart=/usr/bin/systemctl start sshd
 
 [Install]
-WantedBy=sysinit.target
+WantedBy=multi-user.target

@@ -19,4 +19,6 @@ file_permissions=(
   ["/usr/bin/playos-compositor"]="0:0:755"
   ["/usr/bin/playos-shell"]="0:0:755"
   ["/usr/bin/playos-run"]="0:0:755"
+  ["/playos-samples/build/hello-playos"]="0:0:755"
+  ["/playos-samples/build/space-invaders"]="0:0:755"
 )

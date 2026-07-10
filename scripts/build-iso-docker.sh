@@ -63,7 +63,7 @@ rm -rf "$WORK"
 mkarchiso -v \
   -w "$WORK" \
   -o "$OUT" \
-  "$TMP_PROFILE"
+  "$TMP_PROFILE" < /dev/null
 
 echo "==> Cleaning up"
 rm -rf "$TMP_PROFILE"

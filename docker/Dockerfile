@@ -25,7 +25,11 @@ RUN pacman -Syu --noconfirm && \
       xorriso \
       libisoburn \
       wlroots0.19 \
-      wayland-protocols && \
+      wayland-protocols \
+      libxrandr \
+      libxinerama \
+      libxcursor \
+      libxi && \
     pacman -Scc --noconfirm
 
 WORKDIR /workspace

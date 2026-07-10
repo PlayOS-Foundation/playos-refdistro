@@ -10,6 +10,7 @@ REPOS=(
   "https://github.com/PlayOS-Foundation/playos-platform-api.git"
   "https://github.com/PlayOS-Foundation/playos-runtime.git"
   "https://github.com/PlayOS-Foundation/playos-shell.git"
+  "https://github.com/PlayOS-Foundation/playos-samples.git"
 )
 
 echo "==> Cloning PlayOS repos"
@@ -54,6 +55,14 @@ cmake -B "$BUILD_DIR/playos-shell/build" -G Ninja \
   -S "$BUILD_DIR/playos-shell"
 cmake --build "$BUILD_DIR/playos-shell/build"
 
+# ── Build samples ─────────────────────────────────────────────────────────
+echo "==> Building playos-samples"
+cmake -B "$BUILD_DIR/playos-samples/build" -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DPLAYOS_SHELL_WAYLAND=ON \
+  -S "$BUILD_DIR/playos-samples"
+cmake --build "$BUILD_DIR/playos-samples/build"
+
 # ── Stage binaries into airootfs ──────────────────────────────────────────
 echo "==> Staging binaries into airootfs"
 mkdir -p "$AIROOTFS/usr/bin"
@@ -64,6 +73,13 @@ install -m 755 "$BUILD_DIR/playos-shell/build/playos-shell" \
   "$AIROOTFS/usr/bin/playos-shell"
 install -m 755 "$BUILD_DIR/playos-runtime/build/playos-run" \
   "$AIROOTFS/usr/bin/playos-run"
+
+# Stage samples where the shell finds them (../../playos-samples/build from /usr/bin)
+mkdir -p "$AIROOTFS/playos-samples/build"
+install -m 755 "$BUILD_DIR/playos-samples/build/hello-playos" \
+  "$AIROOTFS/playos-samples/build/hello-playos"
+install -m 755 "$BUILD_DIR/playos-samples/build/space-invaders" \
+  "$AIROOTFS/playos-samples/build/space-invaders"
 
 # ── Cleanup ───────────────────────────────────────────────────────────────
 rm -rf "$BUILD_DIR"

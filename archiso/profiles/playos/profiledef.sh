@@ -16,4 +16,7 @@ airootfs_image_tool_options=('-zlzma,109' -E 'ztailpacking')
 bootstrap_tarball_compression=(xz -9e)
 file_permissions=(
   ["/etc/shadow"]="0:0:400"
+  ["/usr/bin/playos-compositor"]="0:0:755"
+  ["/usr/bin/playos-shell"]="0:0:755"
+  ["/usr/bin/playos-run"]="0:0:755"
 )

@@ -58,16 +58,12 @@ cmake --build "$BUILD_DIR/playos-shell/build"
 echo "==> Staging binaries into airootfs"
 mkdir -p "$AIROOTFS/usr/bin"
 
-cp -v "$BUILD_DIR/playos-runtime/build/compositor/playos-compositor" \
+install -m 755 "$BUILD_DIR/playos-runtime/build/compositor/playos-compositor" \
   "$AIROOTFS/usr/bin/playos-compositor"
-cp -v "$BUILD_DIR/playos-shell/build/playos-shell" \
+install -m 755 "$BUILD_DIR/playos-shell/build/playos-shell" \
   "$AIROOTFS/usr/bin/playos-shell"
-cp -v "$BUILD_DIR/playos-runtime/build/playos-run" \
+install -m 755 "$BUILD_DIR/playos-runtime/build/playos-run" \
   "$AIROOTFS/usr/bin/playos-run"
-
-chmod +x "$AIROOTFS/usr/bin/playos-compositor" \
-         "$AIROOTFS/usr/bin/playos-shell" \
-         "$AIROOTFS/usr/bin/playos-run"
 
 # ── Cleanup ───────────────────────────────────────────────────────────────
 rm -rf "$BUILD_DIR"

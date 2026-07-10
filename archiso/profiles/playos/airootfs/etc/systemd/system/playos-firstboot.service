@@ -16,4 +16,4 @@ ExecStart=/usr/bin/systemctl start NetworkManager
 ExecStart=/usr/bin/systemctl start sshd
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=playos-visual.target

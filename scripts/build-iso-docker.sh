@@ -38,9 +38,9 @@ ln -sf /usr/lib/systemd/system/seatd.service \
   "$AIROOTFS/etc/systemd/system/playos-visual.target.wants/seatd.service"
 
 # Enable bootstrap service (network + sshd + locale)
-mkdir -p "$AIROOTFS/etc/systemd/system/multi-user.target.wants"
+mkdir -p "$AIROOTFS/etc/systemd/system/playos-visual.target.wants"
 ln -sf /etc/systemd/system/playos-firstboot.service \
-  "$AIROOTFS/etc/systemd/system/multi-user.target.wants/playos-firstboot.service"
+  "$AIROOTFS/etc/systemd/system/playos-visual.target.wants/playos-firstboot.service"
 
 # Enable async services
 mkdir -p "$AIROOTFS/etc/systemd/system/playos-async.target.wants"

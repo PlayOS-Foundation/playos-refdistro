@@ -14,6 +14,8 @@ ExecStart=/usr/bin/systemctl enable NetworkManager
 ExecStart=/usr/bin/systemctl enable sshd
 ExecStart=/usr/bin/systemctl start NetworkManager
 ExecStart=/usr/bin/systemctl start sshd
+# WiFi from kernel cmdline: wifi.ssid=MyNet wifi.psk=MyPass
+ExecStart=/usr/bin/bash -c 'for p in $(cat /proc/cmdline); do case "$p" in wifi.ssid=*) SSID="${p#wifi.ssid=}" ;; wifi.psk=*) PSK="${p#wifi.psk=}" ;; esac; done; if [ -n "$SSID" ] && [ -n "$PSK" ]; then nmcli dev wifi connect "$SSID" password "$PSK" 2>/dev/null || true; fi'
 
 [Install]
 WantedBy=playos-visual.target

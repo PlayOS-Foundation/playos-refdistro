@@ -12,6 +12,8 @@ WorkingDirectory=/var/lib/playos
 
 Environment=XDG_RUNTIME_DIR=/run/playos
 Environment=PLAYOS_SHELL_CMD=/usr/bin/playos-shell
+# Software rendering — reliable on all GPUs. Remove for hw acceleration.
+Environment=WLR_RENDERER=pixman
 
 RuntimeDirectory=playos
 RuntimeDirectoryMode=0755

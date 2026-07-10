@@ -17,7 +17,6 @@ RuntimeDirectory=playos
 RuntimeDirectoryMode=0755
 
 ExecStart=/usr/bin/playos-compositor /usr/bin/playos-shell
-ExecStartPost=/usr/bin/systemctl --no-block start playos-async.target
 
 Restart=always
 RestartSec=1

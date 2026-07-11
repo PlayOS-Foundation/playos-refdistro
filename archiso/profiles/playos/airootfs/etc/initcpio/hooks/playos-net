@@ -6,6 +6,13 @@ run_hook() {
         name="${iface##*/}"
         [ "$name" = "lo" ] && continue
         busybox ip link set "$name" up 2>/dev/null
-        busybox udhcpc -i "$name" -t 10 -n -q 2>/dev/null && break
+        if busybox udhcpc -i "$name" -t 10 -n -q 2>/dev/null; then
+            # Set up DNS resolver (udhcpc default.script may not run in initramfs)
+            if [ ! -f /etc/resolv.conf ]; then
+                echo "nameserver 8.8.8.8" > /etc/resolv.conf
+                echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+            fi
+            break
+        fi
     done
 }

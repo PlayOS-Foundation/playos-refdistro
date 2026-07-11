@@ -4,9 +4,11 @@ run_hook() {
     for iface in /sys/class/net/*; do
         name="${iface##*/}"
         [ "$name" = "lo" ] && continue
+        msg ":: Bringing up $name..."
+        busybox ip link set "$name" up
+        msg ":: $name state: $(cat /sys/class/net/$name/operstate)"
         msg ":: Trying DHCP on $name..."
-        busybox ip link set "$name" up 2>/dev/null
-        if busybox udhcpc -i "$name" -t 10 -n 2>/dev/null; then
+        if busybox udhcpc -i "$name" -t 10 -n; then
             msg ":: DHCP succeeded on $name"
             return 0
         fi

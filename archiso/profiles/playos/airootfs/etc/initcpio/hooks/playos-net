@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+run_hook() {
+    # Bring up the first non-lo network interface with DHCP.
+    # Uses busybox applets (ip, udhcpc) which are in the initramfs.
+    for iface in /sys/class/net/*; do
+        name="${iface##*/}"
+        [ "$name" = "lo" ] && continue
+        busybox ip link set "$name" up 2>/dev/null
+        busybox udhcpc -i "$name" -t 10 -n -q 2>/dev/null && break
+    done
+}

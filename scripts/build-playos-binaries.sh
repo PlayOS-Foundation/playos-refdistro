@@ -56,10 +56,12 @@ cmake -B "$BUILD_DIR/playos-shell/build" -G Ninja \
 cmake --build "$BUILD_DIR/playos-shell/build"
 
 # ── Build samples ─────────────────────────────────────────────────────────
-echo "==> Building playos-samples"
+echo "==> Building playos-samples (Wayland-only)"
 cmake -B "$BUILD_DIR/playos-samples/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DPLAYOS_SHELL_WAYLAND=ON \
+  -DGLFW_BUILD_WAYLAND=ON \
+  -DGLFW_BUILD_X11=OFF \
   -S "$BUILD_DIR/playos-samples"
 cmake --build "$BUILD_DIR/playos-samples/build"
 

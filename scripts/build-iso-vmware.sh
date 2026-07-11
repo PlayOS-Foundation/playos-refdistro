@@ -62,6 +62,8 @@ mkdir -p "$OUT"
 rm -rf "$WORK"
 
 echo "==> Building PlayOS ISO..."
+# Use /var/tmp for mkarchiso temp files; avoids tmpfs size limits on /tmp
+export TMPDIR=/var/tmp
 mkarchiso -v \
   -w "$WORK" \
   -o "$OUT" \

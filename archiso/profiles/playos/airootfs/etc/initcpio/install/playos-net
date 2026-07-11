@@ -3,7 +3,7 @@ build() {
     add_runscript
 
     # Add udhcpc default script so busybox udhcpc can configure the IP
-    add_file /usr/share/udhcpc/default.script 755 << 'SCRIPTEOF'
+    add_file - '/usr/share/udhcpc/default.script' 755 << 'SCRIPTEOF'
 #!/bin/sh
 # Minimal udhcpc script for initramfs
 case "$1" in

@@ -14,21 +14,24 @@ run_hook() {
         # Try dhcpcd
         msg ":: Trying dhcpcd on $name..."
         if dhcpcd -t 10 "$name" 2>&1 >> /run/playos-net.log; then
-            echo "PLAYOS-NET: dhcpcd succeeded on $name" >> /run/playos-net.log
             msg ":: DHCP succeeded on $name"
         else
             # Static IP fallback
             msg ":: Static IP fallback on $name..."
             ip addr add 192.168.10.250/24 dev "$name" 2>&1 >> /run/playos-net.log
             ip route add default via 192.168.10.254 dev "$name" 2>&1 >> /run/playos-net.log
-            echo "PLAYOS-NET: static IP configured on $name" >> /run/playos-net.log
         fi
 
-        # Wait for network to stabilize and verify
+        # Wait for network to stabilize
         sleep 2
         if ip route show | grep -q default; then
             msg ":: Network ready on $name"
-            echo "PLAYOS-NET: network ready" >> /run/playos-net.log
+
+            # Pre-create directories needed by archiso_pxe_http
+            # (busybox mount may not support --mkdir)
+            mkdir -p /run/archiso/httpspace/arch/x86_64
+            mkdir -p /run/archiso/bootmnt
+
             return 0
         fi
         msg ":: Network not ready, trying next..."

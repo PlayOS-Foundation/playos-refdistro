@@ -1,12 +1,29 @@
 [Unit]
-Description=PlayOS Network
-After=playos-compositor.service
+Description=PlayOS Network (WiFi + Ethernet + SSH)
+# Start AFTER compositor is running — never on the visual critical path
+After=playos-compositor.service dbus.service playos-firstboot.service
+Wants=dbus.service
 PartOf=playos-async.target
 
 [Service]
-Type=simple
-ExecStart=/usr/bin/NetworkManager --no-daemon
+Type=forking
+ExecStartPre=/usr/bin/systemctl start NetworkManager
+ExecStart=/usr/bin/bash -c '\
+  # Wait for NM to be ready (max 8s)
+  for i in $(seq 1 8); do \
+    nmcli -t general status 2>/dev/null | grep -q "^NM running:yes" && break; \
+    sleep 1; \
+  done; \
+  # Autoconnect to any saved profile (NM does this; we also trigger sshd)
+  systemctl start sshd 2>/dev/null || true; \
+  # WiFi: connect to cmdline profile if written by firstboot
+  NMC=/etc/NetworkManager/system-connections/playos-cmdline.nmconnection; \
+  if [ -f "$NMC" ]; then \
+    nmcli con up playos-cmdline 2>/dev/null || true; \
+  fi'
+RemainAfterExit=yes
 Restart=on-failure
+RestartSec=5
 Nice=5
 CPUWeight=1000
 IOWeight=1000

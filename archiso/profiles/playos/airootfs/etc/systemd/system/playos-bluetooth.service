@@ -1,16 +1,19 @@
 [Unit]
-Description=PlayOS Bluetooth
-After=playos-compositor.service
+Description=PlayOS Bluetooth (BlueZ)
+# Start AFTER compositor is running — never on the visual critical path
+After=playos-compositor.service dbus.service
+Wants=dbus.service
 PartOf=playos-async.target
 
 [Service]
 Type=dbus
 BusName=org.bluez
-ExecStart=/usr/lib/bluetooth/bluetoothd
+ExecStart=/usr/lib/bluetooth/bluetoothd --noplugin=sap
 Restart=on-failure
+RestartSec=3
 Nice=5
-CPUWeight=1000
-IOWeight=1000
+CPUWeight=500
+IOWeight=500
 
 [Install]
 WantedBy=playos-async.target

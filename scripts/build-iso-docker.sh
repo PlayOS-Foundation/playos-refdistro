@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export TMPDIR=/var/tmp   # ensure cmake/ninja/mkarchiso never use /tmp
 
 ROOT="/workspace"
 PROFILE="$ROOT/archiso/profiles/playos"
 OUT="$ROOT/out"
 WORK="/var/tmp/playos-archiso-work"
-TMP_PROFILE="/tmp/playos-profile"
+TMP_PROFILE="/var/tmp/playos-profile"
 
 if [ ! -d "$PROFILE" ]; then
   echo "Missing archiso profile: $PROFILE"

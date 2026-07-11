@@ -2,6 +2,7 @@
 # build-playos-binaries.sh — clone, build, and stage PlayOS compositor + shell
 # into the ISO airootfs. Called by build-iso-*.sh before mkarchiso.
 set -euo pipefail
+export TMPDIR=/var/tmp   # ensure cmake/ninja/cc never use /tmp
 
 AIROOTFS="${1:?usage: $0 <airootfs-dir>}"
 

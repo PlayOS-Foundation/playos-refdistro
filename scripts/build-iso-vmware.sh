@@ -3,6 +3,7 @@
 # (VM, bare metal, or any system with archiso installed).
 # Run scripts/setup-arch-build-host.sh first on a fresh system.
 set -euo pipefail
+export TMPDIR=/var/tmp   # ensure cmake/ninja/mkarchiso never use /tmp
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

@@ -1,18 +1,17 @@
 #!/usr/bin/bash
 run_hook() {
-    # Bring up the first non-lo network interface with DHCP.
-    # Uses busybox applets (ip, udhcpc) which are in the initramfs.
+    msg ":: PlayOS: configuring network..."
     for iface in /sys/class/net/*; do
         name="${iface##*/}"
         [ "$name" = "lo" ] && continue
+        msg ":: Trying DHCP on $name..."
         busybox ip link set "$name" up 2>/dev/null
-        if busybox udhcpc -i "$name" -t 10 -n -q 2>/dev/null; then
-            # Set up DNS resolver (udhcpc default.script may not run in initramfs)
-            if [ ! -f /etc/resolv.conf ]; then
-                echo "nameserver 8.8.8.8" > /etc/resolv.conf
-                echo "nameserver 1.1.1.1" >> /etc/resolv.conf
-            fi
-            break
+        if busybox udhcpc -i "$name" -t 10 -n 2>/dev/null; then
+            msg ":: DHCP succeeded on $name"
+            return 0
         fi
+        msg ":: DHCP failed on $name, trying next..."
     done
+    msg ":: WARNING: No DHCP on any interface, continuing..."
+    return 0
 }

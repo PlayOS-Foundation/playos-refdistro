@@ -3,10 +3,6 @@ run_hook() {
     echo "PLAYOS-NET: hook starting at $(date)" >> /run/playos-net.log
     msg ":: PlayOS: configuring network..."
 
-    # List all interfaces for debugging
-    echo "PLAYOS-NET: interfaces found:" >> /run/playos-net.log
-    ls /sys/class/net/ >> /run/playos-net.log 2>&1
-
     for iface in /sys/class/net/*; do
         name="${iface##*/}"
         [ "$name" = "lo" ] && continue
@@ -14,25 +10,29 @@ run_hook() {
         echo "PLAYOS-NET: trying $name" >> /run/playos-net.log
         msg ":: Bringing up $name..."
         ip link set "$name" up 2>&1 >> /run/playos-net.log
-        msg ":: $name state: $(cat /sys/class/net/$name/operstate)"
 
         # Try dhcpcd
         msg ":: Trying dhcpcd on $name..."
-        if dhcpcd -t 10 -L "$name" 2>&1 >> /run/playos-net.log; then
+        if dhcpcd -t 10 "$name" 2>&1 >> /run/playos-net.log; then
             echo "PLAYOS-NET: dhcpcd succeeded on $name" >> /run/playos-net.log
-            msg ":: DHCP (dhcpcd) succeeded on $name"
-            return 0
+            msg ":: DHCP succeeded on $name"
+        else
+            # Static IP fallback
+            msg ":: Static IP fallback on $name..."
+            ip addr add 192.168.10.250/24 dev "$name" 2>&1 >> /run/playos-net.log
+            ip route add default via 192.168.10.254 dev "$name" 2>&1 >> /run/playos-net.log
+            echo "PLAYOS-NET: static IP configured on $name" >> /run/playos-net.log
         fi
 
-        # Static IP fallback
-        msg ":: Falling back to static IP on $name..."
-        ip addr add 192.168.10.250/24 dev "$name" 2>&1 >> /run/playos-net.log
-        ip route add default via 192.168.10.254 dev "$name" 2>&1 >> /run/playos-net.log
-        echo "PLAYOS-NET: static IP configured on $name" >> /run/playos-net.log
-        msg ":: Static IP 192.168.10.250 on $name"
-        return 0
+        # Wait for network to stabilize and verify
+        sleep 2
+        if ip route show | grep -q default; then
+            msg ":: Network ready on $name"
+            echo "PLAYOS-NET: network ready" >> /run/playos-net.log
+            return 0
+        fi
+        msg ":: Network not ready, trying next..."
     done
-    echo "PLAYOS-NET: no interfaces found!" >> /run/playos-net.log
-    msg ":: WARNING: No network interface found!"
+    msg ":: WARNING: No network!"
     return 0
 }

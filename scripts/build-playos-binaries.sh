@@ -12,6 +12,7 @@ REPOS=(
   "https://github.com/PlayOS-Foundation/playos-runtime.git"
   "https://github.com/PlayOS-Foundation/playos-shell.git"
   "https://github.com/PlayOS-Foundation/playos-samples.git"
+  "https://github.com/PlayOS-Foundation/playos-reference-devices.git"
 )
 
 echo "==> Cloning PlayOS repos"
@@ -83,6 +84,20 @@ install -m 755 "$BUILD_DIR/playos-samples/build/hello-playos" \
   "$AIROOTFS/playos-samples/build/hello-playos"
 install -m 755 "$BUILD_DIR/playos-samples/build/space-invaders" \
   "$AIROOTFS/playos-samples/build/space-invaders"
+
+# ── Deploy device profiles (RFC-0006) ────────────────────────────────────
+echo "==> Deploying device profiles"
+mkdir -p "$AIROOTFS/etc/playos/device-profiles"
+
+# Copy every device profile found in the reference-devices repo.
+for device_dir in "$BUILD_DIR/playos-reference-devices"/*/; do
+    profile="$device_dir/device-profile.toml"
+    if [ -f "$profile" ]; then
+        dev_name=$(basename "$device_dir")
+        cp "$profile" "$AIROOTFS/etc/playos/device-profiles/$dev_name.toml"
+        echo "    $dev_name"
+    fi
+done
 
 # ── Cleanup ───────────────────────────────────────────────────────────────
 rm -rf "$BUILD_DIR"

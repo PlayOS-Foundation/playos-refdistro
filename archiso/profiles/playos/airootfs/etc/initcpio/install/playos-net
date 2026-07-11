@@ -1,35 +1,10 @@
 #!/bin/bash
 build() {
     add_runscript
-
-    # Add udhcpc default script so busybox udhcpc can configure the IP
-    add_file - '/usr/share/udhcpc/default.script' 755 << 'SCRIPTEOF'
-#!/bin/sh
-# Minimal udhcpc script for initramfs
-case "$1" in
-    bound|renew)
-        ip addr add "$ip/$mask" dev "$interface" 2>/dev/null
-        ip link set "$interface" up
-        if [ -n "$router" ]; then
-            ip route add default via "$router" dev "$interface" 2>/dev/null
-        fi
-        if [ -n "$dns" ]; then
-            echo "nameserver $dns" > /etc/resolv.conf
-        fi
-        echo "nameserver 8.8.8.8" >> /etc/resolv.conf
-        echo "nameserver 1.1.1.1" >> /etc/resolv.conf
-        ;;
-    deconfig)
-        ip addr flush dev "$interface" 2>/dev/null
-        ip link set "$interface" down 2>/dev/null
-        ;;
-esac
-exit 0
-SCRIPTEOF
 }
 help() {
     cat <<EOF
 PlayOS — configure network via DHCP in early userspace.
-Uses busybox ip and udhcpc to bring up the first non-lo interface.
+Tries dhcpcd first, then udhcpc, then static IP fallback.
 EOF
 }

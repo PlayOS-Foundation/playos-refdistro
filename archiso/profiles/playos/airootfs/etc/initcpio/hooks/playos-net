@@ -4,16 +4,32 @@ run_hook() {
     for iface in /sys/class/net/*; do
         name="${iface##*/}"
         [ "$name" = "lo" ] && continue
+
         msg ":: Bringing up $name..."
-        busybox ip link set "$name" up
+        ip link set "$name" up
         msg ":: $name state: $(cat /sys/class/net/$name/operstate)"
-        msg ":: Trying DHCP on $name..."
-        if busybox udhcpc -i "$name" -t 10 -n; then
-            msg ":: DHCP succeeded on $name"
+
+        # Try dhcpcd (reliable DHCP client)
+        msg ":: Trying dhcpcd on $name..."
+        if dhcpcd -t 10 -L "$name" 2>/dev/null; then
+            msg ":: DHCP (dhcpcd) succeeded on $name"
             return 0
         fi
-        msg ":: DHCP failed on $name, trying next..."
+
+        # Fallback: try busybox udhcpc
+        msg ":: Trying udhcpc on $name..."
+        if busybox udhcpc -i "$name" -t 10 -n 2>/dev/null; then
+            msg ":: DHCP (udhcpc) succeeded on $name"
+            return 0
+        fi
+
+        # Last resort: static IP
+        msg ":: Falling back to static IP on $name..."
+        ip addr add 192.168.10.250/24 dev "$name" 2>/dev/null
+        ip route add default via 192.168.10.254 dev "$name" 2>/dev/null
+        msg ":: Static IP 192.168.10.250 configured on $name"
+        return 0
     done
-    msg ":: WARNING: No DHCP on any interface, continuing..."
+    msg ":: WARNING: No network interface found!"
     return 0
 }

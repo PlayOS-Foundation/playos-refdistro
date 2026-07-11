@@ -17,6 +17,7 @@ bootstrap_tarball_compression=(xz -9e)
 file_permissions=(
   ["/etc/shadow"]="0:0:400"
   ["/usr/bin/playos-compositor"]="0:0:755"
+  ["/usr/bin/playos-compositor-env"]="0:0:755"
   ["/usr/bin/playos-shell"]="0:0:755"
   ["/usr/bin/playos-run"]="0:0:755"
   ["/playos-samples/build/hello-playos"]="0:0:755"

@@ -15,6 +15,7 @@ systemd
 dbus
 udev
 seatd
+dhcpcd
 mesa
 wayland
 wayland-protocols

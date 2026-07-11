@@ -73,3 +73,17 @@ mkarchiso -v \
 echo ""
 echo "==> Done:"
 ls -lh "$OUT"/*.iso
+
+# ── Refresh PXE netboot files (if dnsmasq is configured) ──────────────────
+if [ -d /srv/playos-pxe ] && command -v mount > /dev/null; then
+    echo "==> Refreshing PXE netboot files..."
+    ISO_FILE=$(ls -t "$OUT"/*.iso 2>/dev/null | head -1)
+    if [ -n "$ISO_FILE" ]; then
+        mkdir -p /mnt/iso
+        mount -o loop "$ISO_FILE" /mnt/iso 2>/dev/null || true
+        cp /mnt/iso/arch/boot/x86_64/vmlinuz-linux /srv/playos-pxe/ 2>/dev/null || true
+        cp /mnt/iso/arch/boot/x86_64/initramfs-linux.img /srv/playos-pxe/ 2>/dev/null || true
+        umount /mnt/iso 2>/dev/null || true
+        echo "    PXE boot files updated ($(date +%H:%M:%S))"
+    fi
+fi

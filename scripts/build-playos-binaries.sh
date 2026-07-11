@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# build-playos-binaries.sh — clone, build, and stage PlayOS compositor + shell
-# into the ISO airootfs. Called by build-iso-*.sh before mkarchiso.
+# build-playos-binaries.sh — clone/pull, build, and stage PlayOS compositor
+# + shell into the ISO airootfs. Called by build-iso-*.sh before mkarchiso.
+#
+# Incremental: repos and build dirs are kept between runs. Only changed
+# source files are recompiled (ninja). Delete /var/tmp/playos-iso-build
+# manually if you need a clean build.
 set -euo pipefail
 export TMPDIR=/var/tmp   # ensure cmake/ninja/cc never use /tmp
 
@@ -15,12 +19,15 @@ REPOS=(
   "https://github.com/PlayOS-Foundation/playos-reference-devices.git"
 )
 
-echo "==> Cloning PlayOS repos"
-rm -rf "$BUILD_DIR"
+echo "==> Syncing PlayOS repos"
 mkdir -p "$BUILD_DIR"
 for url in "${REPOS[@]}"; do
   name="$(basename "$url" .git)"
-  git clone --depth 1 "$url" "$BUILD_DIR/$name"
+  if [ -d "$BUILD_DIR/$name/.git" ]; then
+    git -C "$BUILD_DIR/$name" pull --ff-only
+  else
+    git clone --depth 1 "$url" "$BUILD_DIR/$name"
+  fi
 done
 
 # ── Generate missing protocol headers (Arch wlroots packaging quirk) ─────
@@ -99,6 +106,4 @@ for device_dir in "$BUILD_DIR/playos-reference-devices"/*/; do
     fi
 done
 
-# ── Cleanup ───────────────────────────────────────────────────────────────
-rm -rf "$BUILD_DIR"
 echo "==> PlayOS binaries staged successfully"

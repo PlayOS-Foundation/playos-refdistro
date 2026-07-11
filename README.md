@@ -24,16 +24,23 @@ Do not wait for network, Bluetooth, audio, cloud, updates, or library indexing.
 | 2.0 s | **first shell frame visible** |
 | 2.0 s+ | audio, network, Bluetooth, library, updates start async |
 
-## Current state (v0.1)
+## Current state (v0.2)
 
 - ✅ ISO boots to PlayOS visual target
 - ✅ wlroots compositor takes over display (DRM/KMS)
-- ✅ Raylib shell UI appears with game library
+- ✅ Raylib shell UI appears with game library (doubled fonts, readable on TV/console)
 - ✅ Keyboard navigation (arrows, Enter, Esc)
-- ✅ Sample games launch and return to shell
+- ✅ Sample games launch and return to shell (hello-playos, space-invaders)
 - ✅ SSH access (root, empty password)
-- ⚠️ VMware needs `WLR_RENDERER=pixman` override
-- ⬚ ROG Ally — pending test
+- ✅ IP address shown in shell bottom-right
+- ✅ GPU auto-detection — pixman for VMware/virtio, EGL/GLES2 for real hardware
+- ✅ Battery level shown in shell (auto-detected via sysfs — ROG Ally confirmed)
+- ✅ Overlay size 512 MB (BIOS + UEFI boot entries)
+- ✅ ROG Ally — compositor + shell + games working, battery visible
+- ⚠️ VMware: `WLR_RENDERER=pixman` set automatically (vmwgfx limitation)
+- ⬚ Controller input — evdev backend present, end-to-end test pending
+- ⬚ Audio — PipeWire installed, not yet wired through Platform API
+- ⬚ Suspend/resume — not yet implemented
 
 ## Host requirements
 

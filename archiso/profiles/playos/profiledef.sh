@@ -22,4 +22,5 @@ file_permissions=(
   ["/usr/bin/playos-run"]="0:0:755"
   ["/playos-samples/build/hello-playos"]="0:0:755"
   ["/playos-samples/build/space-invaders"]="0:0:755"
+  ["/usr/bin/playos-install"]="0:0:755"
 )

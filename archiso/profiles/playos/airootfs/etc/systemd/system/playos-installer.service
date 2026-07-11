@@ -1,0 +1,22 @@
+[Unit]
+Description=PlayOS — Install to Internal Disk
+Documentation=https://github.com/PlayOS-Foundation/playos-refdistro
+After=playos-compositor.service
+Before=reboot.target
+ConditionPathExists=/run/playos/install-target
+
+[Service]
+Type=oneshot
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+ExecStartPre=-/usr/bin/systemctl stop playos-compositor
+ExecStartPre=-/usr/bin/sleep 1
+ExecStart=/usr/bin/playos-install
+ExecStopPost=/usr/bin/systemctl start playos-compositor
+TimeoutSec=0
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

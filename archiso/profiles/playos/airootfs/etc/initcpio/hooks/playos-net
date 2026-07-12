@@ -1,13 +1,12 @@
 #!/usr/bin/bash
 run_hook() {
-    echo "PLAYOS-NET: hook starting at $(date)" >> /run/playos-net.log
+    echo "PLAYOS-NET: hook starting" >> /run/playos-net.log
     msg ":: PlayOS: configuring network..."
 
     for iface in /sys/class/net/*; do
         name="${iface##*/}"
         [ "$name" = "lo" ] && continue
 
-        echo "PLAYOS-NET: trying $name" >> /run/playos-net.log
         msg ":: Bringing up $name..."
         ip link set "$name" up 2>&1 >> /run/playos-net.log
 
@@ -22,19 +21,21 @@ run_hook() {
             ip route add default via 192.168.10.254 dev "$name" 2>&1 >> /run/playos-net.log
         fi
 
-        # Wait for network to stabilize
-        sleep 2
-        if ip route show | grep -q default; then
-            msg ":: Network ready on $name"
+        # Wait for real connectivity (not just route table)
+        for i in 1 2 3 4 5; do
+            sleep 1
+            if ping -c 1 -W 1 192.168.10.89 >/dev/null 2>&1; then
+                msg ":: Network verified (ping OK on $name)"
 
-            # Pre-create directories needed by archiso_pxe_http
-            # (busybox mount may not support --mkdir)
-            mkdir -p /run/archiso/httpspace/arch/x86_64
-            mkdir -p /run/archiso/bootmnt
+                # Pre-create directories needed by archiso_pxe_http
+                mkdir -p /run/archiso/httpspace/arch/x86_64
+                mkdir -p /run/archiso/bootmnt
 
-            return 0
-        fi
-        msg ":: Network not ready, trying next..."
+                return 0
+            fi
+            msg ":: Waiting for network... ($i/5)"
+        done
+        msg ":: No connectivity on $name, trying next..."
     done
     msg ":: WARNING: No network!"
     return 0

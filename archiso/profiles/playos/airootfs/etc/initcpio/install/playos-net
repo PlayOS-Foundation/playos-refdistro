@@ -1,6 +1,8 @@
 #!/bin/bash
 build() {
     add_runscript
+    # Bundle fixed drm_exec.ko (workaround for mkfs.erofs corruption of small files)
+    add_file /etc/initcpio/fixups/drm_exec.ko /fixup/drm_exec.ko 644
 }
 help() {
     cat <<EOF

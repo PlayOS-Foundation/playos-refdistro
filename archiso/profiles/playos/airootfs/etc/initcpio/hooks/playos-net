@@ -3,6 +3,11 @@ run_hook() {
     echo "PLAYOS-NET: hook starting" >> /run/playos-net.log
     msg ":: PlayOS: configuring network..."
 
+    # Load fixed drm_exec.ko (workaround for mkfs.erofs corruption)
+    if [ -f /fixup/drm_exec.ko ]; then
+        insmod /fixup/drm_exec.ko 2>/dev/null && msg ":: Loaded fixed drm_exec"
+    fi
+
     # Wait for network interfaces to appear (USB Ethernet may be slow)
     for wait in 1 2 3 4 5 6 7 8 9 10; do
         for iface in /sys/class/net/*; do

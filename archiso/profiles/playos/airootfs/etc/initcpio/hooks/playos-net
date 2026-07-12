@@ -3,40 +3,46 @@ run_hook() {
     echo "PLAYOS-NET: hook starting" >> /run/playos-net.log
     msg ":: PlayOS: configuring network..."
 
-    for iface in /sys/class/net/*; do
-        name="${iface##*/}"
-        [ "$name" = "lo" ] && continue
+    # Wait for network interfaces to appear (USB Ethernet may be slow)
+    for wait in 1 2 3 4 5 6 7 8 9 10; do
+        for iface in /sys/class/net/*; do
+            name="${iface##*/}"
+            [ "$name" = "lo" ] && continue
+            echo "PLAYOS-NET: found $name after ${wait}s" >> /run/playos-net.log
 
-        msg ":: Bringing up $name..."
-        ip link set "$name" up 2>&1 >> /run/playos-net.log
+            msg ":: Bringing up $name..."
+            ip link set "$name" up 2>&1 >> /run/playos-net.log
 
-        # Try dhcpcd
-        msg ":: Trying dhcpcd on $name..."
-        if dhcpcd -t 10 "$name" 2>&1 >> /run/playos-net.log; then
-            msg ":: DHCP succeeded on $name"
-        else
-            # Static IP fallback
-            msg ":: Static IP fallback on $name..."
-            ip addr add 192.168.10.250/24 dev "$name" 2>&1 >> /run/playos-net.log
-            ip route add default via 192.168.10.254 dev "$name" 2>&1 >> /run/playos-net.log
-        fi
-
-        # Wait for real connectivity (not just route table)
-        for i in 1 2 3 4 5; do
-            sleep 1
-            if ping -c 1 -W 1 192.168.10.89 >/dev/null 2>&1; then
-                msg ":: Network verified (ping OK on $name)"
-
-                # Pre-create directories needed by archiso_pxe_http
-                mkdir -p /run/archiso/httpspace/arch/x86_64
-                mkdir -p /run/archiso/bootmnt
-
-                return 0
+            # Try dhcpcd
+            msg ":: Trying dhcpcd on $name..."
+            if dhcpcd -t 10 "$name" 2>&1 >> /run/playos-net.log; then
+                msg ":: DHCP succeeded on $name"
+            else
+                # Static IP fallback
+                msg ":: Static IP fallback on $name..."
+                ip addr add 192.168.10.250/24 dev "$name" 2>&1 >> /run/playos-net.log
+                ip route add default via 192.168.10.254 dev "$name" 2>&1 >> /run/playos-net.log
             fi
-            msg ":: Waiting for network... ($i/5)"
+
+            # Verify connectivity
+            for i in 1 2 3 4 5; do
+                sleep 1
+                if ping -c 1 -W 1 192.168.10.89 >/dev/null 2>&1; then
+                    msg ":: Network verified (ping OK on $name)"
+                    mkdir -p /run/archiso/httpspace/arch/x86_64
+                    mkdir -p /run/archiso/bootmnt
+                    echo "PLAYOS-NET: done" >> /run/playos-net.log
+                    return 0
+                fi
+                msg ":: Waiting for network... ($i/5)"
+            done
+            msg ":: No connectivity on $name, trying next..."
+            return 1  # exit loop, try next wait iteration
         done
-        msg ":: No connectivity on $name, trying next..."
+        msg ":: Waiting for network interface... ($wait/10)"
+        sleep 1
     done
     msg ":: WARNING: No network!"
+    echo "PLAYOS-NET: no interface found after 10s" >> /run/playos-net.log
     return 0
 }

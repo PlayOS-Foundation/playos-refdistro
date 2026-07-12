@@ -8,6 +8,9 @@ run_hook() {
         mkdir -p /run/fixup-firmware/amdgpu
         cp -a /fixup/firmware/amdgpu/* /run/fixup-firmware/amdgpu/ 2>/dev/null
         cp -a /fixup/drm_exec.ko /run/fixup-firmware/ 2>/dev/null
+        # Stage device profiles so shell reads from safe tmpfs, not EROFS
+        mkdir -p /run/playos/profiles
+        cp -a /fixup/profiles/* /run/playos/profiles/ 2>/dev/null
         msg ":: Staged EROFS fixup files to /run"
     fi
 

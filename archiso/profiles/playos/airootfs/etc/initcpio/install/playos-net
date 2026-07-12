@@ -10,6 +10,12 @@ build() {
         [ -f "$fw" ] || continue
         add_file "$fw" "/fixup/firmware/amdgpu/$(basename $fw)" 644
     done
+
+    # Bundle device profiles (workaround for tomlplusplus EROFS segfault)
+    for prof in /etc/initcpio/fixups/profiles/*.toml; do
+        [ -f "$prof" ] || continue
+        add_file "$prof" "/fixup/profiles/$(basename $prof)" 644
+    done
 }
 help() {
     cat <<EOF

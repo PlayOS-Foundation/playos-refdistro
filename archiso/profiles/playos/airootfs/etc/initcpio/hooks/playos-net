@@ -3,9 +3,12 @@ run_hook() {
     echo "PLAYOS-NET: hook starting" >> /run/playos-net.log
     msg ":: PlayOS: configuring network..."
 
-    # Load fixed drm_exec.ko (workaround for mkfs.erofs corruption)
-    if [ -f /fixup/drm_exec.ko ]; then
-        insmod /fixup/drm_exec.ko 2>/dev/null && msg ":: Loaded fixed drm_exec"
+    # Stage EROFS fixup files to /run (preserved across switch_root)
+    if [ -d /fixup ]; then
+        mkdir -p /run/fixup-firmware/amdgpu
+        cp -a /fixup/firmware/amdgpu/* /run/fixup-firmware/amdgpu/ 2>/dev/null
+        cp -a /fixup/drm_exec.ko /run/fixup-firmware/ 2>/dev/null
+        msg ":: Staged EROFS fixup files to /run"
     fi
 
     # Wait for network interfaces to appear (USB Ethernet may be slow)

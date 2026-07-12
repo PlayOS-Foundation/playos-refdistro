@@ -1,8 +1,15 @@
 #!/bin/bash
 build() {
     add_runscript
-    # Bundle fixed drm_exec.ko (workaround for mkfs.erofs corruption of small files)
+
+    # Bundle fixed drm_exec.ko (workaround for mkfs.erofs corruption)
     add_file /etc/initcpio/fixups/drm_exec.ko /fixup/drm_exec.ko 644
+
+    # Bundle fixed amdgpu firmware
+    for fw in /etc/initcpio/fixups/firmware/amdgpu/*.bin.zst; do
+        [ -f "$fw" ] || continue
+        add_file "$fw" "/fixup/firmware/amdgpu/$(basename $fw)" 644
+    done
 }
 help() {
     cat <<EOF

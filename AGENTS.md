@@ -1,112 +1,65 @@
 # AGENTS.md — playos-refdistro
 
-Instructions for AI coding agents working in this repository.
+## Purpose
 
-## Repository purpose
+This repository builds the Alpine-based PlayOS reference operating system for full Runtime Devices.
 
-This repository builds the minimal Arch-based PlayOS operating system image
-for Runtime Devices. The build runs in Docker Desktop (Arch Linux container)
-and produces bootable ISOs tested in VirtualBox.
+## Source of truth
+
+Platform behaviour is specified in `playos-spec`. ADR-0004 selects Alpine Linux, musl, apk, OpenRC, and Alpine mkimage tooling for the reference OS. Distribution details must not leak into the public PlayOS API.
 
 ## Golden rules
 
-1. **The shell must appear first.** No service may block the first shell
-   frame. Audio, network, Bluetooth, library scanning, and updates start
-   asynchronously after `playos-compositor.service` is running.
+1. **First frame first.** Only GPU/input readiness, seatd, compositor, and shell belong on the visual path.
+2. **Use Alpine-native mechanisms.** New work uses apk, OpenRC, aports, mkimage, initramfs, modloop, and supported Alpine persistence patterns.
+3. **Pin releases.** Released images use a pinned Alpine stable branch. Do not consume unpinned edge repositories.
+4. **Preserve the Arch evidence.** `archiso/` is legacy migration material until Alpine reaches hardware parity. Do not rewrite history or delete it casually.
+5. **Keep runtime code distribution-independent.** Package/init/image code belongs here. Runtime and shell sources must build on musl without depending on apk or OpenRC APIs.
+6. **Docker builds; VMs and hardware boot.** Container success does not validate DRM/KMS, input, suspend, or firmware.
+7. **No secrets or host-specific paths.**
 
-2. **Docker is only the build environment.** Never treat Docker as a valid
-   boot-test environment. Use VirtualBox for UEFI boot tests. Use real
-   hardware for GPU/DRM/KMS, input latency, and handheld control validation.
+## Primary workflow
 
-3. **The compositor is the display owner.** `playos-compositor.service` runs
-   as user `playos`, owns DRM/KMS, and manages all Wayland surfaces. The
-   shell is a Wayland client, not the compositor.
-
-4. **Systemd units must never depend on `network-online.target`,
-   `NetworkManager-wait-online.service`, or `systemd-networkd-wait-online.service`.**
-   These are unbounded delays that violate the boot budget.
-
-5. **Placeholders are valid v0.1 artifacts.** The initial compositor and
-   shell may be bash scripts that echo their status. Real C/C++/Raylib
-   implementations come later. Do not delete working placeholders.
-
-6. **Kernel policy: stock first.** The initial profile uses the stock Arch
-   `linux` kernel. A CachyOS kernel profile is a separate future addition,
-   not a replacement for the baseline.
-
-## Repository conventions
-
-- Shell scripts: `#!/usr/bin/env bash`, `set -euo pipefail`, executable
-- PowerShell scripts: `$ErrorActionPreference = "Stop"`
-- Systemd units: `[Unit]`, `[Service]`, `[Install]` in standard order
-- Package lists: one package per line, alphabetized within groups, comment
-  block at top explaining the group
-- Profile files: never edit Arch's baseline profile files directly unless
-  the guide specifies a customization
-
-## Build workflow
-
-```
-PowerShell scripts (host)
-    → docker run (container)
-        → bash scripts (container)
-            → mkarchiso
-                → out/*.iso
+```text
+PowerShell or shell wrapper
+  → pinned Alpine builder container
+  → aports/mkimage PlayOS profile
+  → out/*.iso
+  → QEMU/OVMF smoke test
+  → VirtualBox compatibility test
+  → ROG Ally hardware test
 ```
 
-When adding a new build step:
-- Add the container-side script under `scripts/` as a `.sh` file
-- Add a PowerShell wrapper under `scripts/` as a `.ps1` file if it's a
-  top-level developer command
-- Document the step in this order: `README.md` quick start, then `docs/`
+## Layout policy
 
-## Boot budget enforcement
+- `alpine/`: authoritative profile, package lists, overlays, and image configuration.
+- `docker/Dockerfile`: primary pinned Alpine builder.
+- `scripts/build-iso-docker.sh`: primary image entrypoint.
+- `archiso/` and Arch-named scripts: legacy only during migration.
+- `docs/alpine-migration.md`: parity gates and retirement criteria.
 
-The `playos-visual.target` boot chain must stay under 2 seconds:
+## Service policy
 
-```
-UEFI → kernel → systemd → playos-visual.target
-    → seatd.service
-    → playos-compositor.service
-        → /usr/bin/playos-compositor
-        → /usr/bin/playos-shell (first frame)
-```
+OpenRC is the reference init system.
 
-Any new service added to the visual path must have a documented boot-time
-cost in `docs/boot-budget.md`. Services that cannot meet the budget belong
-in `playos-async.target`.
+- `playos-visual` contains only the first-frame path.
+- `playos-async` contains audio, networking, Bluetooth, library, updates, cloud, marketplace, telemetry, and debug services.
+- A background service may wait for compositor readiness.
+- The compositor must never wait for a background service.
+- Long-running daemons should use OpenRC supervision and bounded readiness checks.
 
-## Resource partitioning
+## Compatibility policy
 
-All units MUST be assigned to a slice:
+Reference components build against musl. glibc-only games run through declared compatibility runtimes. Do not add host-wide glibc as an implicit base dependency.
 
-| Unit type | Slice |
-|-----------|-------|
-| Compositor, shell, UI | `playos-ui.slice` |
-| Game process | `playos-game.slice` |
-| Background services | `playos-background.slice` |
+## Validation
 
-Do not create services without a `Slice=` directive.
+Every image change should record:
 
-## Symlinks on Windows
-
-Systemd requires symlinks for `.wants/` directories and the default target.
-Git on Windows may not preserve these. When creating symlinks, document the
-exact `ln -sf` command and note that it must run inside a Linux container
-or WSL. Never use Windows shortcuts or junctions for systemd symlinks.
-
-## Testing
-
-After each significant change:
-1. `.\scripts\docker-build-iso.ps1` — must produce `out/*.iso`
-2. Boot ISO in VirtualBox (UEFI mode) — must reach shell placeholder
-3. Verify in the serial console that `playos-async.target` started
-
-## See also
-
-- `playos-arch-docker-agent-guide.md` in the workspace root — the full
-  step-by-step implementation guide
-- `../playos-spec/book/` — the PlayOS Book (architecture, compositor model,
-  runtime architecture)
-- `../playos-runtime/` — compositor source and process launcher
-- `../playos-shell/` — reference shell source
+- pinned Alpine tag and repositories;
+- image digest;
+- VM boot result;
+- first-frame timestamp;
+- renderer;
+- kernel, Mesa, firmware, and wlroots versions;
+- hardware result when device-facing code changed.

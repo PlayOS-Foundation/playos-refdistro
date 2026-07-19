@@ -11,7 +11,8 @@ profile_playos() {
     apkovl="genapkovl-playos.sh"
 
     # Start the dedicated visual runlevel after sysinit and boot.
-    kernel_cmdline="quiet modules=loop,squashfs,sd-mod,usb-storage nomodeset=0 softlevel=playos-visual"
+    # Do not pass nomodeset: early amdgpu DRM/KMS is required.
+    kernel_cmdline="quiet modules=loop,squashfs,sd-mod,usb-storage softlevel=playos-visual"
 
     apks="$apks
         alpine-base

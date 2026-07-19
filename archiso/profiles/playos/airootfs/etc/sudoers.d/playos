@@ -1,2 +1,0 @@
-# PlayOS — allow the playos user full sudo without password
-playos ALL=(ALL:ALL) NOPASSWD: ALL

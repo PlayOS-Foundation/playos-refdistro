@@ -1,8 +1,0 @@
-[Unit]
-Description=PlayOS Visual Boot Target
-Documentation=man:systemd.special(7)
-Requires=local-fs.target
-After=local-fs.target systemd-udev-trigger.service
-# Async services start after the compositor is up — no delay to shell
-Wants=playos-async.target
-AllowIsolate=yes

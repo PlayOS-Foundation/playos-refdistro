@@ -2,11 +2,9 @@
 
 ADR-0004 replaces Arch with Alpine as the PlayOS reference OS base.
 
-## What is preserved
+## Archive policy
 
-The existing `archiso/` tree and Arch builder remain temporarily as regression material because they contain a ROG Ally-verified compositor/shell path, device-profile handling, firmware fixes, and boot measurements.
-
-No Git history will be rewritten.
+The Arch profile and its build artifacts have been removed from the active tree. Git history is the canonical archive; no history is rewritten. Distribution-neutral device findings are retained as documentation and must be revalidated against Alpine rather than copied as Arch-specific workarounds.
 
 ## Phases
 
@@ -56,9 +54,9 @@ No Git history will be rewritten.
 - [ ] Verify PXE and ISO consume identical build inputs.
 - [ ] Boot over Ethernet on the ROG Ally/dock.
 
-### F. Arch retirement
+### F. Future distro profiles
 
-Remove active Arch files only after the required gates are green and Alpine passes repeated hardware tests. Use a normal reviewed commit; history remains recoverable.
+A future Arch or other distro profile requires a new proposal and an independently maintained packaging, image, init/service, validation, and release path. Reintroducing an old profile from history is not sufficient.
 
 ## Compatibility
 

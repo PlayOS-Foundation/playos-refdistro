@@ -1,7 +1,0 @@
-[Unit]
-Description=PlayOS Active Game Slice
-
-[Slice]
-CPUWeight=8000
-IOWeight=8000
-MemoryHigh=85%

@@ -1,7 +1,0 @@
-[Unit]
-Description=PlayOS UI and Compositor Slice
-
-[Slice]
-CPUWeight=10000
-IOWeight=10000
-MemoryHigh=80%

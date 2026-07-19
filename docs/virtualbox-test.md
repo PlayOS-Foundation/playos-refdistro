@@ -6,7 +6,7 @@
 |---------|-------|
 | Name | PlayOS-Test |
 | Type | Linux |
-| Version | Arch Linux (64-bit) |
+| Version | Other Linux (64-bit) |
 | RAM | 4096 MB minimum |
 | CPU | 2-4 cores |
 | Firmware | Enable EFI (special OSes only) |
@@ -24,13 +24,11 @@
 4. Inside the booted ISO, run:
 
 ```bash
-systemctl status playos-compositor.service
-systemctl status playos-async.target
-systemd-analyze
-systemd-analyze critical-chain
-journalctl -b -u playos-compositor.service
+rc-status --all
+rc-service seatd status
+dmesg | tail -n 100
 /usr/bin/playos-boot-report
 ```
 
-5. Confirm `playos-async.target` started after the compositor
-6. Confirm no `network-online.target` dependency blocked boot
+5. Once compositor packages are present, confirm `playos-async` started after compositor readiness
+6. Confirm network readiness did not block the visual boot path

@@ -13,8 +13,8 @@
 |------|-----------|
 | 0.0 s | UEFI handoff |
 | 0.3 s | Kernel init |
-| 0.5 s | systemd starts, local-fs.target reached |
-| 0.8 s | udev triggers complete (GPU + input only) |
+| 0.5 s | OpenRC starts; local filesystems ready |
+| 0.8 s | device discovery completes for GPU + input |
 | 1.0 s | seatd starts |
 | 1.5 s | playos-compositor takes DRM/KMS |
 | 2.0 s | First shell frame visible |
@@ -23,4 +23,4 @@
 
 Any service added to the visual boot path must be measured and documented
 here before merging. Services that cannot meet the 2-second budget belong
-in `playos-async.target`.
+in the `playos-async` runlevel.

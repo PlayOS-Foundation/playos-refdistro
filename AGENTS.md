@@ -13,7 +13,7 @@ Platform behaviour is specified in `playos-spec`. ADR-0004 selects Alpine Linux,
 1. **First frame first.** Only GPU/input readiness, seatd, compositor, and shell belong on the visual path.
 2. **Use Alpine-native mechanisms.** New work uses apk, OpenRC, aports, mkimage, initramfs, modloop, and supported Alpine persistence patterns.
 3. **Pin releases.** Released images use a pinned Alpine stable branch. Do not consume unpinned edge repositories.
-4. **Preserve the Arch evidence.** `archiso/` is legacy migration material until Alpine reaches hardware parity. Do not rewrite history or delete it casually.
+4. **Keep one active distro implementation.** Alpine is the only supported profile. The retired Arch implementation is preserved in Git history, not in the active tree.
 5. **Keep runtime code distribution-independent.** Package/init/image code belongs here. Runtime and shell sources must build on musl without depending on apk or OpenRC APIs.
 6. **Docker builds; VMs and hardware boot.** Container success does not validate DRM/KMS, input, suspend, or firmware.
 7. **No secrets or host-specific paths.**
@@ -21,8 +21,8 @@ Platform behaviour is specified in `playos-spec`. ADR-0004 selects Alpine Linux,
 ## Primary workflow
 
 ```text
-PowerShell or shell wrapper
-  → pinned Alpine builder container
+Ubuntu wrapper or optional container wrapper
+  → pinned Alpine build root
   → aports/mkimage PlayOS profile
   → out/*.iso
   → QEMU/OVMF smoke test
@@ -33,10 +33,11 @@ PowerShell or shell wrapper
 ## Layout policy
 
 - `alpine/`: authoritative profile, package lists, overlays, and image configuration.
-- `docker/Dockerfile`: primary pinned Alpine builder.
-- `scripts/build-iso-docker.sh`: primary image entrypoint.
-- `archiso/` and Arch-named scripts: legacy only during migration.
-- `docs/alpine-migration.md`: parity gates and retirement criteria.
+- `docker/Dockerfile`: optional pinned Alpine builder.
+- `scripts/build-alpine-iso.sh`: shared image entrypoint.
+- `docs/alpine-migration.md`: Alpine bring-up and parity gates.
+
+A future distro backend must be proposed separately and own its package recipes, image tooling, init/service definitions, tests, and release lifecycle. It must not share mutable implementation state with the Alpine profile.
 
 ## Service policy
 

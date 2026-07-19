@@ -71,12 +71,12 @@ See [Native Ubuntu build](docs/ubuntu-native-build.md).
 
 Both host workflows call the same Alpine build entrypoint and produce output in `out/`.
 
-## Migration status
+## Implementation status
 
-- `archiso/` remains as legacy regression evidence.
-- New image work belongs under `alpine/`.
-- Arch systemd, pacman, and EROFS workarounds must be revalidated rather than copied.
-- Arch may leave the active tree only after Alpine reaches ROG Ally parity.
+- Alpine is the only active reference-distro profile.
+- Image work belongs under `alpine/` and uses apk, aports, mkimage, and OpenRC.
+- The retired Arch implementation remains recoverable from Git history.
+- A future Arch profile requires its own proposal, packaging, image, init, test, and release lifecycle.
 
 See [Alpine migration](docs/alpine-migration.md).
 
@@ -104,8 +104,7 @@ playos-refdistro/
 │   ├── genapkovl-playos.sh
 │   └── packages.x86_64
 ├── docker/
-│   ├── Dockerfile
-│   └── arch-legacy.Dockerfile
+│   └── Dockerfile
 ├── scripts/
 │   ├── setup-ubuntu-build-host.sh
 │   ├── build-iso-ubuntu.sh
@@ -113,14 +112,13 @@ playos-refdistro/
 │   ├── install-alpine-build-deps.sh
 │   ├── build-alpine-iso.sh
 │   └── build-iso-docker.sh
-├── archiso/
 ├── docs/
 └── out/
 ```
 
 ## Baseline validation
 
-The Alpine profile does not replace the Arch baseline until it passes:
+The Alpine baseline is accepted when it passes:
 
 - reproducible ISO build from the pinned minirootfs;
 - UEFI boot in headless QEMU/OVMF;

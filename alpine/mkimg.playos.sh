@@ -37,7 +37,6 @@ profile_playos() {
         networkmanager
         networkmanager-openrc
         openssh
-        openssh-openrc
         openrc
         pipewire
         seatd

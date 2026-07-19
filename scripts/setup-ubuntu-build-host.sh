@@ -63,7 +63,7 @@ else
 fi
 
 echo "==> Installing Alpine build dependencies in systemd-nspawn"
-sudo systemd-nspawn     --quiet     --directory="$ROOTFS"     --resolv-conf=replace-host     --bind-ro="$ROOT:/workspace"     --setenv="PLAYOS_ALPINE_BRANCH=$ALPINE_BRANCH"     /bin/sh /workspace/scripts/install-alpine-build-deps.sh
+sudo systemd-nspawn     --quiet     --directory="$ROOTFS"     --resolv-conf=replace-host     --bind-ro="$ROOT:/workspace"     --setenv="PLAYOS_ALPINE_BRANCH=$ALPINE_BRANCH"     --setenv="TMPDIR=/var/tmp"     /bin/sh /workspace/scripts/install-alpine-build-deps.sh
 
 cat <<EOF
 

@@ -2,7 +2,7 @@
 
 Alpine-based reference operating-system image for PlayOS Runtime Devices.
 
-The image is a console appliance: it boots directly into the PlayOS compositor and shell, then starts audio, networking, Bluetooth, indexing, updates, and online services asynchronously.
+The image is a console appliance: it boots directly into the PlayOS compositor and shell, then starts non-visual services asynchronously.
 
 > Show the shell as soon as the display path is ready.
 
@@ -10,9 +10,9 @@ The image is a console appliance: it boots directly into the PlayOS compositor a
 
 | Layer | Reference choice |
 |---|---|
-| Upstream | Alpine Linux 3.24 stable branch |
+| Upstream | Alpine Linux 3.24 stable |
 | C library | musl |
-| Packages | apk |
+| Packages | apk + signed PlayOS APK repository |
 | Init | OpenRC |
 | Image tooling | Alpine aports + mkimage |
 | Display | PlayOS compositor on wlroots/DRM/KMS |
@@ -20,85 +20,119 @@ The image is a console appliance: it boots directly into the PlayOS compositor a
 | Persistence | Separate PlayOS data partition |
 | First device | ASUS ROG Ally |
 
-Alpine is an implementation detail of the reference OS. It is not part of the portable PlayOS API.
+Alpine is an implementation detail of the reference OS, not part of the portable PlayOS API.
 
-## Migration status
+## Build hosts
 
-The Alpine migration is in progress.
+The primary developer workflow is a **native Ubuntu Server without Docker**.
 
-- The existing `archiso/` profile is preserved as a legacy regression reference.
-- New image work belongs under `alpine/`.
-- The primary builder is the pinned Alpine container.
-- Arch-specific systemd units, pacman lists, and EROFS workarounds must not be copied into the Alpine design without revalidation.
-- The Arch profile may be removed from the active tree only after Alpine reaches ROG Ally vertical-slice parity. Git history will remain intact.
-
-See [`docs/alpine-migration.md`](docs/alpine-migration.md).
-
-## Boot policy
+Ubuntu uses `systemd-nspawn` to execute Alpine's own tooling inside a checksum-verified Alpine 3.24.1 minirootfs:
 
 ```text
-UEFI
-  → Linux kernel and Alpine initramfs
-  → OpenRC visual runlevel
-  → GPU/input readiness
-  → seatd
-  → playos-compositor
-  → playos-shell first frame
-  → asynchronous PlayOS services
+Ubuntu Server
+  → systemd-nspawn
+  → official Alpine minirootfs
+  → apk + abuild + aports + mkimage
+  → out/*.iso
 ```
 
-Audio, network, Bluetooth, cloud, marketplace, updates, library indexing, telemetry, and SSH must not block the first frame.
+This is not a second distro implementation. Ubuntu only hosts the isolated Alpine build root.
 
-## Quick start
+Docker remains an optional equivalent build environment for Windows/macOS and existing CI.
 
-Prerequisites: Docker Desktop or Docker Engine, Git, and PowerShell 7 on Windows.
+## Native Ubuntu quick start
+
+```bash
+git switch agent/adopt-alpine-reference-os
+
+bash scripts/setup-ubuntu-build-host.sh
+bash scripts/build-iso-ubuntu.sh
+bash scripts/test-iso-qemu.sh
+```
+
+The setup wrapper:
+
+- installs `systemd-container`, QEMU, and OVMF on Ubuntu;
+- downloads Alpine `alpine-minirootfs-3.24.1-x86_64.tar.gz`;
+- verifies the official SHA-256 file;
+- extracts it under `.build/alpine-rootfs/`;
+- installs Alpine image-building dependencies with apk.
+
+The build wrapper enters that root with `systemd-nspawn` and runs `scripts/build-alpine-iso.sh`. It does not install Docker or modify the server's PXE/network configuration.
+
+See [Native Ubuntu build](docs/ubuntu-native-build.md).
+
+## Optional Docker build
 
 ```powershell
 ./scripts/docker-build-builder.ps1
 ./scripts/docker-build-iso.ps1
 ```
 
-The builder pins Alpine 3.24 and builds the `playos` mkimage profile. Output is written to `out/`.
+Both host workflows call the same Alpine build entrypoint and produce output in `out/`.
 
-The first migration milestone is a bootable Alpine ISO containing the package set and OpenRC overlay. The next milestone stages musl-built PlayOS binaries and reaches the interactive shell.
+## Migration status
+
+- `archiso/` remains as legacy regression evidence.
+- New image work belongs under `alpine/`.
+- Arch systemd, pacman, and EROFS workarounds must be revalidated rather than copied.
+- Arch may leave the active tree only after Alpine reaches ROG Ally parity.
+
+See [Alpine migration](docs/alpine-migration.md).
+
+## Boot policy
+
+```text
+UEFI
+  → Linux kernel and Alpine initramfs
+  → OpenRC playos-visual
+  → GPU/input readiness
+  → seatd
+  → playos-compositor
+  → playos-shell first frame
+  → playos-async
+```
+
+Audio, network, Bluetooth, cloud, marketplace, updates, indexing, telemetry, and SSH must not block the first frame.
 
 ## Repository layout
 
 ```text
 playos-refdistro/
 ├── alpine/
-│   ├── mkimg.playos.sh          Alpine mkimage profile
-│   ├── packages.x86_64          runtime package set
-│   └── README.md                profile and overlay design
+│   ├── mkimg.playos.sh
+│   ├── genapkovl-playos.sh
+│   └── packages.x86_64
 ├── docker/
-│   ├── Dockerfile               primary Alpine builder
-│   └── arch-legacy.Dockerfile   historical Arch builder
+│   ├── Dockerfile
+│   └── arch-legacy.Dockerfile
 ├── scripts/
-│   ├── build-iso-docker.sh      primary Alpine image build
-│   ├── docker-build-builder.ps1
-│   └── docker-build-iso.ps1
-├── archiso/                     legacy Arch vertical slice
+│   ├── setup-ubuntu-build-host.sh
+│   ├── build-iso-ubuntu.sh
+│   ├── test-iso-qemu.sh
+│   ├── install-alpine-build-deps.sh
+│   ├── build-alpine-iso.sh
+│   └── build-iso-docker.sh
+├── archiso/
 ├── docs/
-│   ├── alpine-migration.md
-│   ├── fast-boot.md
-│   └── boot-budget.md
 └── out/
 ```
 
-## Validation gates
+## Baseline validation
 
-The Alpine profile does not replace the working Arch baseline until it passes:
+The Alpine profile does not replace the Arch baseline until it passes:
 
-- reproducible ISO build from the pinned container;
-- UEFI boot in QEMU/OVMF and VirtualBox;
+- reproducible ISO build from the pinned minirootfs;
+- UEFI boot in headless QEMU/OVMF;
 - compositor and shell compiled against musl;
 - virtual renderer fallback;
-- ROG Ally amdgpu hardware rendering;
-- built-in controller and Home;
-- touch and 60/120 Hz modes;
-- sample launch and return to shell;
-- persistent data across reboot;
-- measured first-frame boot time.
+- ROG Ally amdgpu rendering;
+- controller, Home, touch, and 60/120 Hz;
+- sample launch and return;
+- persistent data;
+- measured first-frame time.
+
+The initial ISO proves Alpine/OpenRC/device/seat bring-up. PlayOS binaries are added after musl-native APK packaging.
 
 ## Related repositories
 

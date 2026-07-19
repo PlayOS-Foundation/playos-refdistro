@@ -9,5 +9,5 @@ if (!(Test-Path "$Root\out")) {
 
 docker run --rm -it --privileged `
   -v "${Root}:/workspace" `
-  playos-arch-builder `
+  playos-alpine-builder `
   /workspace/scripts/build-iso-docker.sh

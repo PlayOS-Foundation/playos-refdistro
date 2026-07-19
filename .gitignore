@@ -428,3 +428,6 @@ FodyWeavers.xsd
 *.msp
 localtime
 systemd-gpt-auto-generator
+
+# Local Alpine minirootfs and native Ubuntu build state
+.build/

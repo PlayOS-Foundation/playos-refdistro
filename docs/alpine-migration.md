@@ -15,7 +15,9 @@ No Git history will be rewritten.
 - [x] Pin Alpine 3.24 builder.
 - [x] Add aports/mkimage profile.
 - [x] Add OpenRC visual and async runlevels.
-- [ ] Build ISO reproducibly.
+- [x] Add Docker-free native Ubuntu Server wrappers.
+- [x] Add headless serial QEMU/OVMF wrapper.
+- [ ] Build ISO reproducibly on Ubuntu Server.
 - [ ] Boot with UEFI in QEMU/OVMF.
 - [ ] Boot in VirtualBox.
 
@@ -47,9 +49,16 @@ No Git history will be rewritten.
 - [ ] Separate persistent PlayOS data partition.
 - [ ] Recovery and signed update flow.
 
-### E. Arch retirement
+### E. PXE
 
-The active Arch files may be removed only after all A–D gates required for the current release are green and the Alpine image has passed repeated hardware testing. Removal must be a normal reviewed commit; history remains recoverable.
+- [ ] Export kernel, initramfs, modloop, APK repository, and apkovl.
+- [ ] Add a netboot.xyz custom menu entry.
+- [ ] Verify PXE and ISO consume identical build inputs.
+- [ ] Boot over Ethernet on the ROG Ally/dock.
+
+### F. Arch retirement
+
+Remove active Arch files only after the required gates are green and Alpine passes repeated hardware tests. Use a normal reviewed commit; history remains recoverable.
 
 ## Compatibility
 

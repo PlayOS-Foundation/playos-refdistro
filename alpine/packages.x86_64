@@ -1,0 +1,33 @@
+# PlayOS Alpine x86_64 runtime package set
+# Keep aligned with alpine/mkimg.playos.sh until PlayOS APKBUILD packages own it.
+
+alpine-base
+alpine-conf
+bluez
+bluez-openrc
+dbus
+dbus-openrc
+eudev
+eudev-openrc
+iwd
+libdrm
+libinput
+libxkbcommon
+linux-firmware-amdgpu
+mesa-dri-gallium
+mesa-egl
+mesa-gbm
+mesa-gles
+mesa-vulkan-ati
+networkmanager
+networkmanager-openrc
+openssh
+openssh-openrc
+openrc
+pipewire
+seatd
+seatd-openrc
+wayland
+wireplumber
+wireplumber-openrc
+wlroots0.19

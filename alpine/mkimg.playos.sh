@@ -10,9 +10,10 @@ profile_playos() {
     hostname="playos"
     apkovl="genapkovl-playos.sh"
 
-    # Start the dedicated visual runlevel after sysinit and boot.
-    # Do not pass nomodeset: early amdgpu DRM/KMS is required.
-    kernel_cmdline="quiet modules=loop,squashfs,sd-mod,usb-storage softlevel=playos-visual"
+    # Start the visual runlevel after sysinit/boot. Keep a serial console for
+    # headless Ubuntu Server and PXE bring-up. Early DRM/KMS remains enabled.
+    kernel_cmdline="quiet modules=loop,squashfs,sd-mod,usb-storage console=tty0 console=ttyS0,115200 softlevel=playos-visual"
+    syslinux_serial="0 115200"
 
     apks="$apks
         alpine-base

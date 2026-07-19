@@ -1,75 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
-export TMPDIR=/var/tmp   # ensure cmake/ninja/mkarchiso never use /tmp
 
-ROOT="/workspace"
-PROFILE="$ROOT/archiso/profiles/playos"
+ROOT="${PLAYOS_ROOT:-/workspace}"
 OUT="$ROOT/out"
-WORK="/var/tmp/playos-archiso-work"
-TMP_PROFILE="/var/tmp/playos-profile"
+WORK="${PLAYOS_WORKDIR:-/var/tmp/playos-mkimage}"
+APORTS="${PLAYOS_APORTS_DIR:-/var/tmp/aports}"
+APORTS_BRANCH="${PLAYOS_APORTS_BRANCH:-3.24-stable}"
+TAG="${PLAYOS_ALPINE_BRANCH:-v3.24}"
+ARCH="${PLAYOS_ARCH:-x86_64}"
 
-if [ ! -d "$PROFILE" ]; then
-  echo "Missing archiso profile: $PROFILE"
-  echo "Run scripts/init-archiso-profile.sh first."
+if [[ "$TAG" == "edge" ]]; then
+  echo "error: unpinned Alpine edge builds are forbidden" >&2
   exit 1
 fi
 
-# ── Copy profile to Linux-native tmpfs (symlinks don't work on Windows mounts) ─
-
-echo "==> Copying profile to Linux-native filesystem"
-rm -rf "$TMP_PROFILE"
-cp -a "$PROFILE" "$TMP_PROFILE"
-AIROOTFS="$TMP_PROFILE/airootfs"
-
-# ── Create systemd symlinks ───────────────────────────────────────────────
-
-echo "==> Setting up systemd symlinks"
-
-mkdir -p "$AIROOTFS/etc/systemd/system"
-
-# Default target: playos-visual.target
-ln -sf /etc/systemd/system/playos-visual.target \
-  "$AIROOTFS/etc/systemd/system/default.target"
-
-# Enable compositor + seatd in the visual target
-mkdir -p "$AIROOTFS/etc/systemd/system/playos-visual.target.wants"
-ln -sf /etc/systemd/system/playos-compositor.service \
-  "$AIROOTFS/etc/systemd/system/playos-visual.target.wants/playos-compositor.service"
-ln -sf /usr/lib/systemd/system/seatd.service \
-  "$AIROOTFS/etc/systemd/system/playos-visual.target.wants/seatd.service"
-
-# Enable bootstrap service (network + sshd + locale)
-mkdir -p "$AIROOTFS/etc/systemd/system/playos-visual.target.wants"
-ln -sf /etc/systemd/system/playos-firstboot.service \
-  "$AIROOTFS/etc/systemd/system/playos-visual.target.wants/playos-firstboot.service"
-
-# Enable async services
-mkdir -p "$AIROOTFS/etc/systemd/system/playos-async.target.wants"
-for svc in playos-audio.service playos-network.service playos-bluetooth.service playos-library.service playos-update.service; do
-  ln -sf "/etc/systemd/system/$svc" \
-    "$AIROOTFS/etc/systemd/system/playos-async.target.wants/$svc"
-done
-
-# Fix script permissions
-find "$AIROOTFS/usr/bin" -type f -exec chmod +x {} \; 2>/dev/null || true
-find "$AIROOTFS/usr/lib/playos" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
-
-echo "==> Symlinks and permissions set up"
-
-# ── Build PlayOS binaries from source ────────────────────────────────────
-
-"$ROOT/scripts/build-playos-binaries.sh" "$AIROOTFS"
-
-# ── Build ISO from the tmp profile ────────────────────────────────────────
-
-mkdir -p "$OUT"
 rm -rf "$WORK"
+mkdir -p "$OUT" "$WORK"
 
-echo "==> Building PlayOS ISO (non-interactive)..."
-yes '' | mkarchiso -v \
-  -w "$WORK" \
-  -o "$OUT" \
-  "$TMP_PROFILE"
+if [[ ! -d "$APORTS/.git" ]]; then
+  git clone --depth 1 --branch "$APORTS_BRANCH"     https://gitlab.alpinelinux.org/alpine/aports.git "$APORTS"
+else
+  git -C "$APORTS" fetch --depth 1 origin "$APORTS_BRANCH"
+  git -C "$APORTS" checkout --detach FETCH_HEAD
+fi
 
-echo "==> Cleaning up"
-rm -rf "$TMP_PROFILE"
+install -m 0755 "$ROOT/alpine/mkimg.playos.sh" "$APORTS/scripts/mkimg.playos.sh"
+install -m 0755 "$ROOT/alpine/genapkovl-playos.sh" "$APORTS/scripts/genapkovl-playos.sh"
+
+if ! ls /root/.abuild/*.rsa >/dev/null 2>&1; then
+  abuild-keygen -a -n
+fi
+
+cd "$APORTS"
+sh scripts/mkimage.sh   --tag "$TAG"   --outdir "$OUT"   --workdir "$WORK"   --arch "$ARCH"   --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/main"   --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/community"   --profile playos
+
+echo "PlayOS Alpine image written to $OUT"

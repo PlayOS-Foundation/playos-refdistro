@@ -28,8 +28,12 @@ else
 fi
 
 install -m 0755 "$ROOT/alpine/mkimg.playos.sh"     "$APORTS/scripts/mkimg.playos.sh"
-install -m 0755 "$ROOT/alpine/genapkovl-playos.sh"     "$APORTS/scripts/genapkovl-playos.sh"
+install -m 0755 "$ROOT/alpine/genapkovl-playos.sh"     "$APORTS/genapkovl-playos.sh"
 install -m 0644 "$ROOT/alpine/usbnet.modules"          /etc/mkinitfs/features.d/usbnet.modules
+install -m 0644 "$ROOT/alpine/amdgpu.modules"          /etc/mkinitfs/features.d/amdgpu.modules
+install -m 0644 "$ROOT/alpine/amdgpu-firmware.files"   /etc/mkinitfs/features.d/amdgpu-firmware.files
+install -m 0644 "$ROOT/alpine/nvidia.modules"          /etc/mkinitfs/features.d/nvidia.modules
+install -m 0644 "$ROOT/alpine/nvidia-firmware.files"   /etc/mkinitfs/features.d/nvidia-firmware.files
 
 # apk-tools 3.0.6+: --no-chown conflicts with root (implies usermode).
 # Remove it — we run as root in nspawn, so chown is fine.
@@ -39,6 +43,10 @@ sed -i 's/--no-chown//g' "$APORTS/scripts/mkimage.sh"
 # sd-mod/usb-storage probe hardware that may hang during netboot;
 # quiet suppresses messages needed for debugging.
 sed -i 's/initfs_cmdline="modules=loop,squashfs,sd-mod,usb-storage quiet"/initfs_cmdline="modules=loop,squashfs"/' "$APORTS/scripts/mkimg.base.sh"
+
+# Ensure GPU firmware is installed so mkinitfs can bundle it into the
+# initramfs (otherwise GPU probe fails before the apkovl is extracted).
+apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia 2>&1 | tail -1
 
 # Create a non-root build user for abuild-keygen (Alpine-native requirement).
 if ! id build >/dev/null 2>&1; then

@@ -1,0 +1,30 @@
+#!/sbin/openrc-run
+# PlayOS Compositor — wlroots Wayland compositor (Stage 1).
+# Takes DRM/KMS, creates Wayland socket, spawns playos-shell.
+
+description="PlayOS wlroots Wayland compositor"
+
+depend() {
+    need seatd
+    need localmount
+    after bootmisc hostname
+}
+
+start() {
+    ebegin "Starting PlayOS compositor"
+    export XDG_RUNTIME_DIR=/run/playos
+    mkdir -p "$XDG_RUNTIME_DIR"
+    chmod 700 "$XDG_RUNTIME_DIR"
+    start-stop-daemon --start --background --make-pidfile \
+        --pidfile /run/playos-compositor.pid \
+        --stdout /var/log/playos-compositor.log \
+        --stderr /var/log/playos-compositor.log \
+        --exec /usr/bin/playos-compositor -- /usr/bin/playos-shell
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping PlayOS compositor"
+    start-stop-daemon --stop --pidfile /run/playos-compositor.pid 2>/dev/null
+    eend 0
+}

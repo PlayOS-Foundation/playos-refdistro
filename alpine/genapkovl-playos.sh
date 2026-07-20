@@ -41,11 +41,14 @@ libdrm
 libinput
 libxkbcommon
 linux-firmware-amdgpu
+linux-firmware-nvidia
 mesa-dri-gallium
 mesa-egl
 mesa-gbm
 mesa-gles
 mesa-vulkan-ati
+mesa-vulkan-nouveau
+mesa-vulkan-intel
 networkmanager
 networkmanager-openrc
 openssh
@@ -57,6 +60,8 @@ wayland
 wireplumber
 wireplumber-openrc
 wlroots0.19
+raylib
+glfw
 EOF
 
 # Alpine base boot services.
@@ -78,12 +83,56 @@ rc_add mount-ro shutdown
 rc_add killprocs shutdown
 rc_add savecache shutdown
 
-# The PlayOS critical path. The compositor service is added when musl-built
-# PlayOS APKs are introduced; until then this profile proves Alpine boot,
-# device discovery, firmware, graphics packages, and seat access.
+# The PlayOS critical path.
 rc_add dbus playos-visual
 rc_add seatd playos-visual
+rc_add playos-compositor playos-visual
+
+# SSH debug access — pre-configured key so we can debug the compositor.
+mkdir -p "$tmp/root/.ssh"
+makefile root:root 0600 "$tmp/root/.ssh/authorized_keys" <<EOF
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKjUiS/ZaOaGpyGkzotL9kUnsqOTpN07h0nZBpPwsDbP playos-debug
+EOF
+rc_add sshd playos-visual
+
+# Include the compositor init script and binaries in the overlay.
+if [ -f /etc/init.d/playos-compositor ]; then
+    mkdir -p "$tmp/etc/init.d"
+    cp /etc/init.d/playos-compositor "$tmp/etc/init.d/playos-compositor"
+    chmod 0755 "$tmp/etc/init.d/playos-compositor"
+fi
+if [ -f /usr/bin/playos-compositor ]; then
+    mkdir -p "$tmp/usr/bin"
+    cp /usr/bin/playos-compositor "$tmp/usr/bin/playos-compositor"
+    chmod 0755 "$tmp/usr/bin/playos-compositor"
+fi
+if [ -f /usr/bin/playos-shell ]; then
+    mkdir -p "$tmp/usr/bin"
+    cp /usr/bin/playos-shell "$tmp/usr/bin/playos-shell"
+    chmod 0755 "$tmp/usr/bin/playos-shell"
+    # Bundle raylib + glfw shared libraries (shell links against them at runtime).
+    mkdir -p "$tmp/usr/lib"
+    if [ -f /usr/lib/libraylib.so.450 ]; then
+        cp /usr/lib/libraylib.so.450 "$tmp/usr/lib/"
+        ln -sf libraylib.so.450 "$tmp/usr/lib/libraylib.so"
+    fi
+    if [ -f /usr/lib/libglfw.so.3 ]; then
+        cp /usr/lib/libglfw.so.3 "$tmp/usr/lib/"
+    fi
+fi
+
+# Bundle pre-built samples (hello-playos, space-invaders) so they
+# are available on first boot without manual deployment.
+SAMPLES_DIR="/workspace/.build/samples-out"
+if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
+    echo "==> Bundling PlayOS samples"
+    mkdir -p "$tmp/playos-samples/build"
+    cp "$SAMPLES_DIR/hello-playos"   "$tmp/playos-samples/build/hello-playos"
+    cp "$SAMPLES_DIR/space-invaders" "$tmp/playos-samples/build/space-invaders"
+    chmod 0755 "$tmp/playos-samples/build/hello-playos"
+    chmod 0755 "$tmp/playos-samples/build/space-invaders"
+fi
 
 mkdir -p "$tmp/etc/runlevels/playos-async"
 
-tar -c -C "$tmp" etc | gzip -9n > "$HOSTNAME.apkovl.tar.gz"
+tar -c -C "$tmp" etc usr root playos-samples 2>/dev/null | gzip -9n > "$HOSTNAME.apkovl.tar.gz"

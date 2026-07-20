@@ -3,9 +3,9 @@
 profile_playos() {
     profile_standard
 
-    # Include USB ethernet + full network drivers so netboot works
-    # on devices like the ROG Ally (USB-C dock NICs).
-    initfs_features="$initfs_features network usbnet"
+    # Multi-GPU initfs: amdgpu (AMD), nouveau (NVIDIA), plus USB
+    # networking so netboot works on devices like the ROG Ally (USB-C dock NICs).
+    initfs_features="$initfs_features network usbnet amdgpu amdgpu-firmware nvidia nvidia-firmware"
 
     title="PlayOS Reference OS"
     desc="Alpine-based PlayOS Runtime Device image"
@@ -14,9 +14,9 @@ profile_playos() {
     hostname="playos"
     apkovl="genapkovl-playos.sh"
 
-    # Start the visual runlevel after sysinit/boot. Keep a serial console for
-    # headless Ubuntu Server and PXE bring-up. Early DRM/KMS remains enabled.
-    kernel_cmdline="console=tty0 nomodeset modprobe.blacklist=amdgpu loglevel=7 ip=dhcp alpine_repo=http://192.168.0.196/playos/apks modloop=http://192.168.0.196/playos/modloop-lts apkovl=http://192.168.0.196/playos/playos.apkovl.tar.gz softlevel=playos-visual"
+    # Multi-GPU kernel cmdline. amdgpu.sg_display=0 works around
+    # Display Core hangs on ROG Ally (Phoenix APU / RDNA 3) — harmless on other GPUs.
+    kernel_cmdline="console=tty0 amdgpu.sg_display=0 loglevel=7 ip=dhcp alpine_repo=http://192.168.0.196/playos/apks modloop=http://192.168.0.196/playos/modloop-lts apkovl=http://192.168.0.196/playos/playos.apkovl.tar.gz softlevel=playos-visual"
     syslinux_serial="0 115200"
 
     apks="$apks
@@ -33,11 +33,14 @@ profile_playos() {
         libinput
         libxkbcommon
         linux-firmware-amdgpu
+        linux-firmware-nvidia
         mesa-dri-gallium
         mesa-egl
         mesa-gbm
         mesa-gles
         mesa-vulkan-ati
+        mesa-vulkan-nouveau
+        mesa-vulkan-intel
         networkmanager
         networkmanager-openrc
         openssh
@@ -49,5 +52,7 @@ profile_playos() {
         wireplumber
         wireplumber-openrc
         wlroots0.19
+        raylib
+        glfw
     "
 }

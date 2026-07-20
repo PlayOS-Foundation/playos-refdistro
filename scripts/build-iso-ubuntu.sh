@@ -14,7 +14,37 @@ fi
 
 mkdir -p "$ROOT/out"
 
-sudo systemd-nspawn     --quiet     --directory="$ROOTFS"     --resolv-conf=replace-host     --bind="$ROOT:/workspace"     --setenv="PLAYOS_ROOT=/workspace"     --setenv="PLAYOS_ALPINE_BRANCH=${PLAYOS_ALPINE_BRANCH:-v3.24}"     --setenv="PLAYOS_APORTS_BRANCH=${PLAYOS_APORTS_BRANCH:-3.24-stable}"     --setenv="PLAYOS_ARCH=${PLAYOS_ARCH:-x86_64}"     --setenv="TMPDIR=/var/tmp"     /bin/bash /workspace/scripts/build-alpine-iso.sh
+# PlayOS source repos (sibling directories).
+RUNTIME_SRC="${PLAYOS_RUNTIME_SRC:-$ROOT/../playos-runtime}"
+SHELL_SRC="${PLAYOS_SHELL_SRC:-$ROOT/../playos-shell}"
+PLATFORM_SRC="${PLAYOS_PLATFORM_SRC:-$ROOT/../playos-platform-api}"
+SAMPLES_SRC="${PLAYOS_SAMPLES_SRC:-$ROOT/../playos-samples}"
+
+echo "==> Building PlayOS compositor + shell + ISO"
+
+sudo systemd-nspawn \
+    --quiet \
+    --directory="$ROOTFS" \
+    --resolv-conf=replace-host \
+    --bind="$ROOT:/workspace" \
+    --bind="$RUNTIME_SRC:/mnt/playos-runtime" \
+    --bind="$SHELL_SRC:/mnt/playos-shell" \
+    --bind="$PLATFORM_SRC:/mnt/playos-platform-api" \
+    --bind="$SAMPLES_SRC:/mnt/playos-samples" \
+    --setenv="PLAYOS_ROOT=/workspace" \
+    --setenv="PLAYOS_RUNTIME_SRC=/mnt/playos-runtime" \
+    --setenv="PLAYOS_SHELL_SRC=/mnt/playos-shell" \
+    --setenv="PLAYOS_PLATFORM_SRC=/mnt/playos-platform-api" \
+    --setenv="PLAYOS_SAMPLES_SRC=/mnt/playos-samples" \
+    --setenv="PLAYOS_ALPINE_BRANCH=${PLAYOS_ALPINE_BRANCH:-v3.24}" \
+    --setenv="PLAYOS_APORTS_BRANCH=${PLAYOS_APORTS_BRANCH:-3.24-stable}" \
+    --setenv="PLAYOS_ARCH=${PLAYOS_ARCH:-x86_64}" \
+    --setenv="TMPDIR=/var/tmp" \
+    /bin/sh -c '
+        set -e
+        /workspace/scripts/build-playos-components.sh
+        /workspace/scripts/build-alpine-iso.sh
+    '
 
 sudo chown -R "$(id -u):$(id -g)" "$ROOT/out"
 

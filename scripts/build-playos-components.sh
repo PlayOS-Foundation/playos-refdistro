@@ -57,6 +57,7 @@ install -m 0755 "$BUILD_DIR/shell/playos-shell"             /usr/bin/playos-shel
 
 # ── OpenRC init scripts ────────────────────────────────────────────
 install -m 0755 "$ROOT/alpine/init.d/playos-compositor"     /etc/init.d/playos-compositor
+install -m 0755 "$ROOT/alpine/init.d/playos-installer"      /etc/init.d/playos-installer
 
 # ── Add to playos-visual runlevel ──────────────────────────────────
 ln -sf /etc/init.d/playos-compositor /etc/runlevels/playos-visual/playos-compositor 2>/dev/null || true

@@ -36,6 +36,7 @@ dbus
 dbus-openrc
 eudev
 eudev-openrc
+gptfdisk
 iwd
 libdrm
 libinput
@@ -103,6 +104,12 @@ if [ -f /usr/bin/playos-compositor ]; then
     mkdir -p "$tmp/usr/bin"
     cp /usr/bin/playos-compositor "$tmp/usr/bin/playos-compositor"
     chmod 0755 "$tmp/usr/bin/playos-compositor"
+fi
+# Installer init script (not added to any runlevel — started manually by shell).
+if [ -f /etc/init.d/playos-installer ]; then
+    mkdir -p "$tmp/etc/init.d"
+    cp /etc/init.d/playos-installer "$tmp/etc/init.d/playos-installer"
+    chmod 0755 "$tmp/etc/init.d/playos-installer"
 fi
 if [ -f /usr/bin/playos-shell ]; then
     mkdir -p "$tmp/usr/bin"

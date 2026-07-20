@@ -1,0 +1,64 @@
+#!/sbin/openrc-run
+# PlayOS Installer — Writes the running system to internal disk.
+# Triggered by playos-shell's InstallerScreen via rc-service.
+# Reads target device from /run/playos/install-target,
+# stops the compositor+shell, partitions the disk with setup-disk,
+# copies the system, installs bootloader, and reboots.
+
+description="PlayOS Install to Disk"
+
+depend() {
+    need localmount
+}
+
+start() {
+    TARGET=$(cat /run/playos/install-target 2>/dev/null)
+
+    if [ -z "$TARGET" ]; then
+        eend 1 "No install target found (missing /run/playos/install-target)"
+        return 1
+    fi
+
+    if [ ! -b "$TARGET" ]; then
+        eend 1 "$TARGET is not a block device"
+        return 1
+    fi
+
+    einfo "=== PlayOS Install to Disk ==="
+    einfo "Target: $TARGET"
+    einfo "This will ERASE ALL DATA on $TARGET"
+
+    # Ensure APK repositories are configured for setup-disk.
+    # PXE-booted systems get alpine_repo from kernel cmdline;
+    # make sure /etc/apk/repositories exists for setup-disk.
+    if [ ! -f /etc/apk/repositories ]; then
+        mkdir -p /etc/apk
+        echo "http://dl-cdn.alpinelinux.org/alpine/v3.22/main" > /etc/apk/repositories
+        echo "http://dl-cdn.alpinelinux.org/alpine/v3.22/community" >> /etc/apk/repositories
+    fi
+
+    # Stop visual services so compositor releases DRM/KMS before setup-disk
+    # tries to chroot /mnt (avoids device-in-use issues and makes install
+    # message visible on console).
+    einfo "Stopping PlayOS visual services..."
+    rc-service playos-visual stop 2>/dev/null || true
+
+    # Allow a moment for the compositor to release the GPU
+    sleep 1
+
+    einfo "Running setup-disk on $TARGET..."
+    einfo "This may take a few minutes..."
+
+    # setup-disk -m sys: system disk mode (ext4 + bootloader)
+    # Piping 'yes' handles interactive prompts for disk erasure.
+    if yes | setup-disk -m sys "$TARGET" 2>&1 | tee /var/log/playos-install.log; then
+        einfo "Install complete! Rebooting in 3 seconds..."
+        sleep 3
+        reboot -f
+    else
+        eerror "Install FAILED! Check /var/log/playos-install.log"
+        eerror "Returning to shell in 30s..."
+        sleep 30
+        return 1
+    fi
+}

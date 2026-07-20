@@ -28,6 +28,7 @@ profile_playos() {
         dbus-openrc
         eudev
         eudev-openrc
+        gptfdisk
         iwd
         libdrm
         libinput

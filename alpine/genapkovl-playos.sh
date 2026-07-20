@@ -60,8 +60,6 @@ wayland
 wireplumber
 wireplumber-openrc
 wlroots0.19
-raylib
-glfw
 EOF
 
 # Alpine base boot services.

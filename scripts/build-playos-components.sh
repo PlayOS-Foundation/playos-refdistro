@@ -16,7 +16,7 @@ apk add --no-cache \
     libxkbcommon-dev libdrm-dev mesa-dev \
     raylib-dev glfw-dev seatd \
     gptfdisk parted e2fsprogs zstd \
-    dosfstools util-linux coreutils \
+    dosfstools util-linux coreutils sgdisk \
     2>&1 | tail -5
 
 # ccache: speed up repeated C++ builds with compiler cache.

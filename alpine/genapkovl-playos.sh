@@ -43,6 +43,7 @@ libinput
 libxkbcommon
 linux-firmware-amdgpu
 linux-firmware-nvidia
+linux-firmware-intel
 mesa-dri-gallium
 mesa-egl
 mesa-gbm

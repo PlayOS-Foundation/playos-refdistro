@@ -90,6 +90,7 @@ apk --root /mnt/playos-image-root add --no-cache \
     libxkbcommon \
     linux-firmware-amdgpu \
     linux-firmware-nvidia \
+    linux-firmware-intel \
     linux-lts \
     mesa-dri-gallium \
     mesa-egl \

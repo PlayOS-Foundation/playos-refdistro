@@ -46,7 +46,7 @@ sed -i 's/initfs_cmdline="modules=loop,squashfs,sd-mod,usb-storage quiet"/initfs
 
 # Ensure GPU firmware is installed so mkinitfs can bundle it into the
 # initramfs (otherwise GPU probe fails before the apkovl is extracted).
-apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia 2>&1 | tail -1
+apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel 2>&1 | tail -1
 
 # Create a non-root build user for abuild-keygen (Alpine-native requirement).
 if ! id build >/dev/null 2>&1; then

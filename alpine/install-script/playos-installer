@@ -116,11 +116,12 @@ fi
 if [ -d /mnt/etc/runlevels ]; then
     echo "Configuring PlayOS services on installed root..." | tee -a "$LOG_FILE"
 
-    # ── Install WiFi packages ─────────────────────────────────────────────
-    # Users need WiFi management from the Shell UI. Install NM WiFi backend
-    # (wpa_supplicant for auth, nmcli for the platform-api backend).
+    # ── Install WiFi & firmware packages ────────────────────────────────
+    # WiFi management from Shell UI requires NM with wpa_supplicant.
+    # Intel WiFi (common in Ultrabooks/laptops) needs linux-firmware-intel.
     echo "Installing WiFi support packages..." | tee -a "$LOG_FILE"
-    apk add --root /mnt networkmanager-wifi networkmanager-cli wpa_supplicant >> "$LOG_FILE" 2>&1 || true
+    apk add --root /mnt networkmanager-wifi networkmanager-cli wpa_supplicant \
+        linux-firmware-intel >> "$LOG_FILE" 2>&1 || true
     ln -sf /etc/init.d/wpa_supplicant /mnt/etc/runlevels/default/wpa_supplicant
 
     # ── Service runlevels ────────────────────────────────────────────────

@@ -20,7 +20,7 @@ SHELL_SRC="${PLAYOS_SHELL_SRC:-$ROOT/../playos-shell}"
 PLATFORM_SRC="${PLAYOS_PLATFORM_SRC:-$ROOT/../playos-platform-api}"
 SAMPLES_SRC="${PLAYOS_SAMPLES_SRC:-$ROOT/../playos-samples}"
 
-echo "==> Building PlayOS compositor + shell + ISO"
+echo "==> Building PlayOS compositor + shell + disk image + ISO"
 
 sudo systemd-nspawn \
     --quiet \
@@ -43,11 +43,8 @@ sudo systemd-nspawn \
     /bin/sh -c '
         set -e
         /workspace/scripts/build-playos-components.sh
+        /workspace/scripts/build-disk-image.sh
         /workspace/scripts/build-alpine-iso.sh
-        if [ "${PLAYOS_BUILD_DISK_IMAGE:-0}" = "1" ]; then
-            echo "==> Building disk image (PLAYOS_BUILD_DISK_IMAGE=1)"
-            /workspace/scripts/build-disk-image.sh
-        fi
     '
 
 sudo chown -R "$(id -u):$(id -g)" "$ROOT/out"

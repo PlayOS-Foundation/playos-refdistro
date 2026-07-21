@@ -143,6 +143,16 @@ if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
     chmod 0755 "$tmp/playos-samples/build/space-invaders"
 fi
 
+# Bundle the pre-built disk image so the installer can find it at
+# /usr/share/playos/playos-gpt-*.img.zst on the live ISO.
+IMAGE_FILE=$(echo /workspace/out/playos-gpt-*.img.zst 2>/dev/null | head -1)
+if [ -n "$IMAGE_FILE" ] && [ -f "$IMAGE_FILE" ]; then
+    echo "==> Bundling disk image: $(basename "$IMAGE_FILE")"
+    mkdir -p "$tmp/usr/share/playos"
+    cp "$IMAGE_FILE" "$tmp/usr/share/playos/$(basename "$IMAGE_FILE")"
+    chmod 0644 "$tmp/usr/share/playos/$(basename "$IMAGE_FILE")"
+fi
+
 mkdir -p "$tmp/etc/runlevels/playos-async"
 
 tar -c -C "$tmp" etc usr root playos-samples 2>/dev/null | gzip -9n > "$HOSTNAME.apkovl.tar.gz"

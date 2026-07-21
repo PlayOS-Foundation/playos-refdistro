@@ -28,14 +28,14 @@ start() {
     einfo "Target: $TARGET"
     einfo "This will ERASE ALL DATA on $TARGET"
 
-    # Ensure APK repositories are configured for setup-disk.
-    # PXE-booted systems get alpine_repo from kernel cmdline;
-    # make sure /etc/apk/repositories exists for setup-disk.
-    if [ ! -f /etc/apk/repositories ]; then
-        mkdir -p /etc/apk
-        echo "http://dl-cdn.alpinelinux.org/alpine/v3.22/main" > /etc/apk/repositories
-        echo "http://dl-cdn.alpinelinux.org/alpine/v3.22/community" >> /etc/apk/repositories
-    fi
+    # Ensure both the PXE cache AND Alpine CDN repos are available
+    # so setup-disk can install all required system packages.
+    # The PXE repo alone may not have every dependency.
+    mkdir -p /etc/apk
+    echo "http://192.168.0.196/playos/apks" > /etc/apk/repositories
+    echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/main" >> /etc/apk/repositories
+    echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/community" >> /etc/apk/repositories
+    einfo "Repos configured: $(wc -l < /etc/apk/repositories) entries"
 
     # Stop visual services so compositor releases DRM/KMS before setup-disk
     # tries to chroot /mnt (avoids device-in-use issues and makes install
@@ -45,6 +45,24 @@ start() {
 
     # Allow a moment for the compositor to release the GPU
     sleep 1
+
+    # Clear the screen and print status to tty0 so the user can see progress.
+    echo -e "\033[2J\033[H" > /dev/tty0 2>/dev/null || true
+    (echo ""; echo "  ╔════════════════════════════════════════╗"
+     echo "  ║   PlayOS — Installing to Disk         ║"
+     echo "  ║   Target: $TARGET                      ║"
+     echo "  ║   This will take a few minutes...      ║"
+     echo "  ╚════════════════════════════════════════╝"
+     echo "") > /dev/tty0 2>/dev/null || true
+
+    # Quick pre-flight: verify apk can fetch package lists.
+    einfo "Updating APK index..."
+    if ! apk update 2>&1 | head -5; then
+        eerror "Cannot reach APK repositories — check network"
+        eerror "Press Enter to return to shell..."
+        read dummy
+        return 1
+    fi
 
     einfo "Running setup-disk on $TARGET..."
     einfo "This may take a few minutes..."

@@ -15,6 +15,8 @@ apk add --no-cache \
     wlroots0.19-dev wayland-dev wayland-protocols \
     libxkbcommon-dev libdrm-dev mesa-dev \
     raylib-dev glfw-dev seatd \
+    gptfdisk parted e2fsprogs zstd \
+    dosfstools util-linux coreutils \
     2>&1 | tail -5
 
 # ccache: speed up repeated C++ builds with compiler cache.

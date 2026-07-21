@@ -25,6 +25,7 @@ echo "==> Building PlayOS compositor + shell + disk image + ISO"
 sudo systemd-nspawn \
     --quiet \
     --directory="$ROOTFS" \
+    --capability=CAP_SYS_ADMIN \
     --resolv-conf=replace-host \
     --bind="$ROOT:/workspace" \
     --bind="$RUNTIME_SRC:/mnt/playos-runtime" \

@@ -95,17 +95,23 @@ sudo systemd-nspawn \
         set -e
         /workspace/scripts/build-playos-components.sh
         /workspace/scripts/build-disk-image.sh
+
+        # Compress disk image now so genapkovl can bundle it into the ISO
+        echo "==> Compressing disk image for ISO bundling"
+        zstd -T0 --rm -12 /workspace/out/playos-gpt-*.img
+        sha256sum /workspace/out/playos-gpt-*.img.zst > /workspace/out/playos-gpt-*.img.zst.sha256 2>/dev/null || true
+
         /workspace/scripts/build-alpine-iso.sh
     '
 
-# ── Phase 2: Compress disk image on the host ─────────────────────────────────
-echo "==> Compressing disk image"
-sudo zstd -T0 --rm -12 "$DISK_IMG"
+# ── Phase 2: The disk image was already compressed inside nspawn ────────────
 ZST_PATH="${DISK_IMG}.zst"
-sudo sha256sum "$ZST_PATH" > "${ZST_PATH}.sha256"
-sudo chown "$(id -u):$(id -g)" "$ZST_PATH" "${ZST_PATH}.sha256"
-DISK_SIZE=$(du -h "$ZST_PATH" | cut -f1)
-echo "    $ZST_PATH ($DISK_SIZE)"
+if [ -f "$ZST_PATH" ]; then
+    sudo chown "$(id -u):$(id -g)" "$ZST_PATH" "${ZST_PATH}.sha256" 2>/dev/null || true
+    DISK_SIZE=$(du -h "$ZST_PATH" | cut -f1)
+    echo "==> Disk image compressed: $ZST_PATH ($DISK_SIZE)"
+    echo "    Checksum: ${ZST_PATH}.sha256"
+fi
 
 sudo chown -R "$(id -u):$(id -g)" "$ROOT/out"
 

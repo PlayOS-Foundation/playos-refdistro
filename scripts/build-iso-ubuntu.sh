@@ -44,6 +44,10 @@ sudo systemd-nspawn \
         set -e
         /workspace/scripts/build-playos-components.sh
         /workspace/scripts/build-alpine-iso.sh
+        if [ "${PLAYOS_BUILD_DISK_IMAGE:-0}" = "1" ]; then
+            echo "==> Building disk image (PLAYOS_BUILD_DISK_IMAGE=1)"
+            /workspace/scripts/build-disk-image.sh
+        fi
     '
 
 sudo chown -R "$(id -u):$(id -g)" "$ROOT/out"
@@ -51,6 +55,7 @@ sudo chown -R "$(id -u):$(id -g)" "$ROOT/out"
 echo
 echo "Built images:"
 find "$ROOT/out" -maxdepth 1 -type f -name '*.iso' -exec ls -lh {} \;
+find "$ROOT/out" -maxdepth 1 -type f \( -name '*.img.zst' -o -name '*.sha256' \) -exec ls -lh {} \; 2>/dev/null || true
 
 # === Deploy to PXE server ===
 PXE_DIR="/var/www/html/playos"
@@ -76,6 +81,15 @@ if [ -n "$ISO" ] && [ -f "$ISO" ]; then
     
     echo "  Deployed: $(ls "$PXE_DIR"/*.iso 2>/dev/null | head -1)"
     echo "  APK cache: $(ls "$PXE_DIR/apks/x86_64"/*.apk 2>/dev/null | wc -l) packages"
+
+    # Deploy disk image if built
+    DISK_IMG=$(find "$ROOT/out" -maxdepth 1 -type f -name '*.img.zst' 2>/dev/null | head -1)
+    if [ -n "$DISK_IMG" ] && [ -f "$DISK_IMG" ]; then
+        sudo cp "$DISK_IMG" "$PXE_DIR/"
+        sudo cp "${DISK_IMG}.sha256" "$PXE_DIR/" 2>/dev/null || true
+        sudo chown www-data:www-data "$PXE_DIR/$(basename "$DISK_IMG")" 2>/dev/null || true
+        echo "  Disk image: $(basename "$DISK_IMG")"
+    fi
 else
     echo "  ERROR: No ISO found to deploy"
 fi

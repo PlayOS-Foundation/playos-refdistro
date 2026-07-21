@@ -1,0 +1,144 @@
+#!/sbin/openrc-run
+# playos-firstboot — One-shot first-boot setup for dd-installed disk images.
+#
+# Runs exactly once after a PlayOS disk image is written to a target disk.
+# Regenerates unique machine identifiers, creates a clean EFI boot entry,
+# and removes itself from runlevels so it never runs again.
+#
+# Triggered by the presence of /etc/playos/firstboot (created at image
+# build time and removed by this service).
+
+description="PlayOS first-boot setup (one-shot)"
+
+depend() {
+    need localmount
+    after bootmisc hostname
+}
+
+start() {
+    ebegin "Running PlayOS first-boot setup"
+
+    # ── 1. Regenerate machine-id ─────────────────────────────────────────
+    # Disk images are clones — each install needs a unique machine-id so
+    # DHCP leases, D-Bus, and other services don't collide.
+    if command -v uuidgen >/dev/null 2>&1; then
+        uuidgen > /etc/machine-id
+    else
+        dd if=/dev/urandom bs=16 count=1 status=none | od -A n -t x1 | tr -d ' \n' > /etc/machine-id
+    fi
+    chmod 444 /etc/machine-id
+    echo "    machine-id: $(cat /etc/machine-id)"
+
+    # ── 2. Find root and EFI devices ─────────────────────────────────────
+    ROOT_DEV=$(findmnt -n -o SOURCE /)
+    ROOT_DISK=""
+    EFI_PART=""
+
+    case "$ROOT_DEV" in
+        /dev/nvme*n*p*)
+            ROOT_DISK=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
+            ;;
+        /dev/mmcblk*p*)
+            ROOT_DISK=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
+            ;;
+        /dev/sd*[0-9]|/dev/vd*[0-9])
+            ROOT_DISK=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
+            ;;
+    esac
+
+    if [ -n "$ROOT_DISK" ]; then
+        # EFI partition is partition 1 on the same disk
+        case "$ROOT_DISK" in
+            /dev/nvme*|/dev/mmcblk*) EFI_PART="${ROOT_DISK}p1" ;;
+            *)                         EFI_PART="${ROOT_DISK}1" ;;
+        esac
+    fi
+
+    echo "    root: $ROOT_DEV"
+    echo "    disk: $ROOT_DISK"
+    echo "    efi:  $EFI_PART"
+
+    # ── 3. Regenerate filesystem UUIDs ────────────────────────────────────
+    if [ -n "$ROOT_DEV" ] && [ -b "$ROOT_DEV" ]; then
+        tune2fs -U random "$ROOT_DEV" 2>/dev/null && \
+            echo "    Root partition UUID regenerated" || \
+            echo "    WARNING: Could not regenerate root UUID"
+    fi
+
+    if [ -n "$EFI_PART" ] && [ -b "$EFI_PART" ]; then
+        # vfat doesn't support tune2fs; regenerate volume serial instead
+        local new_serial=""
+        new_serial=$(dd if=/dev/urandom bs=4 count=1 status=none | od -A n -t x4 | tr -d ' \n')
+        if [ -n "$new_serial" ]; then
+            dd if=/dev/urandom of="$EFI_PART" bs=1 count=4 seek=67 conv=notrunc status=none 2>/dev/null && \
+                echo "    EFI volume serial regenerated" || true
+        fi
+    fi
+
+    # ── 4. Update fstab with new UUIDs ────────────────────────────────────
+    if [ -n "$ROOT_DEV" ]; then
+        NEW_ROOT_UUID=$(blkid -s UUID -o value "$ROOT_DEV" 2>/dev/null || true)
+        if [ -n "$NEW_ROOT_UUID" ]; then
+            # Replace old UUID with new one in fstab for root entry
+            sed -i "s/^UUID=[^ ]* \/ /UUID=$NEW_ROOT_UUID \/ /" /etc/fstab
+        fi
+    fi
+    if [ -n "$EFI_PART" ]; then
+        NEW_EFI_UUID=$(blkid -s UUID -o value "$EFI_PART" 2>/dev/null || true)
+        if [ -n "$NEW_EFI_UUID" ]; then
+            sed -i "s/^UUID=[^ ]* \/boot\/efi /UUID=$NEW_EFI_UUID \/boot\/efi /" /etc/fstab
+        fi
+    fi
+
+    # ── 5. Update systemd-boot entry with new root UUID ───────────────────
+    if [ -n "$NEW_ROOT_UUID" ] && [ -f /boot/efi/loader/entries/playos.conf ]; then
+        sed -i "s/root=UUID=[^ ]*/root=UUID=$NEW_ROOT_UUID/" /boot/efi/loader/entries/playos.conf
+    fi
+
+    # ── 6. Create clean EFI boot entry ────────────────────────────────────
+    if [ -d /sys/firmware/efi ] && command -v efibootmgr >/dev/null 2>&1; then
+        echo "    Setting up EFI boot entry..."
+
+        # Remove stale entries from other OSes
+        for entry in $(efibootmgr | grep -iE 'Fedora|Ubuntu|SteamOS|Pop|Windows|Debian|Limine' 2>/dev/null | sed 's/^Boot//;s/\*.*//'); do
+            efibootmgr -b "$entry" -B 2>/dev/null && echo "    Removed stale EFI entry Boot$entry" || true
+        done
+
+        # Create PlayOS entry pointing to systemd-boot
+        if [ -f /boot/efi/EFI/systemd/systemd-bootx64.efi ]; then
+            efibootmgr --create --disk "$ROOT_DISK" --part 1 \
+                --label "PlayOS" \
+                --loader '\EFI\systemd\systemd-bootx64.efi' \
+                2>/dev/null && echo "    PlayOS EFI boot entry created" || \
+                echo "    WARNING: Could not create EFI boot entry"
+        elif [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]; then
+            # systemd-boot fallback path (installed with --no-variables)
+            efibootmgr --create --disk "$ROOT_DISK" --part 1 \
+                --label "PlayOS" \
+                --loader '\EFI\BOOT\BOOTX64.EFI' \
+                2>/dev/null && echo "    PlayOS EFI boot entry created (fallback)" || true
+        fi
+
+        # Set boot order: PlayOS first
+        PLAYOS_ENTRY=$(efibootmgr | grep -i 'PlayOS' | head -1 | sed 's/^Boot//;s/\*.*//')
+        if [ -n "$PLAYOS_ENTRY" ]; then
+            efibootmgr -o "$PLAYOS_ENTRY" 2>/dev/null && \
+                echo "    Boot order set to PlayOS (Boot$PLAYOS_ENTRY)"
+        fi
+    fi
+
+    # ── 7. Remove ourselves from runlevels ────────────────────────────────
+    rm -f /etc/runlevels/default/playos-firstboot
+    rm -f /etc/runlevels/boot/playos-firstboot
+    rm -f /etc/runlevels/sysinit/playos-firstboot
+
+    # ── 8. Remove flag file (prevents re-run if service is re-added) ──────
+    rm -f /etc/playos/firstboot
+
+    eend 0
+}
+
+stop() {
+    ebegin "Stopping playos-firstboot"
+    eend 0
+}

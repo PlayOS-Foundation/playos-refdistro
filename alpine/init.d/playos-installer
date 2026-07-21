@@ -1,5 +1,19 @@
 #!/sbin/openrc-run
-# PlayOS Installer — Writes the running system to internal disk.
+# SUPERSEDED — This OpenRC init script has been replaced by the standalone
+# shell script at alpine/install-script/playos-installer and the raylib GUI
+# app at playos-shell/src/installer/main.cpp (playos-installer-gui).
+#
+# The new architecture:
+#   - Shell overlay spawns playos-installer-gui (child process)
+#   - GUI displays disk detection, confirmation, progress bar
+#   - GUI forks /usr/bin/playos-installer (standalone script, no OpenRC)
+#   - Script writes progress to /run/playos/install-status
+#   - GUI polls status file every frame
+#
+# This file is kept for reference only. It is not installed by the build.
+# See: playos-refdistro/docs/PlayOS-Installation.md Issue #1 (RESOLVED)
+#
+# Original purpose: Writes the running system to internal disk.
 # Triggered by playos-shell's InstallerScreen via rc-service.
 # Reads target device from /run/playos/install-target,
 # stops the compositor+shell, partitions the disk with setup-disk,
@@ -12,71 +26,171 @@ depend() {
 }
 
 start() {
+    STATUS_FILE="/run/playos/install-status"
+    echo "starting" > "$STATUS_FILE"
+
     TARGET=$(cat /run/playos/install-target 2>/dev/null)
 
     if [ -z "$TARGET" ]; then
-        eend 1 "No install target found (missing /run/playos/install-target)"
+        echo "failed:No install target found" > "$STATUS_FILE"
         return 1
     fi
 
     if [ ! -b "$TARGET" ]; then
-        eend 1 "$TARGET is not a block device"
+        echo "failed:$TARGET is not a block device" > "$STATUS_FILE"
         return 1
     fi
 
     einfo "=== PlayOS Install to Disk ==="
     einfo "Target: $TARGET"
-    einfo "This will ERASE ALL DATA on $TARGET"
 
-    # Ensure both the PXE cache AND Alpine CDN repos are available
-    # so setup-disk can install all required system packages.
-    # The PXE repo alone may not have every dependency.
+    # Ensure both the PXE cache AND Alpine CDN repos are available.
     mkdir -p /etc/apk
     echo "http://192.168.0.196/playos/apks" > /etc/apk/repositories
     echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/main" >> /etc/apk/repositories
     echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/community" >> /etc/apk/repositories
-    einfo "Repos configured: $(wc -l < /etc/apk/repositories) entries"
 
-    # Stop visual services so compositor releases DRM/KMS before setup-disk
-    # tries to chroot /mnt (avoids device-in-use issues and makes install
-    # message visible on console).
-    einfo "Stopping PlayOS visual services..."
-    rc-service playos-visual stop 2>/dev/null || true
+    # Do NOT kill the compositor — keep the Shell UI running so it can
+    # show a graphical progress bar. The installer writes progress stages
+    # to $STATUS_FILE that the Shell's InstallerScreen polls every frame.
 
-    # Allow a moment for the compositor to release the GPU
-    sleep 1
-
-    # Clear the screen and print status to tty0 so the user can see progress.
-    echo -e "\033[2J\033[H" > /dev/tty0 2>/dev/null || true
-    (echo ""; echo "  ╔════════════════════════════════════════╗"
-     echo "  ║   PlayOS — Installing to Disk         ║"
-     echo "  ║   Target: $TARGET                      ║"
-     echo "  ║   This will take a few minutes...      ║"
-     echo "  ╚════════════════════════════════════════╝"
-     echo "") > /dev/tty0 2>/dev/null || true
-
-    # Quick pre-flight: verify apk can fetch package lists.
+    echo "updating_repos" > "$STATUS_FILE"
     einfo "Updating APK index..."
     if ! apk update 2>&1 | head -5; then
-        eerror "Cannot reach APK repositories — check network"
-        eerror "Press Enter to return to shell..."
-        read dummy
+        echo "failed:Cannot reach APK repositories" > "$STATUS_FILE"
         return 1
     fi
 
+    echo "partitioning" > "$STATUS_FILE"
     einfo "Running setup-disk on $TARGET..."
-    einfo "This may take a few minutes..."
 
-    # setup-disk -m sys: system disk mode (ext4 + bootloader)
-    # Piping 'yes' handles interactive prompts for disk erasure.
-    if yes | setup-disk -m sys "$TARGET" 2>&1 | tee /var/log/playos-install.log; then
-        einfo "Install complete! Rebooting in 3 seconds..."
-        sleep 3
-        reboot -f
+    # Run setup-disk and capture percentage from its output.
+    # We write output to a log file and run a background watcher that
+    # parses percentages into the status file for the Shell UI.
+    echo "partitioning" > "$STATUS_FILE"
+    einfo "Running setup-disk on $TARGET..."
+
+    # Start a background watcher that greps the log for percentage lines.
+    # This runs in parallel so the Shell UI can poll real-time progress.
+    tail -f /var/log/playos-install.log 2>/dev/null | while IFS= read -r line; do
+        pct=$(echo "$line" | grep -oP '\b[0-9]{1,3}%' | head -1 | tr -d '%')
+        [ -n "$pct" ] && echo "installing:$pct" > "$STATUS_FILE"
+    done &
+    WATCHER_PID=$!
+
+    # Run the actual install. Pipe 'yes' to handle the disk-erase prompt.
+    if yes | setup-disk -m sys "$TARGET" > /var/log/playos-install.log 2>&1; then
+        kill $WATCHER_PID 2>/dev/null || true
+        wait $WATCHER_PID 2>/dev/null || true
+        echo "configuring" > "$STATUS_FILE"
+        einfo "Base install complete — configuring PlayOS services..."
+
+        # Find the installed root partition.
+        # On SATA: sda1, sda2, sda3. On NVMe: nvme0n1p1, nvme0n1p2, nvme0n1p3.
+        ROOT_PART=""
+        case "$TARGET" in
+            /dev/nvme*)
+                for p in ${TARGET}p3 ${TARGET}p2 ${TARGET}p1; do
+                    if [ -b "$p" ] && blkid "$p" 2>/dev/null | grep -q 'TYPE="ext4"'; then
+                        ROOT_PART="$p"
+                        break
+                    fi
+                done
+                ;;
+            /dev/mmcblk*)
+                for p in ${TARGET}p3 ${TARGET}p2 ${TARGET}p1; do
+                    if [ -b "$p" ] && blkid "$p" 2>/dev/null | grep -q 'TYPE="ext4"'; then
+                        ROOT_PART="$p"
+                        break
+                    fi
+                done
+                ;;
+            *)
+                for p in ${TARGET}3 ${TARGET}2 ${TARGET}1; do
+                    if [ -b "$p" ] && blkid "$p" 2>/dev/null | grep -q 'TYPE="ext4"'; then
+                        ROOT_PART="$p"
+                        break
+                    fi
+                done
+                ;;
+        esac
+
+        if [ -n "$ROOT_PART" ]; then
+            mount "$ROOT_PART" /mnt 2>/dev/null || true
+        fi
+
+        if [ -d /mnt/etc/runlevels ]; then
+            # Add networking to default runlevel so the installed system has internet.
+            ln -sf /etc/init.d/networkmanager /mnt/etc/runlevels/default/networkmanager
+            ln -sf /etc/init.d/sshd /mnt/etc/runlevels/default/sshd
+            ln -sf /etc/init.d/dbus /mnt/etc/runlevels/default/dbus
+            ln -sf /etc/init.d/seatd /mnt/etc/runlevels/default/seatd
+
+            # Copy our custom PlayOS binaries and init scripts that are NOT
+            # part of any APK repo (they were bundled in the PXE apkovl overlay).
+            # setup-disk only installs packages from repos, so we must
+            # manually transfer everything custom.
+            einfo "Copying PlayOS binaries and services..."
+            mkdir -p /mnt/etc/init.d /mnt/usr/bin /mnt/usr/lib
+            for f in /etc/init.d/playos-compositor /etc/init.d/playos-installer; do
+                [ -f "$f" ] && cp "$f" "/mnt${f}" && chmod 0755 "/mnt${f}"
+            done
+            for b in /usr/bin/playos-compositor /usr/bin/playos-shell; do
+                [ -f "$b" ] && cp "$b" "/mnt${b}" && chmod 0755 "/mnt${b}"
+            done
+            # Copy shared libraries that the shell/compositor link against.
+            # These are custom-built and NOT in any APK repo.
+            for lib in /usr/lib/libraylib.so.450 /usr/lib/libraylib.so /usr/lib/libglfw.so.3; do
+                [ -f "$lib" ] && cp -a "$lib" "/mnt${lib}"
+            done
+            # Copy samples too
+            if [ -d /usr/share/playos ]; then
+                mkdir -p /mnt/usr/share/playos
+                cp -a /usr/share/playos/* /mnt/usr/share/playos/ 2>/dev/null || true
+            fi
+
+            # Add compositor to default runlevel
+            ln -sf /etc/init.d/playos-compositor /mnt/etc/runlevels/default/playos-compositor
+
+            # Copy SSH authorized_keys so we can remote into the installed system.
+            if [ -f /root/.ssh/authorized_keys ]; then
+                mkdir -p /mnt/root/.ssh
+                cp /root/.ssh/authorized_keys /mnt/root/.ssh/authorized_keys
+                chmod 700 /mnt/root/.ssh
+                chmod 600 /mnt/root/.ssh/authorized_keys
+                einfo "SSH keys copied to installed system"
+            fi
+
+            # Fix EFI boot order: remove stale entries, set Alpine as first.
+            if command -v efibootmgr >/dev/null 2>&1; then
+                einfo "Cleaning EFI boot entries..."
+                # Remove known stale entries from common distros
+                for entry in $(efibootmgr | grep -E 'Fedora|Ubuntu|SteamOS|Pop|Limine|Windows|Debian' | sed 's/^Boot//;s/\*.*//' 2>/dev/null); do
+                    efibootmgr -b "$entry" -B 2>/dev/null && einfo "Removed stale EFI entry Boot$entry" || true
+                done
+                # Set Alpine as first boot priority
+                ALPINE_ENTRY=$(efibootmgr | grep -i 'UEFI OS\|alpine\|Alpine' | head -1 | sed 's/^Boot//;s/\*.*//')
+                if [ -n "$ALPINE_ENTRY" ]; then
+                    efibootmgr -o "$ALPINE_ENTRY" 2>/dev/null && einfo "Set Alpine as first boot" || true
+                fi
+            fi
+
+            einfo "PlayOS services configured for first boot"
+            umount /mnt 2>/dev/null || true
+        else
+            einfo "Could not mount installed root — runlevel config skipped"
+        fi
+
+        echo "complete" > "$STATUS_FILE"
+        einfo "Install complete! Waiting for Shell to trigger reboot..."
+
+        # Don't reboot here — let the Shell UI show "Rebooting..." and
+        # trigger the reboot after showing the completion screen.
+        # If the Shell doesn't reboot within 60s, force it.
+        sleep 60
+        reboot -f || echo b > /proc/sysrq-trigger 2>/dev/null || true
     else
-        eerror "Install FAILED! Check /var/log/playos-install.log"
-        eerror "Returning to shell in 30s..."
-        sleep 30
+        echo "failed:Installation failed - check /var/log/playos-install.log" > "$STATUS_FILE"
         return 1
     fi
 }

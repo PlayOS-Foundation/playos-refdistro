@@ -105,12 +105,6 @@ if [ -f /usr/bin/playos-compositor ]; then
     cp /usr/bin/playos-compositor "$tmp/usr/bin/playos-compositor"
     chmod 0755 "$tmp/usr/bin/playos-compositor"
 fi
-# Installer init script (not added to any runlevel — started manually by shell).
-if [ -f /etc/init.d/playos-installer ]; then
-    mkdir -p "$tmp/etc/init.d"
-    cp /etc/init.d/playos-installer "$tmp/etc/init.d/playos-installer"
-    chmod 0755 "$tmp/etc/init.d/playos-installer"
-fi
 if [ -f /usr/bin/playos-shell ]; then
     mkdir -p "$tmp/usr/bin"
     cp /usr/bin/playos-shell "$tmp/usr/bin/playos-shell"
@@ -124,6 +118,16 @@ if [ -f /usr/bin/playos-shell ]; then
     if [ -f /usr/lib/libglfw.so.3 ]; then
         cp /usr/lib/libglfw.so.3 "$tmp/usr/lib/"
     fi
+fi
+# Standalone installer GUI app (spawned by shell overlay).
+if [ -f /usr/bin/playos-installer-gui ]; then
+    cp /usr/bin/playos-installer-gui "$tmp/usr/bin/playos-installer-gui"
+    chmod 0755 "$tmp/usr/bin/playos-installer-gui"
+fi
+# Standalone installer shell script (called by the GUI).
+if [ -f /usr/bin/playos-installer ]; then
+    cp /usr/bin/playos-installer "$tmp/usr/bin/playos-installer"
+    chmod 0755 "$tmp/usr/bin/playos-installer"
 fi
 
 # Bundle pre-built samples (hello-playos, space-invaders) so they

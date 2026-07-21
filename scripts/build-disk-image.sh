@@ -43,12 +43,17 @@ sgdisk -n 2:0:0 -t 2:8300 "$OUT/$IMAGE_NAME.img"                        # Linux 
 LOOP=$(losetup --find --show -P "$OUT/$IMAGE_NAME.img")
 echo "    Loop device: $LOOP"
 
+# nspawn does not auto-create partition device nodes.
+# partx tells the kernel to re-read the partition table and creates /dev/loopXpN.
+partx -a "$LOOP" 2>/dev/null || true
+
 cleanup_loop() {
     echo "==> Cleaning up loop device"
     sync
     # Unmount in reverse order
     mountpoint -q /mnt/playos-image-root/boot/efi 2>/dev/null && umount /mnt/playos-image-root/boot/efi || true
     mountpoint -q /mnt/playos-image-root 2>/dev/null && umount /mnt/playos-image-root || true
+    partx -d "$LOOP" 2>/dev/null || true
     losetup -d "$LOOP" 2>/dev/null || true
 }
 trap cleanup_loop EXIT

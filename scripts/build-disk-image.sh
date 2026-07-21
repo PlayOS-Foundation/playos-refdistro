@@ -201,6 +201,7 @@ rc_add sshd default
 rc_add playos-firstboot default
 
 # ── Create firstboot flag file ───────────────────────────────────────────────
+mkdir -p $MNT/etc/playos
 touch $MNT/etc/playos/firstboot
 
 # ── Hostname ─────────────────────────────────────────────────────────────────

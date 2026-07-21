@@ -43,8 +43,6 @@ Docker remains an optional equivalent build environment for Windows/macOS and ex
 ## Native Ubuntu quick start
 
 ```bash
-git switch agent/adopt-alpine-reference-os
-
 bash scripts/setup-ubuntu-build-host.sh
 bash scripts/build-iso-ubuntu.sh
 bash scripts/test-iso-qemu.sh

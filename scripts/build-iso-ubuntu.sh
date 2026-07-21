@@ -32,6 +32,9 @@ sudo systemd-nspawn \
     --bind="$SHELL_SRC:/mnt/playos-shell" \
     --bind="$PLATFORM_SRC:/mnt/playos-platform-api" \
     --bind="$SAMPLES_SRC:/mnt/playos-samples" \
+    --bind=/dev/loop-control \
+    --bind=/dev/loop0 --bind=/dev/loop1 --bind=/dev/loop2 --bind=/dev/loop3 \
+    --bind=/dev/loop4 --bind=/dev/loop5 --bind=/dev/loop6 --bind=/dev/loop7 \
     --setenv="PLAYOS_ROOT=/workspace" \
     --setenv="PLAYOS_RUNTIME_SRC=/mnt/playos-runtime" \
     --setenv="PLAYOS_SHELL_SRC=/mnt/playos-shell" \

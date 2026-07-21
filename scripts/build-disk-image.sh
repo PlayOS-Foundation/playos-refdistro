@@ -68,6 +68,9 @@ https://dl-cdn.alpinelinux.org/alpine/v3.24/main
 https://dl-cdn.alpinelinux.org/alpine/v3.24/community
 REPOS
 
+mkdir -p $MNT/etc/apk/keys
+cp /etc/apk/keys/* $MNT/etc/apk/keys/
+
 apk --root $MNT --initdb add --no-cache alpine-base
 
 # ── Install PlayOS packages ──────────────────────────────────────────────────

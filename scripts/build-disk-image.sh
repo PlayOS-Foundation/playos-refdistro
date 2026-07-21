@@ -60,14 +60,15 @@ fi
 
 # ── Install Alpine base system ───────────────────────────────────────────────
 echo "==> Installing Alpine base system"
-apk --root $MNT --initdb add --no-cache alpine-base
 
-# Required APK repositories inside the target root
+# APK repos MUST exist before any --root install, since apk reads them from the target root
 mkdir -p $MNT/etc/apk
 cat > $MNT/etc/apk/repositories <<'REPOS'
 https://dl-cdn.alpinelinux.org/alpine/v3.24/main
 https://dl-cdn.alpinelinux.org/alpine/v3.24/community
 REPOS
+
+apk --root $MNT --initdb add --no-cache alpine-base
 
 # ── Install PlayOS packages ──────────────────────────────────────────────────
 echo "==> Installing PlayOS system packages"

@@ -59,6 +59,9 @@ profile_playos() {
 
         # installer dependencies
         zstd
+        sgdisk
+        parted
+        e2fsprogs
         util-linux
     "
 }

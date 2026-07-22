@@ -89,6 +89,7 @@ apk --root $MNT add --no-cache \
     linux-firmware-amdgpu \
     linux-firmware-nvidia \
     linux-firmware-intel \
+    linux-firmware-mediatek \
     linux-lts \
     mesa-dri-gallium \
     mesa-egl \
@@ -97,7 +98,7 @@ apk --root $MNT add --no-cache \
     mesa-vulkan-ati \
     mesa-vulkan-nouveau \
     mesa-vulkan-intel \
-    networkmanager networkmanager-openrc networkmanager-wifi \
+    networkmanager networkmanager-openrc networkmanager-wifi networkmanager-cli networkmanager-tui \
     openssh \
     openrc \
     pipewire \
@@ -141,9 +142,9 @@ fi
 SAMPLES_DIR="/workspace/.build/samples-out"
 if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
     echo "==> Bundling PlayOS samples"
-    mkdir -p $MNT/usr/share/playos
-    install -m 0755 "$SAMPLES_DIR/hello-playos"   $MNT/usr/share/playos/hello-playos
-    install -m 0755 "$SAMPLES_DIR/space-invaders" $MNT/usr/share/playos/space-invaders
+    mkdir -p $MNT/playos-samples/build
+    install -m 0755 "$SAMPLES_DIR/hello-playos"   $MNT/playos-samples/build/hello-playos
+    install -m 0755 "$SAMPLES_DIR/space-invaders" $MNT/playos-samples/build/space-invaders
 fi
 
 # ── Install compositor init script ───────────────────────────────────────────
@@ -193,6 +194,7 @@ rc_add seatd default
 rc_add playos-compositor default
 
 # Network (async — does not block compositor)
+rc_add iwd default
 rc_add networkmanager default
 rc_add wpa_supplicant default
 
@@ -208,6 +210,9 @@ touch $MNT/etc/playos/firstboot
 
 # ── Hostname ─────────────────────────────────────────────────────────────────
 echo "playos" > $MNT/etc/hostname
+
+# ── Timezone ─────────────────────────────────────────────────────────────────
+ln -sf /usr/share/zoneinfo/UTC $MNT/etc/localtime
 
 # ── SSH debug key ────────────────────────────────────────────────────────────
 mkdir -p $MNT/root/.ssh

@@ -143,10 +143,11 @@ start() {
             for lib in /usr/lib/libraylib.so.450 /usr/lib/libraylib.so /usr/lib/libglfw.so.3; do
                 [ -f "$lib" ] && cp -a "$lib" "/mnt${lib}"
             done
-            # Copy samples too
-            if [ -d /usr/share/playos ]; then
-                mkdir -p /mnt/usr/share/playos
-                cp -a /usr/share/playos/* /mnt/usr/share/playos/ 2>/dev/null || true
+            # Copy samples from the live ISO overlay
+            if [ -d /playos-samples/build ]; then
+                mkdir -p /mnt/playos-samples/build
+                cp -a /playos-samples/build/* /mnt/playos-samples/build/ 2>/dev/null || true
+                einfo "Samples copied to installed system"
             fi
 
             # Add compositor to default runlevel
@@ -165,7 +166,7 @@ start() {
             if command -v efibootmgr >/dev/null 2>&1; then
                 einfo "Cleaning EFI boot entries..."
                 # Remove known stale entries from common distros
-                for entry in $(efibootmgr | grep -E 'Fedora|Ubuntu|SteamOS|Pop|Limine|Windows|Debian' | sed 's/^Boot//;s/\*.*//' 2>/dev/null); do
+                for entry in $(efibootmgr | grep -E 'Fedora|Ubuntu|SteamOS|Pop|Limine|Windows|Debian|PXE|Network' | sed 's/^Boot//;s/\*.*//' 2>/dev/null); do
                     efibootmgr -b "$entry" -B 2>/dev/null && einfo "Removed stale EFI entry Boot$entry" || true
                 done
                 # Set Alpine as first boot priority

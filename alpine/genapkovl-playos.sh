@@ -46,6 +46,7 @@ libxkbcommon
 linux-firmware-amdgpu
 linux-firmware-nvidia
 linux-firmware-intel
+linux-firmware-mediatek
 mesa-dri-gallium
 mesa-egl
 mesa-gbm
@@ -54,7 +55,10 @@ mesa-vulkan-ati
 mesa-vulkan-nouveau
 mesa-vulkan-intel
 networkmanager
+networkmanager-cli
+networkmanager-tui
 networkmanager-openrc
+networkmanager-wifi
 openssh
 openrc
 parted
@@ -94,6 +98,11 @@ rc_add savecache shutdown
 rc_add dbus playos-visual
 rc_add seatd playos-visual
 rc_add playos-compositor playos-visual
+
+# Wireless + networking (available post-boot, async from compositor).
+rc_add iwd default
+rc_add networkmanager default
+rc_add wpa_supplicant default
 
 # SSH debug access — pre-configured key so we can debug the compositor.
 mkdir -p "$tmp/root/.ssh"

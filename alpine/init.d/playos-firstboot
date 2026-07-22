@@ -18,6 +18,15 @@ depend() {
 start() {
     ebegin "Running PlayOS first-boot setup"
 
+    # ── 0. Set default timezone ───────────────────────────────────────────
+    # Hardware clock is UTC. Set /etc/localtime to UTC as a safe default.
+    # The Shell UI should offer timezone selection for user preference.
+    # tzdata is part of alpine-base so zoneinfo is always available.
+    if [ ! -L /etc/localtime ] && [ -f /usr/share/zoneinfo/UTC ]; then
+        ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+        echo "    Timezone set to UTC (default)"
+    fi
+
     # ── 1. Regenerate machine-id ─────────────────────────────────────────
     # Disk images are clones — each install needs a unique machine-id so
     # DHCP leases, D-Bus, and other services don't collide.
@@ -100,7 +109,7 @@ start() {
         echo "    Setting up EFI boot entry..."
 
         # Remove stale entries from other OSes
-        for entry in $(efibootmgr | grep -iE 'Fedora|Ubuntu|SteamOS|Pop|Windows|Debian|Limine' 2>/dev/null | sed 's/^Boot//;s/\*.*//'); do
+        for entry in $(efibootmgr | grep -iE 'Fedora|Ubuntu|SteamOS|Pop|Windows|Debian|Limine|PXE|Network' 2>/dev/null | sed 's/^Boot//;s/\*.*//'); do
             efibootmgr -b "$entry" -B 2>/dev/null && echo "    Removed stale EFI entry Boot$entry" || true
         done
 

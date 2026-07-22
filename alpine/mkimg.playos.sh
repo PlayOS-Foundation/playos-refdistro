@@ -38,6 +38,7 @@ profile_playos() {
         linux-firmware-amdgpu
         linux-firmware-nvidia
         linux-firmware-intel
+        linux-firmware-mediatek
         mesa-dri-gallium
         mesa-egl
         mesa-gbm
@@ -46,7 +47,10 @@ profile_playos() {
         mesa-vulkan-nouveau
         mesa-vulkan-intel
         networkmanager
+        networkmanager-cli
+        networkmanager-tui
         networkmanager-openrc
+        networkmanager-wifi
         openssh
         openrc
         parted

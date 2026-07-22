@@ -32,14 +32,12 @@ Install-to-disk is functional: PXE boot → Shell UI → Install to Disk → reb
 
 ## 3. Not all games/samples present after install
 
-**Current behavior:** The installer copies the `playos-samples` directory from the PXE image to `/usr/share/playos/` on the installed disk, but some samples may be missing. Need to verify which samples are present vs. expected.
+**Current behavior:** ~~The installer copies the `playos-samples` directory from the PXE image to `/usr/share/playos/` on the installed disk, but some samples may be missing.~~ 
 
-**Desired behavior:** All PlayOS samples (hello-playos, space-invaders, and any others) should be available on the installed system.
-
-**Files involved:**
-- `playos-refdistro/alpine/install-script/playos-installer` (copy logic)
-- `playos-refdistro/alpine/genapkovl-playos.sh` (apkovl bundling)
-- `playos-samples/` repo
+**Fix (2025-07-22):** The Shell looks for samples at `/playos-samples/build/` relative to the shell binary. Fixed both install paths:
+- **Disk-image path** (`build-disk-image.sh`): Samples now installed to `/playos-samples/build/` (was `/usr/share/playos/`).
+- **Legacy installer** (`install-script/playos-installer`): Now copies `/playos-samples/build/*` from the live ISO instead of `/usr/share/playos/*`.
+All PlayOS samples (hello-playos, space-invaders) should be available on the installed system. Needs on-device verification.
 
 ---
 
@@ -71,24 +69,24 @@ Install-to-disk is functional: PXE boot → Shell UI → Install to Disk → reb
 
 ### 6. nmcli / nmtui not installed
 **Finding:** NetworkManager is installed and running, but `networkmanager-cli` (nmcli) and `networkmanager-tui` (nmtui) are NOT part of the ISO. Users cannot manage WiFi or network connections from the terminal.
-**Fix:** Add `networkmanager-cli networkmanager-tui` to the ISO package list / world file so these are available on first boot.
-**Files:** `playos-refdistro/alpine/genapkovl-playos.sh` (world file), `mkimg.playos.sh`
+**Fix (2025-07-22):** Added `networkmanager-cli networkmanager-tui networkmanager-wifi` to `mkimg.playos.sh` apks, `genapkovl-playos.sh` world file, and `build-disk-image.sh` package list.
+**Files:** `playos-refdistro/alpine/genapkovl-playos.sh` (world file), `mkimg.playos.sh`, `scripts/build-disk-image.sh`
 
 ### 7. iwd not in any runlevel
 **Finding:** `iwd` (Wireless daemon) is installed but not enabled in any OpenRC runlevel. wlan0 shows as "unmanaged" in NetworkManager until iwd is started. After starting iwd manually, wlan0 goes to UP state but no WiFi networks appear.
-**Fix:** Add iwd to default runlevel. Investigate whether the WiFi chip (likely MediaTek MT7921 or similar) has firmware loaded.
-**Files:** `playos-refdistro/alpine/genapkovl-playos.sh` (rc_add iwd default)
+**Fix (2025-07-22):** Added `rc_add iwd default` to both `genapkovl-playos.sh` and `build-disk-image.sh`. iwd starts automatically on boot alongside wpa_supplicant and NetworkManager.
+**Files:** `playos-refdistro/alpine/genapkovl-playos.sh` (rc_add iwd default), `scripts/build-disk-image.sh`
 
 ### 8. WiFi scanning returns no networks (possible firmware/driver issue)
 **Finding:** After starting iwd + NetworkManager, `nmcli device wifi list` returns nothing. wlan0 is UP but has NO-CARRIER. This could be:
 - Missing WiFi firmware for the ROG's MediaTek/AMD WiFi chip
 - rfkill (all rfkill switches show state=1/unblocked, so not blocked)
-**Fix:** Need to identify WiFi chipset (`lspci`), verify firmware files exist, add missing firmware packages.
-**Files:** `mkimg.playos.sh` (firmware packages), world file
+**Fix (2025-07-22):** Added `linux-firmware-mediatek` to `mkimg.playos.sh`, `genapkovl-playos.sh` world file, and `build-disk-image.sh` package list. MT7921 firmware should now be available. Still needs on-device verification on ROG Ally.
+**Files:** `mkimg.playos.sh` (firmware packages), world file, `scripts/build-disk-image.sh`
 
 ### 9. No timezone set
 **Finding:** `/etc/localtime` is not set (defaults to UTC). The system clock may be off.
-**Fix:** Set timezone during post-install. Could auto-detect from geoIP or let user set in Shell.
+**Fix (2025-07-22):** UTC symlink created during disk image build (`build-disk-image.sh`). `playos-firstboot` service also ensures `/etc/localtime` → UTC is present on first boot if not already configured. The Shell UI should eventually offer user-configurable timezone selection; UTC is the safe appliance default.
 
 ### 10. Input device mapping gaps
 **Finding:** ROG Ally has multiple input devices:
@@ -101,8 +99,8 @@ Analogue sticks and Home button are not recognized by games. The compositor like
 
 ### 11. GRUB boot order prefers PXE over disk
 **Finding:** `efibootmgr` shows boot order places PXE (0005) before Alpine disk (0006). System tries network boot first on every startup. Also, stale EFI entries from previous distros (Fedora, SteamOS, Pop!_OS, Limine) remain in NVRAM.
-**Fix:** Post-install script should run `efibootmgr` to clean stale entries and set Alpine disk as first boot priority. Also need `efibootmgr` in the package list.
-**Files:** `playos-refdistro/alpine/install-script/playos-installer` (post-install EFI cleanup), `genapkovl-playos.sh` (world)
+**Fix (2025-07-22):** Post-install EFI cleanup now matches `PXE|Network` entries in addition to distro entries. Both the old installer script and the new `playos-firstboot` service (disk-image path) clean these. `efibootmgr -o` sets PlayOS as exclusive boot priority.
+**Files:** `playos-refdistro/alpine/install-script/playos-installer` (post-install EFI cleanup), `alpine/init.d/playos-firstboot`, `genapkovl-playos.sh` (world)
 
 ---
 

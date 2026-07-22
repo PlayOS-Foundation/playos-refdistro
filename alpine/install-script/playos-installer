@@ -147,10 +147,11 @@ if [ -d /mnt/etc/runlevels ]; then
         [ -f "$lib" ] && cp -a "$lib" "/mnt${lib}"
     done
 
-    # Copy samples
-    if [ -d /usr/share/playos ]; then
-        mkdir -p /mnt/usr/share/playos
-        cp -a /usr/share/playos/* /mnt/usr/share/playos/ 2>/dev/null || true
+    # Copy samples from the live ISO overlay
+    if [ -d /playos-samples/build ]; then
+        mkdir -p /mnt/playos-samples/build
+        cp -a /playos-samples/build/* /mnt/playos-samples/build/ 2>/dev/null || true
+        echo "Samples copied to installed system" | tee -a "$LOG_FILE"
     fi
 
     # ── Compositor runlevel ──────────────────────────────────────────────
@@ -168,7 +169,7 @@ if [ -d /mnt/etc/runlevels ]; then
     # ── EFI boot order cleanup ───────────────────────────────────────────
     if command -v efibootmgr >/dev/null 2>&1; then
         echo "Cleaning EFI boot entries..." | tee -a "$LOG_FILE"
-        for entry in $(efibootmgr | grep -E 'Fedora|Ubuntu|SteamOS|Pop|Limine|Windows|Debian' | sed 's/^Boot//;s/\*.*//' 2>/dev/null); do
+        for entry in $(efibootmgr | grep -E 'Fedora|Ubuntu|SteamOS|Pop|Limine|Windows|Debian|PXE|Network' | sed 's/^Boot//;s/\*.*//' 2>/dev/null); do
             efibootmgr -b "$entry" -B 2>/dev/null && echo "Removed stale EFI entry Boot$entry" | tee -a "$LOG_FILE" || true
         done
         ALPINE_ENTRY=$(efibootmgr | grep -i 'UEFI OS\|alpine\|Alpine' | head -1 | sed 's/^Boot//;s/\*.*//')

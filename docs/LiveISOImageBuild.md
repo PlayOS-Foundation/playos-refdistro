@@ -104,7 +104,7 @@ reuse it without re-downloading or re-extracting.
 ## 3. Build Phases
 
 The full build is orchestrated by `scripts/build-iso-ubuntu.sh`. It validates
-that the Alpine rootfs marker exists, then proceeds through Phase 0–2.
+that the Alpine rootfs marker exists, then proceeds through Phases 0–4.
 
 ```bash
 bash scripts/build-iso-ubuntu.sh
@@ -130,7 +130,7 @@ A sparse GPT disk image is created on the **Ubuntu host** because `sgdisk` and
 
 A cleanup trap unmounts and detaches the loop device on exit.
 
-### Phase 1: Inside systemd-nspawn Container
+### Phase 1: Inside systemd-nspawn Container (Build + Populate)
 
 The nspawn container binds several directories:
 
@@ -146,7 +146,7 @@ The nspawn container binds several directories:
 Additional environment variables propagate: `PLAYOS_ROOT`, `PLAYOS_ALPINE_BRANCH`,
 `PLAYOS_APORTS_BRANCH`, `PLAYOS_ARCH`, `DISK_MNT`, `ROOT_UUID`, `EFI_UUID`.
 
-Three scripts are run in sequence inside the container.
+Two scripts are run in sequence inside the container.
 
 #### 3a. Build PlayOS Components (`build-playos-components.sh`)
 
@@ -157,7 +157,8 @@ apk add cmake ninja g++ make git ccache \
     wlroots0.19-dev wayland-dev wayland-protocols \
     libxkbcommon-dev libdrm-dev mesa-dev \
     raylib-dev glfw-dev seatd \
-    gptfdisk parted e2fsprogs zstd dosfstools ...
+    gptfdisk sgdisk parted e2fsprogs e2fsprogs-extra \
+    coreutils zstd dosfstools ...
 ```
 
 **Build order:**
@@ -201,7 +202,8 @@ so the nspawn invocation always supplies `DISK_MNT`.
    - Kernel: `linux-lts`
    - Services: `dbus`, `seatd`, `pipewire`, `wireplumber`, `networkmanager`,
      `bluez`, `openssh`, `iwd`, `wpa_supplicant`
-   - Tools: `gptfdisk`, `glfw`, `raylib`, `zstd`, `eudev`, `alpine-conf`
+   - Tools: `gptfdisk`, `sgdisk`, `parted`, `e2fsprogs`, `e2fsprogs-extra`,
+     `coreutils`, `glfw`, `raylib`, `zstd`, `eudev`, `alpine-conf`
    - OpenRC packages for each service (e.g., `networkmanager-openrc`,
      `seatd-openrc`)
 4. **Custom binaries** copied into the target root:
@@ -226,16 +228,52 @@ so the nspawn invocation always supplies `DISK_MNT`.
    - Kernel cmdline: `console=tty0 amdgpu.sg_display=0 quiet loglevel=3`
    - fstab: UUID-based entries for root (ext4) and ESP (vfat)
    - First-boot flag: `/etc/playos/firstboot`
-9. **Bootloader installation** (`systemd-boot`):
-   - `bootctl install --root=$MNT --esp-path=/boot/efi --no-variables`
-   - Entry created at `loader/entries/playos.conf` with kernel, initramfs, and
-     root UUID
-   - Kernel and initramfs copied to ESP for direct booting
-   - Falls back gracefully if `bootctl` is unavailable in the build environment
+9. **Bootloader stub installation (rootfs only):**
+   - `apk --root $MNT add --no-cache systemd-boot` installs the EFI stub to
+     `/usr/lib/systemd/boot/efi/systemd-bootx64.efi` on the target rootfs.
+   - Alpine's `systemd-boot` package provides only the EFI stub binary — there
+     is no `bootctl` command available.
+   - Actual ESP deployment (copying the stub, kernel, initramfs, and loader
+     config to the FAT32 EFI partition) happens in Phase 2 on the host side
+     because `systemd-nspawn --bind` does not propagate sub-mounts, making the
+     ESP invisible inside the container.
 
-#### 3c. Compress Disk Image
+#### 3c. Compression and ISO Build Are Deferred
 
-After populating, the disk image is compressed inside the container:
+Compression of the disk image and ISO generation are **not** performed in this
+nspawn invocation. They happen in Phase 3 to allow the host-side bootloader
+installation in Phase 2 to complete first.
+
+### Phase 2: Install Bootloader to ESP (Host)
+
+After the nspawn container exits, the bootloader is deployed to the ESP from
+**the host side**. This is necessary because `systemd-nspawn --bind` bind-mounts
+the top-level directory but does **not** propagate sub-mounts — the ESP mounted
+at `$DISK_MNT/boot/efi` on the host is invisible inside the container.
+
+Steps performed by `build-iso-ubuntu.sh` on the host:
+
+1. Copy the EFI stub from the rootfs to the ESP:
+   - `$DISK_MNT/usr/lib/systemd/boot/efi/systemd-bootx64.efi` →
+     `$DISK_MNT/boot/efi/EFI/BOOT/BOOTX64.EFI` (UEFI removable media fallback)
+   - Also copied to `EFI/systemd/systemd-bootx64.efi`
+2. Create loader configuration on the ESP:
+   - `loader/loader.conf` → `default playos.conf`, `timeout 0`
+   - `loader/entries/playos.conf` → kernel, initramfs, and root UUID entry
+3. Copy kernel and initramfs to the ESP:
+   - `$DISK_MNT/boot/vmlinuz-lts` → `$DISK_MNT/boot/efi/vmlinuz-lts`
+   - `$DISK_MNT/boot/initramfs-lts` → `$DISK_MNT/boot/efi/initramfs-lts`
+4. `sync` to flush all writes before proceeding.
+
+### Phase 3: Compress Disk Image + Build ISO (Second nspawn)
+
+A **second** `systemd-nspawn` invocation handles compression and ISO generation.
+This container only binds the workspace — not the disk image mounts — since
+the disk image is already complete and the ESP is fully populated.
+
+#### Compression
+
+The disk image is compressed inside the container:
 
 ```bash
 zstd -f -T2 --rm -12 out/playos-gpt-v3.24-x86_64.img
@@ -244,7 +282,7 @@ sha256sum out/playos-gpt-v3.24-x86_64.img.zst > out/playos-gpt-v3.24-x86_64.img.
 
 The 4 GiB uncompressed image compresses to approximately 800 MiB.
 
-#### 3d. Build ISO (`build-alpine-iso.sh`)
+#### ISO Build (`build-alpine-iso.sh`)
 
 This script produces the bootable Live ISO using Alpine's `mkimage.sh` tooling.
 
@@ -309,9 +347,9 @@ This script produces the bootable Live ISO using Alpine's `mkimage.sh` tooling.
 
    Output lands in `out/` as a bootable ISO file.
 
-### Phase 2: Post-Build (Host)
+### Phase 4: Post-Build (Host)
 
-After the nspawn container exits, the host wrapper:
+After the second nspawn container exits, the host wrapper:
 
 1. **Fixes ownership** of the compressed disk image and checksum (created as
    root inside nspawn).

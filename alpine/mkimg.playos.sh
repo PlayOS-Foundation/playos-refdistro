@@ -56,5 +56,9 @@ profile_playos() {
         wlroots0.19
         raylib
         glfw
+
+        # installer dependencies
+        zstd
+        util-linux
     "
 }

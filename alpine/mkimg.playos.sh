@@ -24,8 +24,10 @@ profile_playos() {
         alpine-conf
         bluez
         bluez-openrc
+        coreutils
         dbus
         dbus-openrc
+        e2fsprogs-extra
         eudev
         eudev-openrc
         gptfdisk
@@ -47,18 +49,20 @@ profile_playos() {
         networkmanager-openrc
         openssh
         openrc
+        parted
         pipewire
         seatd
         seatd-openrc
+        sgdisk
         wayland
         wireplumber
         wireplumber-openrc
         wlroots0.19
+        systemd-boot
+        efibootmgr
+        zstd
         raylib
         glfw
-        zstd
-        sgdisk
-        parted
         e2fsprogs
         util-linux
     "

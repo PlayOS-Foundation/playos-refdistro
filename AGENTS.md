@@ -36,6 +36,7 @@ Ubuntu wrapper or optional container wrapper
 - `docker/Dockerfile`: optional pinned Alpine builder.
 - `scripts/build-alpine-iso.sh`: shared image entrypoint.
 - `docs/alpine-migration.md`: Alpine bring-up and parity gates.
+- `docs/LiveISOImageBuild.md`: step-by-step ISO build guide (prerequisites, phases, key files, testing).
 
 A future distro backend must be proposed separately and own its package recipes, image tooling, init/service definitions, tests, and release lifecycle. It must not share mutable implementation state with the Alpine profile.
 

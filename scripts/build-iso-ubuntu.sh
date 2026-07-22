@@ -95,17 +95,69 @@ sudo systemd-nspawn \
         set -e
         /workspace/scripts/build-playos-components.sh
         /workspace/scripts/build-disk-image.sh
+    '
+
+# ── Phase 2: Install bootloader to ESP (host-side — nspawn bind doesn't propagate sub-mounts) ─
+echo "==> Installing systemd-boot to ESP"
+STUB="${DISK_MNT}/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+if [ -f "$STUB" ]; then
+    sudo mkdir -p "${DISK_MNT}/boot/efi/EFI/BOOT"
+    sudo mkdir -p "${DISK_MNT}/boot/efi/EFI/systemd"
+    sudo mkdir -p "${DISK_MNT}/boot/efi/loader/entries"
+
+    sudo cp "$STUB" "${DISK_MNT}/boot/efi/EFI/BOOT/BOOTX64.EFI"
+    sudo cp "$STUB" "${DISK_MNT}/boot/efi/EFI/systemd/systemd-bootx64.efi"
+
+    KERNEL_VER=$(ls "${DISK_MNT}/lib/modules/" | head -1)
+    if [ -n "$KERNEL_VER" ]; then
+        sudo tee "${DISK_MNT}/boot/efi/loader/entries/playos.conf" > /dev/null <<CONFENTRY
+title   PlayOS
+linux   /vmlinuz-lts
+initrd  /initramfs-lts
+options root=UUID=${ROOT_UUID} rw console=tty0 amdgpu.sg_display=0 quiet loglevel=3
+CONFENTRY
+
+        sudo tee "${DISK_MNT}/boot/efi/loader/loader.conf" > /dev/null <<LOADERCONF
+default playos.conf
+timeout 0
+console-mode keep
+LOADERCONF
+
+        sudo cp "${DISK_MNT}/boot/vmlinuz-lts"   "${DISK_MNT}/boot/efi/vmlinuz-lts"
+        sudo cp "${DISK_MNT}/boot/initramfs-lts" "${DISK_MNT}/boot/efi/initramfs-lts"
+        echo "    systemd-boot installed to ESP"
+    fi
+else
+    echo "    WARNING: systemd-boot stub not found — no bootloader installed"
+fi
+
+sync
+
+# ── Phase 3: Compress + build ISO (inside nspawn) ─────────────────────────────
+echo "==> Compressing disk image and building ISO"
+sudo systemd-nspawn \
+    --quiet \
+    --directory="$ROOTFS" \
+    --resolv-conf=replace-host \
+    --bind="$ROOT:/workspace" \
+    --setenv="PLAYOS_ROOT=/workspace" \
+    --setenv="PLAYOS_ALPINE_BRANCH=${ALPINE_BRANCH}" \
+    --setenv="PLAYOS_APORTS_BRANCH=${PLAYOS_APORTS_BRANCH:-3.24-stable}" \
+    --setenv="PLAYOS_ARCH=${ARCH}" \
+    --setenv="TMPDIR=/var/tmp" \
+    /bin/sh -c '
+        set -e
 
         # Compress disk image now so genapkovl can bundle it into the ISO
         echo "==> Compressing disk image for ISO bundling"
         IMG=$(echo /workspace/out/playos-gpt-*.img | head -1)
-        zstd -f -T0 --rm -12 "$IMG"
+        zstd -f -T2 --rm -12 "$IMG"
         sha256sum "${IMG}.zst" > "${IMG}.zst.sha256"
 
         /workspace/scripts/build-alpine-iso.sh
     '
 
-# ── Phase 2: The disk image was already compressed inside nspawn ────────────
+# ── Phase 4: Verify compressed image + fix ownership ─────────────────────────
 ZST_PATH="${DISK_IMG}.zst"
 if [ -f "$ZST_PATH" ]; then
     sudo chown "$(id -u):$(id -g)" "$ZST_PATH" "${ZST_PATH}.sha256" 2>/dev/null || true

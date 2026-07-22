@@ -106,6 +106,8 @@ apk --root $MNT add --no-cache \
     wayland \
     wireplumber wireplumber-openrc \
     wlroots0.19 \
+    systemd-boot \
+    efibootmgr \
     wpa_supplicant
 
 # ── Copy PlayOS custom binaries ──────────────────────────────────────────────
@@ -231,42 +233,12 @@ UUID=$ROOT_UUID /         ext4  defaults,noatime  0 1
 UUID=$EFI_UUID  /boot/efi vfat  defaults,noatime  0 2
 EOF
 
-# ── Install bootloader (systemd-boot) ────────────────────────────────────────
-echo "==> Installing systemd-boot"
+# ── Bootloader (systemd-boot) ─────────────────────────────────────────────────
+# Install EFI stub to rootfs. Actual ESP deployment is done by
+# build-iso-ubuntu.sh on the host side (nspawn --bind doesn't propagate
+# sub-mounts so ESP at /boot/efi isn't visible inside the container).
+echo "==> Installing systemd-boot EFI stub to rootfs"
 apk --root $MNT add --no-cache systemd-boot 2>/dev/null || true
-
-if command -v bootctl >/dev/null 2>&1; then
-    bootctl install --root=$MNT --esp-path=/boot/efi --no-variables 2>/dev/null || {
-        echo "    bootctl install via host failed; trying chroot fallback"
-    }
-
-    KERNEL_VER=$(ls $MNT/lib/modules/ | head -1)
-    if [ -n "$KERNEL_VER" ]; then
-        mkdir -p $MNT/boot/efi/loader/entries
-
-        # systemd-boot entry for PlayOS
-        cat > $MNT/boot/efi/loader/entries/playos.conf <<CONFENTRY
-title   PlayOS
-linux   /vmlinuz-lts
-initrd  /initramfs-lts
-options root=UUID=$ROOT_UUID rw console=tty0 amdgpu.sg_display=0 quiet loglevel=3
-CONFENTRY
-
-        # Default loader config
-        cat > $MNT/boot/efi/loader/loader.conf <<LOADERCONF
-default playos.conf
-timeout 0
-console-mode keep
-LOADERCONF
-
-        # Copy kernel and initramfs to ESP
-        cp "$MNT/boot/vmlinuz-lts"     $MNT/boot/efi/vmlinuz-lts
-        cp "$MNT/boot/initramfs-lts"   $MNT/boot/efi/initramfs-lts
-    fi
-else
-    echo "    systemd-boot not available in build environment — skipping bootloader"
-    echo "    Boot entry will be created by playos-firstboot on first boot."
-fi
 
 # ── Unmount + compress (only when we created the image ourselves) ────────────
 if [ -n "$MUST_CLEANUP" ]; then

@@ -48,6 +48,8 @@ bash scripts/build-iso-ubuntu.sh
 bash scripts/test-iso-qemu.sh
 ```
 
+For a detailed walkthrough of every build phase, see [`docs/LiveISOImageBuild.md`](docs/LiveISOImageBuild.md).
+
 The setup wrapper:
 
 - installs `systemd-container`, QEMU, and OVMF on Ubuntu;

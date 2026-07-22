@@ -11,6 +11,6 @@ fi
 printf '%s\n'     "https://dl-cdn.alpinelinux.org/alpine/$ALPINE_BRANCH/main"     "https://dl-cdn.alpinelinux.org/alpine/$ALPINE_BRANCH/community"     > /etc/apk/repositories
 
 apk update
-apk add --no-cache     abuild     alpine-base     alpine-conf     alpine-sdk     bash     build-base     ca-certificates     cmake     coreutils     dosfstools     e2fsprogs     git     grub     mtools     ninja     squashfs-tools     sudo     syslinux     xorriso
+apk add --no-cache     abuild     alpine-base     alpine-conf     alpine-sdk     bash     build-base     ca-certificates     cmake     coreutils     dosfstools     e2fsprogs     git     grub     mtools     ninja     squashfs-tools     sudo     systemd-boot     syslinux     xorriso
 
 update-ca-certificates

@@ -99,7 +99,7 @@ sudo systemd-nspawn \
         # Compress disk image now so genapkovl can bundle it into the ISO
         echo "==> Compressing disk image for ISO bundling"
         IMG=$(echo /workspace/out/playos-gpt-*.img | head -1)
-        zstd -T0 --rm -12 "$IMG"
+        zstd -f -T0 --rm -12 "$IMG"
         sha256sum "${IMG}.zst" > "${IMG}.zst.sha256"
 
         /workspace/scripts/build-alpine-iso.sh

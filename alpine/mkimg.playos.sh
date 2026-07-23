@@ -14,9 +14,11 @@ profile_playos() {
     hostname="playos"
     apkovl="genapkovl-playos.sh"
 
-    # Multi-GPU kernel cmdline. amdgpu.sg_display=0 works around
-    # Display Core hangs on ROG Ally (Phoenix APU / RDNA 3) — harmless on other GPUs.
-    kernel_cmdline="console=tty0 amdgpu.sg_display=0 loglevel=7 ip=dhcp alpine_repo=http://192.168.0.196/playos/apks modloop=http://192.168.0.196/playos/modloop-lts apkovl=http://192.168.0.196/playos/playos.apkovl.tar.gz softlevel=playos-visual"
+    # Kernel cmdline. amdgpu.sg_display=0 works around Display Core hangs
+    # on ROG Ally (Phoenix APU / RDNA 3) — harmless on other GPUs.
+    # PXE-specific params (ip=dhcp, alpine_repo, modloop, apkovl) belong
+    # in the PXE server boot config, not the ISO — the ISO must boot from USB.
+    kernel_cmdline="console=tty0 amdgpu.sg_display=0 loglevel=7 softlevel=playos-visual"
     syslinux_serial="0 115200"
 
     apks="$apks

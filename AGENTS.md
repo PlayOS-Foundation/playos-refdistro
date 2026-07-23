@@ -1,5 +1,7 @@
 # AGENTS.md — playos-refdistro
 
+> **⚠️ FIRST:** Read [`gen-context.md`](gen-context.md) before anything else to understand the full PlayOS platform context.
+
 ## Purpose
 
 This repository builds the Alpine-based PlayOS reference operating system for full Runtime Devices.

@@ -56,13 +56,8 @@ cmake --build "$BUILD_DIR/shell"
 echo "==> Installing binaries"
 install -m 0755 "$BUILD_DIR/runtime/compositor/playos-compositor" /usr/bin/playos-compositor
 install -m 0755 "$BUILD_DIR/shell/playos-shell"             /usr/bin/playos-shell
-install -m 0755 "$BUILD_DIR/shell/playos-installer-gui"     /usr/bin/playos-installer-gui
-
 # ── OpenRC init scripts ────────────────────────────────────────────
 install -m 0755 "$ROOT/alpine/init.d/playos-compositor"     /etc/init.d/playos-compositor
-
-# ── Standalone installer script ────────────────────────────────────
-install -m 0755 "$ROOT/alpine/install-script/playos-installer" /usr/bin/playos-installer
 
 # ── Add to playos-visual runlevel ──────────────────────────────────
 ln -sf /etc/init.d/playos-compositor /etc/runlevels/playos-visual/playos-compositor 2>/dev/null || true

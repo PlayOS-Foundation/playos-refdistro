@@ -18,30 +18,90 @@ depend() {
 start() {
     ebegin "Running PlayOS first-boot setup"
 
-    # ── 0. Set default timezone ───────────────────────────────────────────
-    # Hardware clock is UTC. Set /etc/localtime to UTC as a safe default.
-    # The Shell UI should offer timezone selection for user preference.
-    # tzdata is part of alpine-base so zoneinfo is always available.
+    # Log to both console (via OpenRC) and persistent log file for
+    # post-boot debugging.
+    LOG="/var/log/playos-firstboot.log"
+    mkdir -p "$(dirname "$LOG")"
+    log_msg() {
+        local ts
+        ts=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+        echo "[$ts] $*" | tee -a "$LOG"
+    }
+
+    log_msg "=== PlayOS first-boot started ==="
+
+    # ── 0. Apply pre-flight config from ESP ────────────────────────────────
+    # The Shell writes playos-install-config to the ESP before dd.
+    # This file contains user preferences collected during installation.
+    CONFIG_FILE="/boot/efi/playos-install-config"
+    if [ -f "$CONFIG_FILE" ]; then
+        log_msg "Found pre-flight config at $CONFIG_FILE"
+        # Source the key=value config file (safe: no shell metacharacters in values)
+        . "$CONFIG_FILE"
+
+        # Apply hostname
+        if [ -n "${cfg_hostname:-}" ]; then
+            echo "$cfg_hostname" > /etc/hostname
+            hostname "$cfg_hostname" 2>/dev/null || true
+            log_msg "Hostname set to: $cfg_hostname"
+        fi
+
+        # Apply timezone
+        if [ -n "${cfg_timezone:-}" ] && [ -f "/usr/share/zoneinfo/$cfg_timezone" ]; then
+            ln -sf "/usr/share/zoneinfo/$cfg_timezone" /etc/localtime
+            log_msg "Timezone set to: $cfg_timezone"
+        fi
+
+        # Apply WiFi credentials (NetworkManager connection profile)
+        if [ -n "${cfg_wifi_ssid:-}" ] && command -v nmcli >/dev/null 2>&1; then
+            nmcli dev wifi connect "$cfg_wifi_ssid" \
+                ${cfg_wifi_psk:+password "$cfg_wifi_psk"} \
+                2>/dev/null && \
+                log_msg "WiFi connected to: $cfg_wifi_ssid" || \
+                log_msg "WARNING: Could not connect to WiFi: $cfg_wifi_ssid"
+            log_msg "WiFi configured for: $cfg_wifi_ssid"
+        fi
+
+        # Apply user display name (stored for Shell to read)
+        if [ -n "${cfg_display_name:-}" ]; then
+            mkdir -p /etc/playos
+            echo "$cfg_display_name" > /etc/playos/display-name
+            log_msg "Display name set to: $cfg_display_name"
+        fi
+
+        # Apply locale
+        if [ -n "${cfg_locale:-}" ]; then
+            echo "LANG=$cfg_locale" > /etc/locale.conf
+            log_msg "Locale set to: $cfg_locale"
+        fi
+
+        # Delete config after applying (sensitive data)
+        rm -f "$CONFIG_FILE"
+        log_msg "Pre-flight config applied and removed"
+    else
+        log_msg "No pre-flight config found — using defaults"
+    fi
+
+    # ── 0.1 Set default timezone (if not already set by config) ────────────
     if [ ! -L /etc/localtime ] && [ -f /usr/share/zoneinfo/UTC ]; then
         ln -sf /usr/share/zoneinfo/UTC /etc/localtime
-        echo "    Timezone set to UTC (default)"
+        log_msg "Timezone set to UTC (default)"
     fi
 
     # ── 1. Regenerate machine-id ─────────────────────────────────────────
-    # Disk images are clones — each install needs a unique machine-id so
-    # DHCP leases, D-Bus, and other services don't collide.
     if command -v uuidgen >/dev/null 2>&1; then
         uuidgen > /etc/machine-id
     else
         dd if=/dev/urandom bs=16 count=1 status=none | od -A n -t x1 | tr -d ' \n' > /etc/machine-id
     fi
     chmod 444 /etc/machine-id
-    echo "    machine-id: $(cat /etc/machine-id)"
+    log_msg "machine-id: $(cat /etc/machine-id)"
 
-    # ── 2. Find root and EFI devices ─────────────────────────────────────
+    # ── 2. Find root, EFI, and data devices ───────────────────────────────
     ROOT_DEV=$(findmnt -n -o SOURCE /)
     ROOT_DISK=""
     EFI_PART=""
+    DATA_PART=""
 
     case "$ROOT_DEV" in
         /dev/nvme*n*p*)
@@ -56,22 +116,23 @@ start() {
     esac
 
     if [ -n "$ROOT_DISK" ]; then
-        # EFI partition is partition 1 on the same disk
+        # EFI partition is p1, data partition is p3 on the same disk
         case "$ROOT_DISK" in
-            /dev/nvme*|/dev/mmcblk*) EFI_PART="${ROOT_DISK}p1" ;;
-            *)                         EFI_PART="${ROOT_DISK}1" ;;
+            /dev/nvme*|/dev/mmcblk*) EFI_PART="${ROOT_DISK}p1"; DATA_PART="${ROOT_DISK}p3" ;;
+            *)                         EFI_PART="${ROOT_DISK}1";  DATA_PART="${ROOT_DISK}3" ;;
         esac
     fi
 
-    echo "    root: $ROOT_DEV"
-    echo "    disk: $ROOT_DISK"
-    echo "    efi:  $EFI_PART"
+    log_msg "root: $ROOT_DEV"
+    log_msg "disk: $ROOT_DISK"
+    log_msg "efi:  $EFI_PART"
+    log_msg "data: $DATA_PART"
 
     # ── 3. Regenerate filesystem UUIDs ────────────────────────────────────
     if [ -n "$ROOT_DEV" ] && [ -b "$ROOT_DEV" ]; then
         tune2fs -U random "$ROOT_DEV" 2>/dev/null && \
-            echo "    Root partition UUID regenerated" || \
-            echo "    WARNING: Could not regenerate root UUID"
+            log_msg "Root partition UUID regenerated" || \
+            log_msg "WARNING: Could not regenerate root UUID"
     fi
 
     if [ -n "$EFI_PART" ] && [ -b "$EFI_PART" ]; then
@@ -80,8 +141,14 @@ start() {
         new_serial=$(dd if=/dev/urandom bs=4 count=1 status=none | od -A n -t x4 | tr -d ' \n')
         if [ -n "$new_serial" ]; then
             dd if=/dev/urandom of="$EFI_PART" bs=1 count=4 seek=67 conv=notrunc status=none 2>/dev/null && \
-                echo "    EFI volume serial regenerated" || true
+                log_msg "EFI volume serial regenerated" || true
         fi
+    fi
+
+    if [ -n "$DATA_PART" ] && [ -b "$DATA_PART" ]; then
+        tune2fs -U random "$DATA_PART" 2>/dev/null && \
+            log_msg "Data partition UUID regenerated" || \
+            log_msg "WARNING: Could not regenerate data UUID"
     fi
 
     # ── 4. Update fstab with new UUIDs ────────────────────────────────────
@@ -98,6 +165,12 @@ start() {
             sed -i "s/^UUID=[^ ]* \/boot\/efi /UUID=$NEW_EFI_UUID \/boot\/efi /" /etc/fstab
         fi
     fi
+    if [ -n "$DATA_PART" ]; then
+        NEW_DATA_UUID=$(blkid -s UUID -o value "$DATA_PART" 2>/dev/null || true)
+        if [ -n "$NEW_DATA_UUID" ]; then
+            sed -i "s/^UUID=[^ ]* \/data /UUID=$NEW_DATA_UUID \/data /" /etc/fstab
+        fi
+    fi
 
     # ── 5. Update systemd-boot entry with new root UUID ───────────────────
     if [ -n "$NEW_ROOT_UUID" ] && [ -f /boot/efi/loader/entries/playos.conf ]; then
@@ -106,11 +179,11 @@ start() {
 
     # ── 6. Create clean EFI boot entry ────────────────────────────────────
     if [ -d /sys/firmware/efi ] && command -v efibootmgr >/dev/null 2>&1; then
-        echo "    Setting up EFI boot entry..."
+        log_msg "Setting up EFI boot entry..."
 
         # Remove stale entries from other OSes
         for entry in $(efibootmgr | grep -iE 'Fedora|Ubuntu|SteamOS|Pop|Windows|Debian|Limine|PXE|Network' 2>/dev/null | sed 's/^Boot//;s/\*.*//'); do
-            efibootmgr -b "$entry" -B 2>/dev/null && echo "    Removed stale EFI entry Boot$entry" || true
+            efibootmgr -b "$entry" -B 2>/dev/null && log_msg "Removed stale EFI entry Boot$entry" || true
         done
 
         # Create PlayOS entry pointing to systemd-boot
@@ -118,21 +191,21 @@ start() {
             efibootmgr --create --disk "$ROOT_DISK" --part 1 \
                 --label "PlayOS" \
                 --loader '\EFI\systemd\systemd-bootx64.efi' \
-                2>/dev/null && echo "    PlayOS EFI boot entry created" || \
-                echo "    WARNING: Could not create EFI boot entry"
+                2>/dev/null && log_msg "PlayOS EFI boot entry created" || \
+                log_msg "WARNING: Could not create EFI boot entry"
         elif [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]; then
             # systemd-boot fallback path (installed with --no-variables)
             efibootmgr --create --disk "$ROOT_DISK" --part 1 \
                 --label "PlayOS" \
                 --loader '\EFI\BOOT\BOOTX64.EFI' \
-                2>/dev/null && echo "    PlayOS EFI boot entry created (fallback)" || true
+                2>/dev/null && log_msg "PlayOS EFI boot entry created (fallback)" || true
         fi
 
         # Set boot order: PlayOS first
         PLAYOS_ENTRY=$(efibootmgr | grep -i 'PlayOS' | head -1 | sed 's/^Boot//;s/\*.*//')
         if [ -n "$PLAYOS_ENTRY" ]; then
             efibootmgr -o "$PLAYOS_ENTRY" 2>/dev/null && \
-                echo "    Boot order set to PlayOS (Boot$PLAYOS_ENTRY)"
+                log_msg "Boot order set to PlayOS (Boot$PLAYOS_ENTRY)"
         fi
     fi
 
@@ -143,6 +216,8 @@ start() {
 
     # ── 8. Remove flag file (prevents re-run if service is re-added) ──────
     rm -f /etc/playos/firstboot
+
+    log_msg "=== PlayOS first-boot complete ==="
 
     eend 0
 }

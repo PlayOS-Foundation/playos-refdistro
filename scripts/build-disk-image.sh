@@ -12,8 +12,9 @@ ROOT="${PLAYOS_ROOT:-/workspace}"
 OUT="$ROOT/out"
 ALPINE_BRANCH="${PLAYOS_ALPINE_BRANCH:-v3.24}"
 ARCH="${PLAYOS_ARCH:-x86_64}"
-IMAGE_SIZE_MB="${PLAYOS_IMAGE_SIZE_MB:-4096}"
+IMAGE_SIZE_MB="${PLAYOS_IMAGE_SIZE_MB:-6144}"
 ESP_SIZE_MB="${PLAYOS_ESP_SIZE_MB:-512}"
+ROOT_SIZE_MB="${PLAYOS_ROOT_SIZE_MB:-4096}"
 IMAGE_NAME="playos-gpt-${ALPINE_BRANCH}-${ARCH}"
 MNT="${DISK_MNT:-}"
 
@@ -26,10 +27,11 @@ if [ -z "$MNT" ]; then
     echo "==> Creating ${IMAGE_SIZE_MB} MiB sparse image"
     truncate -s "${IMAGE_SIZE_MB}M" "$OUT/$IMAGE_NAME.img"
 
-    echo "==> Partitioning: GPT with ESP + root"
+    echo "==> Partitioning: GPT with ESP + root + data"
     sgdisk -Z "$OUT/$IMAGE_NAME.img"
     sgdisk -n "1:1M:+${ESP_SIZE_MB}M" -t 1:EF00 "$OUT/$IMAGE_NAME.img"
-    sgdisk -n 2:0:0 -t 2:8300 "$OUT/$IMAGE_NAME.img"
+    sgdisk -n "2:0:+${ROOT_SIZE_MB}M" -t 2:8300 "$OUT/$IMAGE_NAME.img"
+    sgdisk -n 3:0:0 -t 3:8300 "$OUT/$IMAGE_NAME.img"
 
     LOOP=$(losetup --find --show -P "$OUT/$IMAGE_NAME.img")
     echo "    Loop device: $LOOP"
@@ -37,18 +39,21 @@ if [ -z "$MNT" ]; then
     echo "==> Formatting partitions"
     mkfs.vfat -F32 -n PLAYOS_EFI "${LOOP}p1"
     mkfs.ext4 -F -L playos-root "${LOOP}p2"
+    mkfs.ext4 -F -L playos-data "${LOOP}p3"
 
     MNT="/mnt/playos-image-root"
     mkdir -p "$MNT"
     mount "${LOOP}p2" "$MNT"
-    mkdir -p "$MNT/boot/efi"
+    mkdir -p "$MNT/boot/efi" "$MNT/data"
     mount "${LOOP}p1" "$MNT/boot/efi"
+    mount "${LOOP}p3" "$MNT/data"
 
     MUST_CLEANUP="yes"
 
     cleanup_loop() {
         echo "==> Unmounting + detaching loop device"
         sync
+        mountpoint -q "$MNT/data" 2>/dev/null && umount "$MNT/data" || true
         mountpoint -q "$MNT/boot/efi" 2>/dev/null && umount "$MNT/boot/efi" || true
         mountpoint -q "$MNT" 2>/dev/null && umount "$MNT" || true
         losetup -d "$LOOP" 2>/dev/null || true
@@ -82,7 +87,7 @@ apk --root $MNT add --no-cache \
     eudev eudev-openrc \
     gptfdisk \
     glfw \
-    iwd \
+    iwd iwd-openrc \
     libdrm \
     libinput \
     libxkbcommon \
@@ -109,6 +114,7 @@ apk --root $MNT add --no-cache \
     wlroots0.19 \
     systemd-boot \
     efibootmgr \
+    util-linux \
     wpa_supplicant
 
 # ── Copy PlayOS custom binaries ──────────────────────────────────────────────
@@ -124,11 +130,6 @@ if [ -f /usr/bin/playos-shell ]; then
     install -m 0755 /usr/bin/playos-shell $MNT/usr/bin/playos-shell
 fi
 
-# Installer GUI (needed for re-install from disk → disk)
-if [ -f /usr/bin/playos-installer-gui ]; then
-    install -m 0755 /usr/bin/playos-installer-gui $MNT/usr/bin/playos-installer-gui
-fi
-
 # Shared libraries (shell links against these at runtime)
 if [ -f /usr/lib/libraylib.so.450 ]; then
     cp -a /usr/lib/libraylib.so.450 $MNT/usr/lib/
@@ -141,10 +142,15 @@ fi
 # ── Copy samples ─────────────────────────────────────────────────────────────
 SAMPLES_DIR="/workspace/.build/samples-out"
 if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
-    echo "==> Bundling PlayOS samples"
+    echo "==> Bundling PlayOS samples from $SAMPLES_DIR"
     mkdir -p $MNT/playos-samples/build
     install -m 0755 "$SAMPLES_DIR/hello-playos"   $MNT/playos-samples/build/hello-playos
     install -m 0755 "$SAMPLES_DIR/space-invaders" $MNT/playos-samples/build/space-invaders
+    echo "    Samples bundled: $(ls $MNT/playos-samples/build/)"
+elif [ ! -d "$SAMPLES_DIR" ]; then
+    echo "==> WARNING: Samples directory $SAMPLES_DIR not found — skipping sample bundle"
+elif [ ! -f "$SAMPLES_DIR/hello-playos" ]; then
+    echo "==> WARNING: hello-playos not found in $SAMPLES_DIR — skipping sample bundle"
 fi
 
 # ── Install compositor init script ───────────────────────────────────────────
@@ -225,30 +231,66 @@ chmod 600 $MNT/root/.ssh/authorized_keys
 # ── Kernel cmdline (applied by bootloader) ───────────────────────────────────
 mkdir -p $MNT/etc/kernel
 cat > $MNT/etc/kernel/cmdline <<'EOF'
-console=tty0 amdgpu.sg_display=0 quiet loglevel=3
+console=tty0 console=ttyS0 amdgpu.sg_display=0 quiet loglevel=3
 EOF
+
+# ── Data partition directories ────────────────────────────────────────────────
+echo "==> Creating /data directory structure"
+mkdir -p $MNT/data/games $MNT/data/saves $MNT/data/config
 
 # ── fstab ────────────────────────────────────────────────────────────────────
 ROOT_UUID="${ROOT_UUID:-$(blkid -s UUID -o value "${LOOP}p2" 2>/dev/null)}"
 EFI_UUID="${EFI_UUID:-$(blkid -s UUID -o value "${LOOP}p1" 2>/dev/null)}"
+DATA_UUID="${DATA_UUID:-$(blkid -s UUID -o value "${LOOP}p3" 2>/dev/null)}"
+ROOT_PARTUUID="${ROOT_PARTUUID:-$(blkid -s PARTUUID -o value "${LOOP}p2" 2>/dev/null)}"
 
 cat > $MNT/etc/fstab <<EOF
 # /etc/fstab — PlayOS installed system
 UUID=$ROOT_UUID /         ext4  defaults,noatime  0 1
 UUID=$EFI_UUID  /boot/efi vfat  defaults,noatime  0 2
+UUID=$DATA_UUID /data     ext4  defaults,noatime  0 2
 EOF
 
-# ── Bootloader (systemd-boot) ─────────────────────────────────────────────────
-# Install EFI stub to rootfs. Actual ESP deployment is done by
-# build-iso-ubuntu.sh on the host side (nspawn --bind doesn't propagate
-# sub-mounts so ESP at /boot/efi isn't visible inside the container).
-echo "==> Installing systemd-boot EFI stub to rootfs"
-apk --root $MNT add --no-cache systemd-boot 2>/dev/null || true
+# ── Bootloader: systemd-boot installation ────────────────────────────────────
+# systemd-boot package is already installed above (apk add).  Now deploy it to
+# the ESP when the ESP is directly accessible.  Inside nspawn with --bind the
+# ESP sub-mount is invisible, so we skip; the host wrapper (build-iso-ubuntu.sh)
+# handles ESP deployment externally in that case.
+echo "==> Installing systemd-boot to ESP"
+STUB="$MNT/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+if mountpoint -q "$MNT/boot/efi" 2>/dev/null && [ -f "$STUB" ]; then
+    mkdir -p "$MNT/boot/efi/EFI/BOOT" \
+             "$MNT/boot/efi/EFI/systemd" \
+             "$MNT/boot/efi/loader/entries"
+
+    cp "$STUB" "$MNT/boot/efi/EFI/BOOT/BOOTX64.EFI"
+    cp "$STUB" "$MNT/boot/efi/EFI/systemd/systemd-bootx64.efi"
+
+    cat > "$MNT/boot/efi/loader/entries/playos.conf" <<CONFENTRY
+title   PlayOS
+linux   /vmlinuz-lts
+initrd  /initramfs-lts
+options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=5 quiet loglevel=3
+CONFENTRY
+
+    cat > "$MNT/boot/efi/loader/loader.conf" <<LOADERCONF
+default playos.conf
+timeout 0
+console-mode keep
+LOADERCONF
+
+    cp "$MNT/boot/vmlinuz-lts"   "$MNT/boot/efi/vmlinuz-lts"
+    cp "$MNT/boot/initramfs-lts" "$MNT/boot/efi/initramfs-lts"
+    echo "    systemd-boot installed to ESP"
+else
+    echo "    ESP not directly accessible (nspawn mode) — host wrapper will install bootloader"
+fi
 
 # ── Unmount + compress (only when we created the image ourselves) ────────────
 if [ -n "$MUST_CLEANUP" ]; then
     echo "==> Unmounting image"
     sync
+    umount "$MNT/data"
     umount "$MNT/boot/efi"
     umount "$MNT"
     losetup -d "$LOOP"
@@ -261,7 +303,7 @@ if [ -n "$MUST_CLEANUP" ]; then
     echo "    $UNCOMPRESSED_SIZE → $COMPRESSED_SIZE"
 
     echo "==> Computing SHA-256 checksum"
-    sha256sum "$OUT/$IMAGE_NAME.img.zst" > "$OUT/$IMAGE_NAME.img.zst.sha256"
+    ( cd "$OUT" && sha256sum "$IMAGE_NAME.img.zst" > "$IMAGE_NAME.img.zst.sha256" )
     echo "    $(cat $OUT/$IMAGE_NAME.img.zst.sha256)"
 else
     echo "==> Disk image populated (compress + unmount handled by host wrapper)"

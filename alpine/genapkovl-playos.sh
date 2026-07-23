@@ -100,7 +100,10 @@ rc_add seatd playos-visual
 rc_add playos-compositor playos-visual
 
 # Wireless + networking (available post-boot, async from compositor).
-rc_add iwd default
+# NOTE: Do NOT start iwd alongside wpa_supplicant — they conflict.
+# NetworkManager uses wpa_supplicant as its WiFi backend; iwd
+# can grab wlan0 first and prevent NM from scanning.
+# rc_add iwd default
 rc_add networkmanager default
 rc_add wpa_supplicant default
 

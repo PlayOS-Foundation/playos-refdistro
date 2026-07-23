@@ -2,7 +2,7 @@
 
 > **From shell-script install to pre-built disk image (`dd`)**  
 > **Last updated:** 2026-07-22  
-> **Status:** Phases 1–5 complete (39/41 tasks). Phases 6–7 remain.  
+> **Status:** Phases 1–4 complete (38/41 tasks). Phase 5 partial (firstboot backend done, wizard pending). Phases 6–7 remain.  
 > **Target:** Industry-standard console install experience (SteamOS, Bazzite, ChimeraOS pattern)
 
 ---
@@ -35,7 +35,7 @@ PlayOS now ships a pre-built, compressed, checksum-verified GPT disk image. The 
 | **QEMU boot test** | ✅ Working | `scripts/test-disk-image-qemu.sh` — 6/7 markers pass with AHCI/TCG |
 | **Boot from disk** | ⚠️ Partial | Boots and runs Shell, but has known input issues (see below) |
 | **Separate data partition** | ✅ Implemented | GPT p3 mounted at `/data` (games, saves, configs), resized on install |
-| **Pre-flight configuration** | ⚠️ Partial | Firstboot reads config from ESP; Shell pre-flight UI not yet built |
+| **First-boot wizard** | ❌ Not started | Shell welcome wizard on first boot (WiFi, hostname, timezone) |
 
 ### Known issues on disk-booted system
 
@@ -60,10 +60,10 @@ PlayOS now ships a pre-built, compressed, checksum-verified GPT disk image. The 
 
 | Feature | Priority | Detail |
 |---|---|---|
-| **Shell pre-flight settings UI** | P2 | WiFi scan, hostname, timezone screens before install (firstboot already reads config) |
+| **First-boot welcome wizard** | P1 | Shell wizard on first boot after install: WiFi, hostname, timezone. No config during PXE/install phase. |
 | **Reinstall safety ("Keep Data")** | P1 | Detecting existing p3, offering keep vs erase |
 | **Image signature verification** | P3 | GPG signature check before writing (stretch goal) |
-| **`bmaptool` support** | P4 | Optional speed optimization (skips empty blocks, built-in checksums) |
+| **Update mechanism** | P1 | Check for updates, download, install — in-place (v1) or A/B atomic (v2) |
 | **Hardware validation (ROG Ally)** | P0 | Write image to disk, boot, verify first frame, gamepad, WiFi, resize |
 | **Recovery partition** | Future | On-disk recovery (SteamOS pattern) |
 | **A/B atomic updates** | Future | Two root partitions + rauc (SteamOS pattern) |
@@ -200,32 +200,27 @@ Image size increased from 4096 MiB → 6144 MiB to accommodate p3 placeholder (~
 
 ---
 
-## ⚠️ Phase 5: Pre-Flight Configuration — PARTIAL (2/3)
+## ⚠️ Phase 5: First-Boot Experience — PARTIAL (1/3)
 
-**Goal:** Embed device profile and user preferences before writing to disk. First boot is non-interactive.
+**Goal:** After OS install, first boot shows a welcome wizard in Shell. No configuration during PXE/install phase — just pick disk and go.
 
-### 5.1 Configuration schema
-- [x] Define config format: `key=value` file at `/boot/efi/playos-install-config`
-- [x] Fields: `cfg_hostname`, `cfg_timezone`, `cfg_wifi_ssid`, `cfg_wifi_psk`, `cfg_locale`, `cfg_display_name`
-- [ ] TOML format deferred — key=value is simpler for shell parsing
-
-### 5.2 Shell GUI — pre-install settings collection
-- [ ] **PENDING:** Add optional pre-install settings screen (after disk selection, before confirm)
-  - WiFi: scan networks, select + enter password (reuse existing WiFi screen)
+### 5.1 First-boot wizard in Shell
+- [ ] **PENDING:** Shell detects first boot (flag file `/etc/playos/firstboot`), shows welcome wizard
+  - WiFi: scan networks, select + enter password
   - Hostname: text input (default: playos)
   - Timezone: list selector
-  - "Skip" button → install with defaults
+  - "Skip" button → proceed with defaults
+  - After completion: transitions to game library
 
-### 5.3 Embed config into ESP before `dd`
-- [ ] **PENDING:** Requires Shell GUI to write config — currently config must be placed manually on ESP
-- [ ] Approach: after dd + sgdisk -e, mount ESP, write config, unmount, then resize
+### 5.2 First-boot backend (playos-firstboot)
+- [x] `playos-firstboot` already handles: machine-id, UUID regeneration (root/EFI/data), fstab/boot entry updates, EFI cleanup, self-deletion
+- [ ] Replace ESP config-file reading with Shell wizard integration (Shell writes settings, firstboot applies them)
+- [ ] Remove pre-flight ESP config reading code (development convenience, not for release)
 
-### 5.4 First-boot config application
-- [x] `playos-firstboot`: reads `/boot/efi/playos-install-config` (on mounted ESP)
-- [x] Apply: hostname → `/etc/hostname`, timezone → `/etc/localtime`, WiFi → nmcli connect
-- [x] Apply: locale → `/etc/locale.conf`, display name → `/etc/playos/display-name`
-- [x] Delete config file from ESP after applying (contains WiFi password)
-- [x] Boot continues directly to Shell (no wizard, no prompts)
+### 5.3 Install flow (no config prompts)
+- [x] PXE boot → Shell → pick disk → confirm → `dd` → resize → reboot
+- [x] No WiFi/hostname/timezone prompts during install
+- [x] Clean, simple: one decision (which disk), one button (install)
 
 ---
 
@@ -267,6 +262,43 @@ Image size increased from 4096 MiB → 6144 MiB to accommodate p3 placeholder (~
 
 ---
 
+## Phase 8: Update Mechanism
+
+**Goal:** Shell can check for, download, and install PlayOS updates. Data partition survives updates.
+
+### Research findings
+
+| Area | Current state |
+|---|---|
+| **Update code** | None — `playos-update` is a placeholder name in docs only |
+| **Shell screens** | Overlay has 3 items (WiFi, Install, Close). No settings/update UI |
+| **Versioning** | Alpine branch only (`v3.24`). No PlayOS build number |
+| **Bootloader** | systemd-boot, single entry, `timeout 0` — supports A/B natively |
+| **Partitions** | 6144 MiB image — too small for A/B (needs ~10 GiB+) |
+| **apk** | Available in disk image, repos pre-configured |
+
+### 8.1 Phase 8a — In-place updates (v1, simpler)
+- [ ] **Build versioning:** Embed `PLAYOS_VERSION` + build timestamp in image (`/etc/playos/version`)
+- [ ] **Update server:** Serve a version manifest JSON + updated `.img.zst` at a known URL
+- [ ] **`playos-update` init script:** OpenRC service in `playos-async` runlevel
+  - Fetches version manifest, compares to installed version
+  - If newer: downloads `.img.zst`, verifies sha256
+- [ ] **Shell `UpdateScreen`:** 
+  - "Check for Updates" button in overlay menu
+  - Shows current version, available version, changelog
+  - "Download & Install" — progress bar, then "Reboot to apply"
+- [ ] **Install logic:** Write new p1+p2 (ESP + root) only, preserve p3 (data)
+  - Reuses existing `zstd | dd` pipeline from `InstallerScreen`
+  - After reboot: `playos-firstboot` runs, data partition untouched
+
+### 8.2 Phase 8b — A/B atomic updates (v2, SteamOS pattern)
+- [ ] Expand image size to ~10 GiB (ESP 512M + root-a 4096M + root-b 4096M + data fills rest)
+- [ ] systemd-boot: dual entries (`playos-a.conf`, `playos-b.conf`) + boot counting
+- [ ] Update writes to inactive slot, bootloader switches on next boot
+- [ ] Boot counting: auto-fallback to previous slot after N failed boots
+
+---
+
 ## Phase 7: Documentation & Cleanup
 
 ### 7.1 Consolidate docs
@@ -288,14 +320,16 @@ Image size increased from 4096 MiB → 6144 MiB to accommodate p3 placeholder (~
 Phase 1 (Disk image hardening)
  └─→ Phase 2 (Shell dd pipeline) ──→ Phase 3 (Remove old path)
       │
-      └─→ Phase 4 (Data partition) ──→ Phase 5 (Pre-flight config)
+      └─→ Phase 4 (Data partition) ──→ Phase 5 (First-boot wizard) ──→ Phase 8a (In-place updates)
                                             │
                                             └─→ Phase 6 (Hardware validation)
                                                    │
                                                    └─→ Phase 7 (Docs & cleanup)
+
+Phase 8b (A/B atomic) depends on Phase 8a + image layout redesign
 ```
 
-Phases 1, 4, and 5 are independent. Phase 2 depends on 1. Phase 3 depends on 2. Phase 6 depends on 2, 4, 5.
+Phases 1, 4, and 8a are independent. Phase 2 depends on 1. Phase 3 depends on 2. Phase 5 depends on 4. Phase 6 depends on 2, 4, 5. Phase 8a depends on 4 (data partition survives update).
 
 ---
 
@@ -325,12 +359,11 @@ The current `out/playos-gpt-v3.24-x86_64.img.zst` was built BEFORE:
 
 **Action:** Run `bash scripts/build-iso-ubuntu.sh` to produce a fresh image with all Phase 1–4 changes.
 
-### 🟡 Priority — Shell pre-flight UI (Phase 5.2)
-Add a settings screen to `playos-shell` before the install confirmation:
-- WiFi network scan + password entry
-- Hostname input
-- Timezone selector
-- Write `playos-install-config` to ESP after dd
+### 🟡 Priority — First-boot welcome wizard (Phase 5.1)
+Add a welcome wizard to `playos-shell` that runs on first boot after OS install:
+- Detects first boot via `/etc/playos/firstboot` flag
+- WiFi scan + password, hostname input, timezone selector
+- Replaces pre-flight ESP config approach (dev convenience, not for users)
 
 ### 🟡 Priority — Reinstall safety (Phase 4.4)
 Implement "Keep Data" vs "Erase Everything" in `InstallerScreen`:

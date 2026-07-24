@@ -68,6 +68,11 @@ cd "$APORTS"
 export SUDO=
 mkdir -p "$HOME/.abuild"
 cp /home/build/.abuild/*.rsa /home/build/.abuild/*.rsa.pub "$HOME/.abuild/" 2>/dev/null || true
+cp /home/build/.abuild/abuild.conf "$HOME/.abuild/" 2>/dev/null || true
+# Ensure PACKAGER_PRIVKEY is set for abuild-sign (used in APKINDEX signing)
+if [ -z "${PACKAGER_PRIVKEY:-}" ] && [ -f "$HOME/.abuild/abuild.conf" ]; then
+    . "$HOME/.abuild/abuild.conf"
+fi
 
 sh scripts/mkimage.sh     --tag "$TAG"     --outdir "$OUT"     --workdir "$WORK"     --arch "$ARCH"     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/main"     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/community"     --profile playos
 

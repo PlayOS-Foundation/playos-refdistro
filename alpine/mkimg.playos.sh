@@ -3,6 +3,9 @@
 profile_playos() {
     profile_standard
 
+    # Disable modloop signing — we sign packages, not the initramfs.
+    modloop_sign=no
+
     # Multi-GPU initfs: amdgpu (AMD), nouveau (NVIDIA), plus USB
     # networking so netboot works on devices like the ROG Ally (USB-C dock NICs).
     initfs_features="$initfs_features network usbnet amdgpu amdgpu-firmware nvidia nvidia-firmware"

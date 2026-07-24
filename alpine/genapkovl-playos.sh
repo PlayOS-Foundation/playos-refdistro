@@ -104,8 +104,8 @@ rc_add playos-compositor playos-visual
 # NetworkManager uses wpa_supplicant as its WiFi backend; iwd
 # can grab wlan0 first and prevent NM from scanning.
 # rc_add iwd default
-rc_add networkmanager default
-rc_add wpa_supplicant default
+rc_add networkmanager playos-visual
+rc_add wpa_supplicant playos-visual
 
 # SSH debug access — pre-configured key so we can debug the compositor.
 mkdir -p "$tmp/root/.ssh"
@@ -154,19 +154,9 @@ if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
     chmod 0755 "$tmp/playos-samples/build/space-invaders"
 fi
 
-# Bundle the pre-built disk image so the installer can find it at
-# /usr/share/playos/playos-gpt-*.img.zst on the live ISO.
-# The disk image is optional — genapkovl can build an ISO without it
-# (for development/testing without a full image build).
-IMAGE_FILE=$(find /workspace/out -maxdepth 1 -name 'playos-gpt-*.img.zst' -print 2>/dev/null | head -1)
-if [ -n "$IMAGE_FILE" ] && [ -f "$IMAGE_FILE" ]; then
-    echo "==> Bundling disk image: $(basename "$IMAGE_FILE")"
-    mkdir -p "$tmp/usr/share/playos"
-    cp "$IMAGE_FILE" "$tmp/usr/share/playos/$(basename "$IMAGE_FILE")"
-    chmod 0644 "$tmp/usr/share/playos/$(basename "$IMAGE_FILE")"
-else
-    echo "==> No disk image found in out/ — ISO will not include a bundled image"
-fi
+# The disk image is bundled as a separate file on the ISO (not inside
+# the apkovl) to keep the apkovl small, avoiding xorriso large-file issues.
+echo "==> Disk image is placed alongside the apkovl on the ISO (not bundled inside apkovl)"
 
 mkdir -p "$tmp/etc/runlevels/playos-async"
 

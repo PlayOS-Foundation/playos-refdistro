@@ -83,3 +83,15 @@ rm -rf "$WORK"/*
 sh scripts/mkimage.sh     --tag "$TAG"     --outdir "$OUT"     --workdir "$WORK"     --arch "$ARCH"     --hostkeys     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/main"     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/community"     --profile playos
 
 echo "PlayOS Alpine image written to $OUT"
+
+# ── Add disk image directly to the ISO (bypasses apkovl large-file issues) ──
+DISK_IMAGE=$(find "$ROOT/out" -maxdepth 1 -name 'playos-gpt-*.img.zst' -print 2>/dev/null | head -1)
+ISO=$(find "$OUT" -maxdepth 1 -name 'alpine-playos-*.iso' -print 2>/dev/null | head -1)
+if [ -n "$DISK_IMAGE" ] && [ -f "$DISK_IMAGE" ] && [ -n "$ISO" ] && [ -f "$ISO" ]; then
+    echo "==> Adding disk image directly to ISO: $(basename "$DISK_IMAGE")"
+    xorriso -dev "$ISO" \
+        -map "$DISK_IMAGE" "$(basename "$DISK_IMAGE")" \
+        -commit \
+        -quiet
+    echo "    Disk image added to ISO root as $(basename "$DISK_IMAGE")"
+fi

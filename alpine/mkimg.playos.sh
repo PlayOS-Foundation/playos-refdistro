@@ -43,6 +43,9 @@ profile_playos() {
         linux-firmware-amdgpu
         linux-firmware-nvidia
         linux-firmware-intel
+        linux-firmware-ath10k
+        linux-firmware-ath11k
+        linux-firmware-brcm
         linux-firmware-mediatek
         mesa-dri-gallium
         mesa-egl

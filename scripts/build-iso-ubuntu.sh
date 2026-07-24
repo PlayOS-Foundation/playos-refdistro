@@ -201,6 +201,7 @@ if [ -n "$ISO" ] && [ -f "$ISO" ]; then
     sudo cp "$MNT/boot/modloop-lts" "$PXE_DIR/"
     sudo rm -rf "$PXE_DIR/apks"
     sudo cp -r "$MNT/apks" "$PXE_DIR/"
+    sudo cp "$ROOT/alpine/boot.ipxe" "$PXE_DIR/"
     sudo chown -R www-data:www-data "$PXE_DIR"
     
     sudo umount "$MNT"

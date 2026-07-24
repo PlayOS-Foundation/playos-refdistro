@@ -1,0 +1,29 @@
+#!ipxe
+# PlayOS netboot script — iPXE chain-loads kernel + initramfs over HTTP.
+# ${next-server} is the PXE server IP, set by dnsmasq DHCP proxy.
+
+set server ${next-server}
+set base-url http://${server}/playos
+
+echo == PlayOS Alpine netboot ==
+echo Server : ${server}
+echo Kernel : ${base-url}/vmlinuz-lts
+echo Initrd : ${base-url}/initramfs-lts
+echo Modloop: ${base-url}/modloop-lts
+echo APK repo: ${base-url}/apks
+echo Overlay: ${base-url}/playos.apkovl.tar.gz
+
+kernel ${base-url}/vmlinuz-lts \
+    ip=dhcp \
+    alpine_repo=${base-url}/apks \
+    modloop=${base-url}/modloop-lts \
+    apkovl=${base-url}/playos.apkovl.tar.gz \
+    console=tty0 \
+    console=ttyS0,115200 \
+    amdgpu.sg_display=0 \
+    loglevel=7 \
+    softlevel=playos-visual
+
+initrd ${base-url}/initramfs-lts
+
+boot

@@ -44,13 +44,6 @@ sed -i 's/--no-chown//g' "$APORTS/scripts/mkimage.sh"
 # quiet suppresses messages needed for debugging.
 sed -i 's/initfs_cmdline="modules=loop,squashfs,sd-mod,usb-storage quiet"/initfs_cmdline="modules=loop,squashfs"/' "$APORTS/scripts/mkimg.base.sh"
 
-# Stop signing the APKINDEX on the ISO. Our custom build key isn't
-# in the initramfs (/etc/apk/keys inside the initramfs only has
-# Alpine official keys), so apk add refuses to install from a
-# locally-signed repo and fails silently (errors go to /dev/kmsg).
-# The ISO is a trusted local medium — signing adds no value here.
-sed -i 's/^\tabuild-sign/#\0/' "$APORTS/scripts/mkimg.base.sh"
-
 # Ensure GPU firmware is installed so mkinitfs can bundle it into the
 # initramfs (otherwise GPU probe fails before the apkovl is extracted).
 apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel 2>&1 | tail -1
@@ -80,6 +73,12 @@ cp /home/build/.abuild/abuild.conf "$HOME/.abuild/" 2>/dev/null || true
 if [ -z "${PACKAGER_PRIVKEY:-}" ] && [ -f "$HOME/.abuild/abuild.conf" ]; then
     . "$HOME/.abuild/abuild.conf"
 fi
+
+# Clean the build section cache so the initramfs is rebuilt with our
+# signing key included.  Without this, stale cached sections (kernel,
+# apks) skip rebuild and the initramfs lacks the key trusted to verify
+# the signed APKINDEX.
+rm -rf "$WORK"/*
 
 sh scripts/mkimage.sh     --tag "$TAG"     --outdir "$OUT"     --workdir "$WORK"     --arch "$ARCH"     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/main"     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/community"     --profile playos
 

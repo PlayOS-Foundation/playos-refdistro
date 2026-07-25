@@ -24,7 +24,8 @@ if [[ ! -d "$APORTS/.git" ]]; then
     git clone --depth 1 --branch "$APORTS_BRANCH"         https://gitlab.alpinelinux.org/alpine/aports.git "$APORTS"
 else
     git -C "$APORTS" fetch --depth 1 origin "$APORTS_BRANCH"
-    git -C "$APORTS" checkout --detach FETCH_HEAD
+    git -C "$APORTS" checkout --force --detach FETCH_HEAD
+    git -C "$APORTS" clean -fd
 fi
 
 install -m 0755 "$ROOT/alpine/mkimg.playos.sh"     "$APORTS/scripts/mkimg.playos.sh"
@@ -38,6 +39,15 @@ install -m 0644 "$ROOT/alpine/nvidia-firmware.files"   /etc/mkinitfs/features.d/
 # apk-tools 3.0.6+: --no-chown conflicts with root (implies usermode).
 # Remove it — we run as root in nspawn, so chown is fine.
 sed -i 's/--no-chown//g' "$APORTS/scripts/mkimage.sh"
+
+# Replace cp -Lrs (symlinks) with cp -rL (hard copies) to avoid xorriso
+# symlink-following bugs that corrupt the apkovl on the ISO.
+sed -i 's/cp -Lrs/cp -rL/' "$APORTS/scripts/mkimage.sh"
+
+# Intercept the DESTDIR before xorrisofs corrupts the apkovl.
+# Insert a line before the xorrisofs call in create_image_iso that
+# copies DESTDIR to a safe location for our own ISO rebuild.
+sed -i '/^[[:space:]]*xorrisofs \\/i\cp -a "${DESTDIR}" /var/tmp/playos-destdir-backup' "$APORTS/scripts/mkimg.base.sh"
 
 # Remove sd-mod,usb-storage and quiet from default initfs_cmdline.
 # sd-mod/usb-storage probe hardware that may hang during netboot;
@@ -84,14 +94,91 @@ sh scripts/mkimage.sh     --tag "$TAG"     --outdir "$OUT"     --workdir "$WORK"
 
 echo "PlayOS Alpine image written to $OUT"
 
-# ── Add disk image directly to the ISO (bypasses apkovl large-file issues) ──
-DISK_IMAGE=$(find "$ROOT/out" -maxdepth 1 -name 'playos-gpt-*.img.zst' -print 2>/dev/null | head -1)
+# ── Rebuild ISO from the backup DESTDIR (workaround for xorriso corruption
+#     inside nspawn's mkimage.sh) and add the disk image at the same time ──
 ISO=$(find "$OUT" -maxdepth 1 -name 'alpine-playos-*.iso' -print 2>/dev/null | head -1)
-if [ -n "$DISK_IMAGE" ] && [ -f "$DISK_IMAGE" ] && [ -n "$ISO" ] && [ -f "$ISO" ]; then
-    echo "==> Adding disk image directly to ISO: $(basename "$DISK_IMAGE")"
-    xorriso -dev "$ISO" \
-        -map "$DISK_IMAGE" "$(basename "$DISK_IMAGE")" \
-        -commit \
-        -quiet
-    echo "    Disk image added to ISO root as $(basename "$DISK_IMAGE")"
+DISK_IMAGE=$(find "$ROOT/out" -maxdepth 1 -name 'playos-gpt-*.img.zst' -print 2>/dev/null | head -1)
+STAGING="/var/tmp/playos-destdir-backup"
+
+if [ ! -d "$STAGING" ]; then
+    echo "ERROR: DESTDIR backup not found at $STAGING — sed injection may have failed" >&2
+    exit 1
 fi
+
+if [ -z "$ISO" ] || [ ! -f "$ISO" ]; then
+    echo "ERROR: mkimage.sh did not produce an ISO" >&2
+    exit 1
+fi
+
+echo "==> Using backup DESTDIR: $(du -sh "$STAGING" | cut -f1)"
+
+# Verify the apkovl is valid gzip in backup DESTDIR
+APKOVL=$(find "$STAGING" -maxdepth 1 -name '*.apkovl.tar.gz' -print 2>/dev/null | head -1)
+if [ -n "$APKOVL" ] && gzip -t "$APKOVL" 2>/dev/null; then
+    echo "    ✅ apkovl in DESTDIR is valid gzip ($(du -h "$APKOVL" | cut -f1))"
+else
+    echo "    ❌ apkovl in DESTDIR is missing or invalid"
+fi
+
+# Add disk image to staging
+if [ -n "$DISK_IMAGE" ] && [ -f "$DISK_IMAGE" ]; then
+    echo "==> Adding disk image to staging: $(basename "$DISK_IMAGE")"
+    cp "$DISK_IMAGE" "$STAGING/"
+fi
+
+# Determine volid from the original ISO
+VOLID=$(xorriso -indev "$ISO" -print_info 2>/dev/null | grep 'Volume id' | sed "s/.*'\(.*\)'/\1/" || echo "alpine-playos-x86_64")
+VOLID=${VOLID:-alpine-playos-x86_64}
+
+echo "==> Rebuilding ISO from DESTDIR ($VOLID)..."
+NEW_ISO="${ISO%.iso}-fixed.iso"
+
+# Build xorrisofs args (replicating Alpine's create_image_iso logic)
+ISOLINUX=""
+EFIBOOT=""
+if [ -f "$STAGING/boot/syslinux/isolinux.bin" ]; then
+    ISOLINUX="-isohybrid-mbr $STAGING/boot/syslinux/isohdpfx.bin -eltorito-boot boot/syslinux/isolinux.bin -eltorito-catalog boot/syslinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
+fi
+if [ -d "$STAGING/efi" ] && [ -f "$STAGING/boot/grub/efi.img" ]; then
+    if [ -n "$ISOLINUX" ]; then
+        EFIBOOT="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
+    else
+        EFIBOOT="-e boot/grub/efi.img -no-emul-boot"
+    fi
+fi
+
+xorrisofs \
+    -quiet \
+    -output "$NEW_ISO" \
+    -full-iso9660-filenames \
+    -joliet \
+    -rational-rock \
+    -sysid LINUX \
+    -volid "$VOLID" \
+    $ISOLINUX \
+    $EFIBOOT \
+    "$STAGING/"
+
+# Verify the apkovl in the new ISO
+echo "==> Verifying new ISO..."
+APKOVL_NAME=$(basename "$APKOVL" 2>/dev/null || echo "playos.apkovl.tar.gz")
+TMP_MOUNT="/var/tmp/playos-iso-verify"
+mkdir -p "$TMP_MOUNT"
+mount -o loop,ro "$NEW_ISO" "$TMP_MOUNT" 2>/dev/null || true
+if [ -f "$TMP_MOUNT/$APKOVL_NAME" ]; then
+    ISO_SIZE=$(stat -c%s "$TMP_MOUNT/$APKOVL_NAME" 2>/dev/null)
+    if gzip -t "$TMP_MOUNT/$APKOVL_NAME" 2>/dev/null; then
+        echo "    ✅ apkovl on new ISO is valid gzip ($(numfmt --to=iec $ISO_SIZE))"
+    else
+        echo "    ❌ apkovl on new ISO is STILL corrupted"
+    fi
+fi
+umount "$TMP_MOUNT" 2>/dev/null || true
+
+# Replace original with fixed
+rm -f "$ISO"
+mv "$NEW_ISO" "$ISO"
+echo "==> Final ISO: $(basename "$ISO") ($(du -h "$ISO" | cut -f1))"
+
+# Cleanup
+rm -rf "$STAGING"

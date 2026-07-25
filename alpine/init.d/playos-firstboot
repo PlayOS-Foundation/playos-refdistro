@@ -12,7 +12,7 @@ description="PlayOS first-boot setup (one-shot)"
 
 depend() {
     need localmount
-    after bootmisc hostname
+    after bootmisc hostname networkmanager
 }
 
 start() {
@@ -52,14 +52,41 @@ start() {
             log_msg "Timezone set to: $cfg_timezone"
         fi
 
-        # Apply WiFi credentials (NetworkManager connection profile)
+        # Apply WiFi credentials (persistent NetworkManager connection profile)
         if [ -n "${cfg_wifi_ssid:-}" ] && command -v nmcli >/dev/null 2>&1; then
-            nmcli dev wifi connect "$cfg_wifi_ssid" \
-                ${cfg_wifi_psk:+password "$cfg_wifi_psk"} \
-                2>/dev/null && \
-                log_msg "WiFi connected to: $cfg_wifi_ssid" || \
-                log_msg "WARNING: Could not connect to WiFi: $cfg_wifi_ssid"
-            log_msg "WiFi configured for: $cfg_wifi_ssid"
+            # Wait up to 30s for NetworkManager to become ready (D-Bus service)
+            for _ in $(seq 1 30); do
+                if nmcli -t -f RUNNING general status 2>/dev/null | grep -q 'running'; then
+                    break
+                fi
+                sleep 1
+            done
+
+            # Check if wifi device is available
+            WIFI_DEV=$(nmcli -t -f TYPE,DEVICE device status 2>/dev/null | grep '^wifi:' | cut -d: -f2 | head -1)
+            if [ -n "$WIFI_DEV" ]; then
+                CON_NAME="playos-wifi"
+                # Remove any previous profile with the same name (from prior firstboot runs)
+                nmcli connection delete "$CON_NAME" 2>/dev/null || true
+                # Create persistent WiFi connection profile
+                if nmcli connection add \
+                    type wifi \
+                    ifname "$WIFI_DEV" \
+                    con-name "$CON_NAME" \
+                    autoconnect yes \
+                    ssid "$cfg_wifi_ssid" \
+                    ${cfg_wifi_psk:+wifi-sec.key-mgmt wpa-psk} \
+                    ${cfg_wifi_psk:+wifi-sec.psk "$cfg_wifi_psk"} \
+                    2>/dev/null; then
+                    nmcli connection up "$CON_NAME" 2>/dev/null && \
+                        log_msg "WiFi connected and profile saved: $cfg_wifi_ssid" || \
+                        log_msg "WARNING: WiFi profile created but could not connect: $cfg_wifi_ssid"
+                else
+                    log_msg "WARNING: Could not create WiFi profile for: $cfg_wifi_ssid"
+                fi
+            else
+                log_msg "WARNING: No WiFi device found — skipping WiFi setup"
+            fi
         fi
 
         # Apply user display name (stored for Shell to read)

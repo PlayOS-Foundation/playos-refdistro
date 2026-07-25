@@ -107,6 +107,33 @@ rc_add playos-compositor playos-visual
 rc_add networkmanager playos-visual
 rc_add wpa_supplicant playos-visual
 
+# NetworkManager configuration: auto-connect wired interfaces, manage WiFi.
+mkdir -p "$tmp/etc/NetworkManager/conf.d"
+makefile root:root 0644 "$tmp/etc/NetworkManager/conf.d/playos.conf" <<'EOF'
+[main]
+plugins=keyfile
+dhcp=internal
+
+[connectivity]
+enabled=false
+EOF
+
+# Default wired connection profile — auto-connects ANY ethernet device (eth0, enx*, enp*, usb*, ...)
+mkdir -p "$tmp/etc/NetworkManager/system-connections"
+makefile root:root 0600 "$tmp/etc/NetworkManager/system-connections/00-wired-dhcp.nmconnection" <<'EOF'
+[connection]
+id=wired-dhcp
+type=ethernet
+autoconnect=true
+autoconnect-priority=100
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+EOF
+
 # SSH debug access — pre-configured key so we can debug the compositor.
 mkdir -p "$tmp/root/.ssh"
 makefile root:root 0600 "$tmp/root/.ssh/authorized_keys" <<EOF

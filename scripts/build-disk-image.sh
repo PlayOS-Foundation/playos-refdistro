@@ -200,9 +200,43 @@ rc_add seatd default
 rc_add playos-compositor default
 
 # Network (async — does not block compositor)
-rc_add iwd default
+# NOTE: Do NOT start iwd alongside wpa_supplicant — they conflict.
+# NetworkManager uses wpa_supplicant as its WiFi backend; iwd
+# can grab wlan0 first and prevent NM from scanning.
+# rc_add iwd default
 rc_add networkmanager default
 rc_add wpa_supplicant default
+
+# ── NetworkManager configuration ──────────────────────────────────────────────
+echo "==> Configuring NetworkManager"
+
+mkdir -p $MNT/etc/NetworkManager/conf.d
+cat > $MNT/etc/NetworkManager/conf.d/playos.conf <<'EOF'
+[main]
+plugins=keyfile
+dhcp=internal
+
+[connectivity]
+enabled=false
+EOF
+
+# Default wired connection profile — auto-connects ANY ethernet device
+# (eth0, enx*, enp*, usb*, ...). No interface-name restriction.
+mkdir -p $MNT/etc/NetworkManager/system-connections
+cat > $MNT/etc/NetworkManager/system-connections/00-wired-dhcp.nmconnection <<'EOF'
+[connection]
+id=wired-dhcp
+type=ethernet
+autoconnect=true
+autoconnect-priority=100
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+EOF
+chmod 600 $MNT/etc/NetworkManager/system-connections/00-wired-dhcp.nmconnection
 
 # SSH debug access
 rc_add sshd default

@@ -47,9 +47,23 @@ The wrapper also publishes ISO contents and the compressed image to
 | `PLAYOS_IMAGE_SIZE_MB` | `6144` |
 | `PLAYOS_ESP_SIZE_MB` | `512` |
 | `PLAYOS_ROOT_SIZE_MB` | `4096` |
+| `PLAYOS_SSH_PUBKEY` | repo `playos-debug` key (auto-detects host `~/.ssh/id_*.pub`) |
 
 The source locations may also be overridden with `PLAYOS_RUNTIME_SRC`,
 `PLAYOS_SHELL_SRC`, `PLAYOS_PLATFORM_SRC`, and `PLAYOS_SAMPLES_SRC`.
+
+The LiveISO embeds a debug SSH key for development access. By default the
+build uses the repository's public `playos-debug` key. Set `PLAYOS_SSH_PUBKEY`
+to inject your own public key instead:
+
+```bash
+PLAYOS_SSH_PUBKEY="$(cat ~/.ssh/id_ed25519.pub)" \
+bash scripts/build-iso-ubuntu.sh
+```
+
+The build wrapper auto-detects `~/.ssh/id_*.pub` and forwards it into the
+nspawn build container via `--setenv`. If no host key is found, the
+repository's default `playos-debug` key is used.
 
 ```bash
 PLAYOS_IMAGE_SIZE_MB=8192 \

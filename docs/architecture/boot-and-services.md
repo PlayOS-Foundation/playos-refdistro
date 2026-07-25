@@ -15,21 +15,27 @@ UEFI → Alpine kernel and initramfs → APK overlay
 → playos-compositor → playos-shell
 ```
 
-`genapkovl-playos.sh` currently also adds NetworkManager, wpa_supplicant, and
+`genapkovl-playos.sh` currently also adds NetworkManager, iwd, and
 sshd to `playos-visual`. They are not dependencies of `playos-compositor`, but
 they are presently started in the same softlevel.
+
+WiFi uses **iwd** as the backend (`wifi.backend=iwd` in NetworkManager config).
+iwd is started as an OpenRC service in the playos-visual runlevel. The previous
+`wpa_supplicant` package was referenced but its binary and init script were
+never installed — iwd is the supported path.
 
 ### Installed disk image
 
 ```text
 UEFI → systemd-boot → kernel and initramfs → ext4 root
-→ OpenRC default runlevel → dbus → seatd
+→ OpenRC default runlevel → dbus → seatd → iwd
 → playos-compositor → playos-shell
 → playos-firstboot (one-shot on the first boot)
 ```
 
-The installed-image script currently adds NetworkManager, wpa_supplicant,
-sshd, and `playos-firstboot` to the default runlevel.
+The installed-image script currently adds NetworkManager, iwd,
+sshd, and `playos-firstboot` to the default runlevel. NetworkManager is
+configured with `wifi.backend=iwd` and `wifi.iwd.autoconnect=yes`.
 
 ## Target service policy
 

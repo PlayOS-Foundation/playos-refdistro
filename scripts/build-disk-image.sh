@@ -95,7 +95,6 @@ apk --root $MNT add --no-cache \
     linux-firmware-nvidia \
     linux-firmware-intel \
     linux-firmware-mediatek \
-    linux-lts \
     mesa-dri-gallium \
     mesa-egl \
     mesa-gbm \
@@ -116,6 +115,21 @@ apk --root $MNT add --no-cache \
     efibootmgr \
     util-linux \
     wpa_supplicant
+
+# Install kernel separately with --no-scripts: the post-install depmod trigger
+# fails in a cross-root install (apk --root $MNT) because depmod looks for
+# vmlinuz in the host container context, not in $MNT.  We run depmod
+# manually afterwards with the correct base directory.
+echo "==> Installing kernel (modules only, no post-install scripts)"
+apk --root $MNT add --no-cache --no-scripts linux-lts
+
+KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
+if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
+    echo "==> Generating module dependencies for $KERNEL_VER"
+    depmod -b "$MNT" "$KERNEL_VER" 2>/dev/null && \
+        echo "    depmod OK" || \
+        echo "    depmod failed (non-fatal — initramfs will regenerate on boot)"
+fi
 
 # ── Copy PlayOS custom binaries ──────────────────────────────────────────────
 echo "==> Copying PlayOS binaries"

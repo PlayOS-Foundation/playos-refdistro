@@ -40,6 +40,7 @@ eudev
 eudev-openrc
 gptfdisk
 iwd
+iwd-openrc
 kmod
 libdrm
 libinput
@@ -101,20 +102,21 @@ rc_add dbus playos-visual
 rc_add seatd playos-visual
 rc_add playos-compositor playos-visual
 
-# Wireless + networking (available post-boot, async from compositor).
-# NOTE: Do NOT start iwd alongside wpa_supplicant — they conflict.
-# NetworkManager uses wpa_supplicant as its WiFi backend; iwd
-# can grab wlan0 first and prevent NM from scanning.
-# rc_add iwd default
+# WiFi backend — iwd for NetworkManager (iwd is lighter and doesn't
+# need a separate OpenRC wpa_supplicant service).
 rc_add networkmanager playos-visual
-rc_add wpa_supplicant playos-visual
+rc_add iwd playos-visual
 
-# NetworkManager configuration: auto-connect wired interfaces, manage WiFi.
+# NetworkManager configuration: auto-connect wired interfaces, manage WiFi via iwd.
 mkdir -p "$tmp/etc/NetworkManager/conf.d"
 makefile root:root 0644 "$tmp/etc/NetworkManager/conf.d/playos.conf" <<'EOF'
 [main]
 plugins=keyfile
 dhcp=internal
+
+[device]
+wifi.backend=iwd
+wifi.iwd.autoconnect=yes
 
 [connectivity]
 enabled=false

@@ -37,6 +37,7 @@ profile_playos() {
         eudev-openrc
         gptfdisk
         iwd
+        iwd-openrc
         kmod
         libdrm
         libinput

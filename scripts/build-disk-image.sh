@@ -115,8 +115,7 @@ apk --root $MNT add --no-cache \
     wlroots0.19 \
     systemd-boot \
     efibootmgr \
-    util-linux \
-    wpa_supplicant
+    util-linux
 
 # Install kernel separately with --no-scripts: the post-install depmod trigger
 # fails in a cross-root install (apk --root $MNT) because depmod looks for
@@ -227,13 +226,9 @@ rc_add dbus default
 rc_add seatd default
 rc_add playos-compositor default
 
-# Network (async — does not block compositor)
-# NOTE: Do NOT start iwd alongside wpa_supplicant — they conflict.
-# NetworkManager uses wpa_supplicant as its WiFi backend; iwd
-# can grab wlan0 first and prevent NM from scanning.
-# rc_add iwd default
+# WiFi backend — iwd for NetworkManager
+rc_add iwd default
 rc_add networkmanager default
-rc_add wpa_supplicant default
 
 # ── NetworkManager configuration ──────────────────────────────────────────────
 echo "==> Configuring NetworkManager"
@@ -243,6 +238,10 @@ cat > $MNT/etc/NetworkManager/conf.d/playos.conf <<'EOF'
 [main]
 plugins=keyfile
 dhcp=internal
+
+[device]
+wifi.backend=iwd
+wifi.iwd.autoconnect=yes
 
 [connectivity]
 enabled=false

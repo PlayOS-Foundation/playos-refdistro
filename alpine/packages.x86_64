@@ -10,12 +10,14 @@ dbus-openrc
 eudev
 eudev-openrc
 iwd
+kmod
 libdrm
 libinput
 libxkbcommon
 linux-firmware-amdgpu
 linux-firmware-intel
 linux-firmware-mediatek
+wireless-regdb
 linux-firmware-ath10k
 linux-firmware-ath11k
 linux-firmware-brcm

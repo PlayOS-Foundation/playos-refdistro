@@ -12,7 +12,9 @@ The first profile builds a pinned Alpine 3.24 x86_64 ISO with:
 - OpenRC `playos-visual` and `playos-async` runlevels;
 - audio, network, Bluetooth, and SSH packages available on the image.
 
-At this milestone only dbus and seatd enter the visual runlevel. The compositor and shell are added after they build and package cleanly against musl.
+The build compiles the compositor and Shell against musl from sibling
+checkouts and bundles them into the image. Signed PlayOS APK packaging remains
+the next release-quality packaging milestone.
 
 ## Files
 
@@ -20,7 +22,7 @@ At this milestone only dbus and seatd enter the visual runlevel. The compositor 
 - `genapkovl-playos.sh`: diskless configuration and OpenRC runlevels.
 - `packages.x86_64`: reviewable package inventory.
 
-## Next implementation step
+## Next packaging step
 
 Create APKBUILD packages for:
 
@@ -31,6 +33,9 @@ Create APKBUILD packages for:
 - `playos-services` and device profiles.
 
 The image profile should consume signed APKs from a PlayOS repository. It should not clone arbitrary Git heads during a release build.
+
+See [Image pipeline](../docs/architecture/image-pipeline.md) for the current
+build flow.
 
 ## Release rules
 

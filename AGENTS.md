@@ -17,7 +17,8 @@ Platform behaviour is specified in `playos-spec`. ADR-0004 selects Alpine Linux,
 3. **Pin releases.** Released images use a pinned Alpine stable branch. Do not consume unpinned edge repositories.
 4. **Keep one active distro implementation.** Alpine is the only supported profile. The retired Arch implementation is preserved in Git history, not in the active tree.
 5. **Keep runtime code distribution-independent.** Package/init/image code belongs here. Runtime and shell sources must build on musl without depending on apk or OpenRC APIs.
-6. **Docker builds; VMs and hardware boot.** Container success does not validate DRM/KMS, input, suspend, or firmware.
+6. **VMs and hardware boot.** Image builds do not validate DRM/KMS, input,
+   suspend, or firmware.
 7. **No secrets or host-specific paths.**
 
 ## Primary workflow
@@ -28,17 +29,17 @@ Ubuntu wrapper or optional container wrapper
   → aports/mkimage PlayOS profile
   → out/*.iso
   → QEMU/OVMF smoke test
-  → VirtualBox compatibility test
   → ROG Ally hardware test
 ```
 
 ## Layout policy
 
 - `alpine/`: authoritative profile, package lists, overlays, and image configuration.
-- `docker/Dockerfile`: optional pinned Alpine builder.
 - `scripts/build-alpine-iso.sh`: shared image entrypoint.
-- `docs/alpine-migration.md`: Alpine bring-up and parity gates.
-- `docs/LiveISOImageBuild.md`: step-by-step ISO build guide (prerequisites, phases, key files, testing).
+- `docs/README.md`: canonical documentation index.
+- `docs/build/ubuntu.md`: Ubuntu host workflow.
+- `docs/architecture/`: image-pipeline and boot/service architecture.
+- `docs/validation.md`: required validation evidence.
 
 A future distro backend must be proposed separately and own its package recipes, image tooling, init/service definitions, tests, and release lifecycle. It must not share mutable implementation state with the Alpine profile.
 
@@ -47,7 +48,9 @@ A future distro backend must be proposed separately and own its package recipes,
 OpenRC is the reference init system.
 
 - `playos-visual` contains only the first-frame path.
-- `playos-async` contains audio, networking, Bluetooth, library, updates, cloud, marketplace, telemetry, and debug services.
+- `playos-async` is reserved for audio, networking, Bluetooth, library,
+  updates, cloud, marketplace, telemetry, and debug services after compositor
+  readiness.
 - A background service may wait for compositor readiness.
 - The compositor must never wait for a background service.
 - Long-running daemons should use OpenRC supervision and bounded readiness checks.
@@ -67,3 +70,5 @@ Every image change should record:
 - renderer;
 - kernel, Mesa, firmware, and wlroots versions;
 - hardware result when device-facing code changed.
+
+See [`docs/validation.md`](docs/validation.md) for the validation matrix.

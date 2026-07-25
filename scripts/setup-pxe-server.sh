@@ -25,6 +25,7 @@
 # Overrides:
 #   PXE_IFACE      Network interface for dnsmasq (auto-detected if unset)
 #   PXE_HTTP_PORT  nginx listen port (default: 80)
+#   PXE_BOOT_SCRIPT  TFTP iPXE script (boot.ipxe or boot-debug.ipxe)
 
 set -euo pipefail
 
@@ -50,11 +51,21 @@ HTTP_PORT="${PXE_HTTP_PORT:-80}"
 TFTP_ROOT="/srv/tftp"
 WEB_ROOT="/var/www/html"
 PLAYOS_URL_BASE="/playos"
+PXE_BOOT_SCRIPT="${PXE_BOOT_SCRIPT:-boot.ipxe}"
+
+case "$PXE_BOOT_SCRIPT" in
+    boot.ipxe|boot-debug.ipxe) ;;
+    *)
+        echo "error: PXE_BOOT_SCRIPT must be boot.ipxe or boot-debug.ipxe" >&2
+        exit 1
+        ;;
+esac
 
 echo "=== PlayOS PXE Server Setup ==="
 echo "Interface : $PXE_IFACE"
 echo "Server IP : $SERVER_IP"
 echo "HTTP port : $HTTP_PORT"
+echo "Boot script: $PXE_BOOT_SCRIPT"
 echo "TFTP root : $TFTP_ROOT"
 echo "Web root  : $WEB_ROOT"
 
@@ -90,17 +101,21 @@ sudo cp "$IPXE_EFI" "$TFTP_ROOT/ipxe.efi"
 sudo chmod 0644 "$TFTP_ROOT/ipxe.efi"
 echo "    $IPXE_EFI → $TFTP_ROOT/ipxe.efi"
 
-# ── Deploy iPXE boot script to TFTP root ─────────────────────────────────
-echo "==> Deploying iPXE boot script"
-sudo cp "$ROOT/alpine/boot.ipxe" "$TFTP_ROOT/boot.ipxe"
-sudo chmod 0644 "$TFTP_ROOT/boot.ipxe"
-echo "    $ROOT/alpine/boot.ipxe → $TFTP_ROOT/boot.ipxe"
+# ── Deploy iPXE boot scripts to TFTP root ────────────────────────────────
+echo "==> Deploying iPXE boot scripts"
+for boot_script in boot.ipxe boot-debug.ipxe; do
+    sudo cp "$ROOT/alpine/$boot_script" "$TFTP_ROOT/$boot_script"
+    sudo chmod 0644 "$TFTP_ROOT/$boot_script"
+    echo "    $ROOT/alpine/$boot_script → $TFTP_ROOT/$boot_script"
+done
 
 # Also deploy to web root for HTTP access (USB fallback + reference)
 sudo mkdir -p "$WEB_ROOT$PLAYOS_URL_BASE"
-sudo cp "$ROOT/alpine/boot.ipxe" "$WEB_ROOT$PLAYOS_URL_BASE/boot.ipxe"
-sudo chmod 0644 "$WEB_ROOT$PLAYOS_URL_BASE/boot.ipxe"
-echo "    $ROOT/alpine/boot.ipxe → $WEB_ROOT$PLAYOS_URL_BASE/boot.ipxe"
+for boot_script in boot.ipxe boot-debug.ipxe; do
+    sudo cp "$ROOT/alpine/$boot_script" "$WEB_ROOT$PLAYOS_URL_BASE/$boot_script"
+    sudo chmod 0644 "$WEB_ROOT$PLAYOS_URL_BASE/$boot_script"
+    echo "    $ROOT/alpine/$boot_script → $WEB_ROOT$PLAYOS_URL_BASE/$boot_script"
+done
 
 # ── Configure dnsmasq (DHCP proxy + TFTP) ────────────────────────────────
 echo ""
@@ -122,22 +137,17 @@ dhcp-range=${SERVER_IP%.*}.0,proxy,255.255.255.0
 # Log DHCP requests for debugging
 log-dhcp
 
-# ── Client architecture matching ─────────────────────────────────────────
-# Arch 7: x86_64 UEFI
-# Arch 9: x86_64 UEFI with HTTP boot capability
-dhcp-match=set:efi-x86_64,option:client-arch,7
-dhcp-match=set:efi-x86_64,option:client-arch,9
-dhcp-match=set:bios-x86,option:client-arch,0
-
 # ── First stage: PXE firmware loads iPXE ─────────────────────────────────
-# Tag !ipxe: only match before iPXE takes over (iPXE sets user-class "iPXE")
-dhcp-boot=tag:efi-x86_64,tag:!ipxe,ipxe.efi
+# Proxy-DHCP responds to PXE clients through pxe-service, rather than
+# dhcp-boot. The UEFI x86_64 service avoids fragile architecture tag matching.
+dhcp-pxe-vendor=PXEClient
+pxe-service=tag:!ipxe,x86-64_EFI,"PlayOS network boot",ipxe.efi,$SERVER_IP
 
 # ── Second stage: iPXE loads boot script ─────────────────────────────────
 # iPXE sets user-class "iPXE" in its own DHCP request.
-# Return "boot.ipxe" as the filename — iPXE fetches it from TFTP.
+# Return the selected script as the filename — iPXE fetches it from TFTP.
 dhcp-userclass=set:ipxe,iPXE
-dhcp-boot=tag:ipxe,boot.ipxe
+dhcp-boot=tag:ipxe,$PXE_BOOT_SCRIPT,,$SERVER_IP
 
 # ── TFTP ─────────────────────────────────────────────────────────────────
 enable-tftp

@@ -1,17 +1,13 @@
 #!ipxe
-# PlayOS netboot script — iPXE chain-loads kernel + initramfs over HTTP.
-# ${next-server} is the PXE server IP, set by dnsmasq DHCP proxy.
+# PlayOS netboot diagnostics — enables Alpine initramfs shell tracing.
+# Select with: PXE_BOOT_SCRIPT=boot-debug.ipxe bash scripts/setup-pxe-server.sh
 
 set server ${next-server}
 set base-url http://${server}/playos
 
-echo == PlayOS Alpine netboot ==
+echo == PlayOS Alpine netboot diagnostics ==
 echo Server : ${server}
-echo Kernel : ${base-url}/vmlinuz-lts
 echo Initrd : ${base-url}/initramfs-pxe-lts
-echo Modloop: ${base-url}/modloop-lts
-echo APK repo: ${base-url}/apks
-echo Overlay: ${base-url}/playos.apkovl.tar.gz
 
 kernel ${base-url}/vmlinuz-lts \
     ip=dhcp \
@@ -25,6 +21,9 @@ kernel ${base-url}/vmlinuz-lts \
     nomodeset \
     root_size=2G \
     loglevel=7 \
+    ignore_loglevel \
+    initcall_debug \
+    debug_init \
     softlevel=playos-visual
 
 initrd ${base-url}/initramfs-pxe-lts

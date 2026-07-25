@@ -40,6 +40,7 @@ eudev
 eudev-openrc
 gptfdisk
 iwd
+kmod
 libdrm
 libinput
 libxkbcommon
@@ -47,6 +48,7 @@ linux-firmware-amdgpu
 linux-firmware-nvidia
 linux-firmware-intel
 linux-firmware-mediatek
+wireless-regdb
 mesa-dri-gallium
 mesa-egl
 mesa-gbm
@@ -134,11 +136,21 @@ method=auto
 method=auto
 EOF
 
-# SSH debug access — pre-configured key so we can debug the compositor.
+# SSH debug access — use host key or env var, fallback to debug key.
 mkdir -p "$tmp/root/.ssh"
-makefile root:root 0600 "$tmp/root/.ssh/authorized_keys" <<EOF
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKjUiS/ZaOaGpyGkzotL9kUnsqOTpN07h0nZBpPwsDbP playos-debug
-EOF
+SSH_PUBKEY=""
+if [ -n "${PLAYOS_SSH_PUBKEY:-}" ]; then
+    SSH_PUBKEY="$PLAYOS_SSH_PUBKEY"
+elif [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
+    SSH_PUBKEY="$(cat "${HOME}/.ssh/id_ed25519.pub")"
+elif [ -f "${HOME}/.ssh/id_rsa.pub" ]; then
+    SSH_PUBKEY="$(cat "${HOME}/.ssh/id_rsa.pub")"
+else
+    SSH_PUBKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKjUiS/ZaOaGpyGkzotL9kUnsqOTpN07h0nZBpPwsDbP playos-debug"
+fi
+echo "$SSH_PUBKEY" > "$tmp/root/.ssh/authorized_keys"
+chown root:root "$tmp/root/.ssh/authorized_keys"
+chmod 0600 "$tmp/root/.ssh/authorized_keys"
 rc_add sshd playos-visual
 
 # Include the compositor init script and binaries in the overlay.

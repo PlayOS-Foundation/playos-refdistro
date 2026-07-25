@@ -35,12 +35,15 @@ There are no unit tests in this repo — it is a distro packaging/integration re
 
 This repo builds the **Alpine-based PlayOS reference operating system** as a pre-built disk image + bootable ISO. It is not the OS itself — it is the packaging, configuration, and image tooling for the OS.
 
-**Build host model:** The primary workflow runs on an Ubuntu Server host. Ubuntu uses `systemd-nspawn` to enter a checksum-verified Alpine minirootfs, where Alpine's native tooling (apk, mkimage, aports) runs. Docker is an optional alternative for Windows/macOS. Both call the same `scripts/build-alpine-iso.sh` entrypoint.
+**Build host model:** The supported workflow runs on an Ubuntu Server host.
+Ubuntu uses `systemd-nspawn` to enter a checksum-verified Alpine minirootfs,
+where Alpine's native tooling (apk, mkimage, aports) runs.
 
-**Build pipeline (3-phase):**
+**Build pipeline:**
 1. **Host side (Ubuntu):** Partition + format a 3-partition GPT disk image (ESP 512M, root 4G, data fills remainder). Mount partitions.
 2. **nspawn side (Alpine):** `build-playos-components.sh` builds sibling repos (platform-api, runtime/compositor, shell, samples) with cmake+ninja against musl. `build-disk-image.sh` installs Alpine base + packages into the mounted root partition, configures OpenRC runlevels, installs systemd-boot to ESP, bundles compositor/shell/samples binaries.
-3. **Post-nspawn (Ubuntu):** Compress disk image with zstd, rebuild ISO with xorriso (workaround for nspawn xorriso apkovl corruption), deploy to PXE server.
+3. **Host side (Ubuntu):** Install systemd-boot, kernel, initramfs, and loader configuration to the mounted ESP.
+4. **Post-nspawn (Ubuntu):** Compress disk image with zstd, rebuild ISO with xorriso (workaround for nspawn xorriso apkovl corruption), deploy to PXE server.
 
 **Outputs in `out/`:**
 - `playos-gpt-v3.24-x86_64.img.zst` — compressed GPT disk image with 3 partitions
@@ -48,7 +51,8 @@ This repo builds the **Alpine-based PlayOS reference operating system** as a pre
 
 **OpenRC service architecture (boot order is policy):**
 - `playos-visual` runlevel (first-frame critical): seatd → playos-compositor → playos-shell. Networking (NetworkManager, wpa_supplicant) and SSH also start here but don't block the compositor.
-- `playos-async` runlevel: audio, bluetooth, library, updates — starts after compositor readiness.
+- Target `playos-async` runlevel: audio, Bluetooth, library, updates, and
+  other background services start after compositor readiness.
 - `playos-firstboot` (one-shot, default runlevel): regenerates machine-id, filesystem UUIDs, creates EFI boot entry, applies pre-flight config from ESP, then deletes itself from runlevels.
 - The compositor must never wait for a background service.
 
@@ -73,6 +77,7 @@ This repo builds the **Alpine-based PlayOS reference operating system** as a pre
 
 **systemd-boot, not GRUB.** The bootloader is systemd-boot installed to the ESP. Boot entries live in `loader/entries/playos.conf`. The kernel cmdline includes `amdgpu.sg_display=0` (ROG Ally workaround, harmless elsewhere) and serial console for debugging.
 
-**Docker does not validate hardware.** Container boot success does not prove DRM/KMS, input, suspend, or firmware work. Always test on VM (QEMU/OVMF) and reference hardware (ROG Ally) for device-facing changes.
+**Build success does not validate hardware.** Always test on QEMU/OVMF and
+then reference hardware (ROG Ally) for device-facing changes.
 
 **musl, not glibc.** All binaries in the image are compiled against musl. Don't add glibc as a base dependency. glibc-only software needs a compatibility runtime.

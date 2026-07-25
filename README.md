@@ -24,7 +24,7 @@ Alpine is an implementation detail of the reference OS, not part of the portable
 
 ## Build hosts
 
-The primary developer workflow is a **native Ubuntu Server without Docker**.
+The primary developer workflow is a **native Ubuntu Server**.
 
 Ubuntu uses `systemd-nspawn` to execute Alpine's own tooling inside a checksum-verified Alpine 3.24.1 minirootfs:
 
@@ -38,8 +38,6 @@ Ubuntu Server
 
 This is not a second distro implementation. Ubuntu only hosts the isolated Alpine build root.
 
-Docker remains an optional equivalent build environment for Windows/macOS and existing CI.
-
 ## Native Ubuntu quick start
 
 ```bash
@@ -48,7 +46,8 @@ bash scripts/build-iso-ubuntu.sh
 bash scripts/test-iso-qemu.sh
 ```
 
-For a detailed walkthrough of every build phase, see [`docs/LiveISOImageBuild.md`](docs/LiveISOImageBuild.md).
+See the [documentation index](docs/README.md) for build, image-pipeline, boot,
+and validation guidance.
 
 The setup wrapper:
 
@@ -58,27 +57,22 @@ The setup wrapper:
 - extracts it under `.build/alpine-rootfs/`;
 - installs Alpine image-building dependencies with apk.
 
-The build wrapper enters that root with `systemd-nspawn` and runs `scripts/build-alpine-iso.sh`. It does not install Docker or modify the server's PXE/network configuration.
+The build wrapper enters that root with `systemd-nspawn` and runs
+`scripts/build-alpine-iso.sh`. It does not modify the server's PXE/network
+configuration.
 
-See [Native Ubuntu build](docs/ubuntu-native-build.md).
-
-## Optional Docker build
-
-```powershell
-./scripts/docker-build-builder.ps1
-./scripts/docker-build-iso.ps1
-```
-
-Both host workflows call the same Alpine build entrypoint and produce output in `out/`.
+See [Build on Ubuntu Server](docs/build/ubuntu.md).
 
 ## Implementation status
 
 - Alpine is the only active reference-distro profile.
 - Image work belongs under `alpine/` and uses apk, aports, mkimage, and OpenRC.
 - The retired Arch implementation remains recoverable from Git history.
-- A future Arch profile requires its own proposal, packaging, image, init, test, and release lifecycle.
+- A future distro profile requires its own proposal, packaging, image, init, test, and release lifecycle.
 
-See [Alpine migration](docs/alpine-migration.md).
+The active Alpine profile, build policy, and implementation details are
+documented in [`AGENTS.md`](AGENTS.md) and
+[Image pipeline](docs/architecture/image-pipeline.md).
 
 ## Boot policy
 
@@ -90,7 +84,7 @@ UEFI
   → seatd
   → playos-compositor
   → playos-shell first frame
-  → playos-async
+  → asynchronous services after compositor readiness
 ```
 
 Audio, network, Bluetooth, cloud, marketplace, updates, indexing, telemetry, and SSH must not block the first frame.
@@ -103,15 +97,12 @@ playos-refdistro/
 │   ├── mkimg.playos.sh
 │   ├── genapkovl-playos.sh
 │   └── packages.x86_64
-├── docker/
-│   └── Dockerfile
 ├── scripts/
 │   ├── setup-ubuntu-build-host.sh
 │   ├── build-iso-ubuntu.sh
 │   ├── test-iso-qemu.sh
 │   ├── install-alpine-build-deps.sh
 │   ├── build-alpine-iso.sh
-│   └── build-iso-docker.sh
 ├── docs/
 └── out/
 ```
@@ -130,7 +121,11 @@ The Alpine baseline is accepted when it passes:
 - persistent data;
 - measured first-frame time.
 
-The initial ISO proves Alpine/OpenRC/device/seat bring-up. PlayOS binaries are added after musl-native APK packaging.
+The current image builds and bundles PlayOS binaries directly from sibling
+checkouts. Release images should transition to musl-native signed APK
+packaging.
+
+See [Validation](docs/validation.md) for the required evidence by change type.
 
 ## Related repositories
 

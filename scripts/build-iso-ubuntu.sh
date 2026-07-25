@@ -163,7 +163,11 @@ sudo systemd-nspawn \
         echo "==> Compressing disk image for ISO bundling"
         IMG=$(echo /workspace/out/playos-gpt-*.img | head -1)
         zstd -f -T2 --rm -12 "$IMG"
-        sha256sum "${IMG}.zst" > "${IMG}.zst.sha256"
+        IMG_ZST="${IMG}.zst"
+        (
+            cd "$(dirname "$IMG_ZST")"
+            sha256sum "$(basename "$IMG_ZST")" > "$(basename "$IMG_ZST").sha256"
+        )
 
         /workspace/scripts/build-alpine-iso.sh
     '
@@ -198,6 +202,10 @@ if [ -n "$ISO" ] && [ -f "$ISO" ]; then
     sudo cp "$MNT/playos.apkovl.tar.gz" "$PXE_DIR/"
     sudo cp "$MNT/boot/vmlinuz-lts" "$PXE_DIR/"
     sudo cp "$MNT/boot/initramfs-lts" "$PXE_DIR/"
+    PXE_INITRAMFS=$(mktemp)
+    "$ROOT/scripts/build-pxe-initramfs.sh" "$MNT/boot/initramfs-lts" "$PXE_INITRAMFS"
+    sudo cp "$PXE_INITRAMFS" "$PXE_DIR/initramfs-pxe-lts"
+    rm -f "$PXE_INITRAMFS"
     sudo cp "$MNT/boot/modloop-lts" "$PXE_DIR/"
     sudo rm -rf "$PXE_DIR/apks"
     sudo cp -r "$MNT/apks" "$PXE_DIR/"

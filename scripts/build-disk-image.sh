@@ -88,6 +88,7 @@ apk --root $MNT add --no-cache \
     gptfdisk \
     glfw \
     iwd iwd-openrc \
+    kmod \
     libdrm \
     libinput \
     libxkbcommon \
@@ -95,6 +96,7 @@ apk --root $MNT add --no-cache \
     linux-firmware-nvidia \
     linux-firmware-intel \
     linux-firmware-mediatek \
+    wireless-regdb \
     mesa-dri-gallium \
     mesa-egl \
     mesa-gbm \
@@ -129,6 +131,18 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
     depmod -b "$MNT" "$KERNEL_VER" 2>/dev/null && \
         echo "    depmod OK" || \
         echo "    depmod failed (non-fatal — initramfs will regenerate on boot)"
+
+    echo "==> Generating initramfs for $KERNEL_VER"
+    mkinitfs \
+        -b "$MNT" \
+        -c "$MNT/etc/mkinitfs/mkinitfs.conf" \
+        -P "$MNT/etc/mkinitfs/features.d" \
+        -o "$MNT/boot/initramfs-lts" \
+        "$KERNEL_VER"
+    test -s "$MNT/boot/initramfs-lts"
+else
+    echo "error: kernel modules were not installed; cannot generate initramfs" >&2
+    exit 1
 fi
 
 # ── Copy PlayOS custom binaries ──────────────────────────────────────────────
@@ -270,9 +284,17 @@ ln -sf /usr/share/zoneinfo/UTC $MNT/etc/localtime
 
 # ── SSH debug key ────────────────────────────────────────────────────────────
 mkdir -p $MNT/root/.ssh
-cat > $MNT/root/.ssh/authorized_keys <<'EOF'
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKjUiS/ZaOaGpyGkzotL9kUnsqOTpN07h0nZBpPwsDbP playos-debug
-EOF
+SSH_PUBKEY=""
+if [ -n "${PLAYOS_SSH_PUBKEY:-}" ]; then
+    SSH_PUBKEY="$PLAYOS_SSH_PUBKEY"
+elif [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
+    SSH_PUBKEY="$(cat "${HOME}/.ssh/id_ed25519.pub")"
+elif [ -f "${HOME}/.ssh/id_rsa.pub" ]; then
+    SSH_PUBKEY="$(cat "${HOME}/.ssh/id_rsa.pub")"
+else
+    SSH_PUBKEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKjUiS/ZaOaGpyGkzotL9kUnsqOTpN07h0nZBpPwsDbP playos-debug"
+fi
+echo "$SSH_PUBKEY" > $MNT/root/.ssh/authorized_keys
 chmod 700 $MNT/root/.ssh
 chmod 600 $MNT/root/.ssh/authorized_keys
 

@@ -37,6 +37,7 @@ profile_playos() {
         eudev-openrc
         gptfdisk
         iwd
+        kmod
         libdrm
         libinput
         libxkbcommon
@@ -47,6 +48,7 @@ profile_playos() {
         linux-firmware-ath11k
         linux-firmware-brcm
         linux-firmware-mediatek
+        wireless-regdb
         mesa-dri-gallium
         mesa-egl
         mesa-gbm

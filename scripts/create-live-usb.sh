@@ -4,9 +4,35 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [path-to.iso]
+
+Write a PlayOS ISO to a selected removable USB device.
+
+Arguments:
+  path-to.iso  ISO image to write. When omitted, uses the newest ISO in
+               $ROOT/out.
+
+Options:
+  -h, --help   Show this help message.
+
+Example:
+  $(basename "$0") "$ROOT/out/alpine-playos-v3.24-x86_64.iso"
+
+The script prompts for a removable device and requires typing YES before
+destroying its contents.
+EOF
+}
+
 # ── find the newest ISO ──────────────────────────────────────────────
+if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
+    usage
+    exit 0
+fi
+
 if [[ $# -gt 1 ]]; then
-    echo "usage: $0 [path-to.iso]" >&2
+    usage >&2
     exit 1
 fi
 

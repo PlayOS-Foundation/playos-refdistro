@@ -98,7 +98,6 @@ All repos live under `PlayOS-Foundation/` on GitHub and as siblings in `/home/ni
 | **Input** | evdev (Linux), XInput (Windows), Raylib polling (cross-plat) |
 | **Reference OS base** | Alpine Linux 3.24 (musl, OpenRC) |
 | **Image tooling** | Alpine aports + mkimage, systemd-nspawn (Ubuntu host) |
-| **Container (optional)** | Docker (Alpine builder image) |
 | **Package format** | `.gpk` (signed ZIP with manifest, see RFC-0005) |
 | **Device profiles** | TOML (RFC-0006, schema at `schemas/device-profile.schema.json`) |
 | **Documentation** | mdBook (The PlayOS Book) |

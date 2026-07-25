@@ -20,6 +20,16 @@ SHELL_SRC="${PLAYOS_SHELL_SRC:-$ROOT/../playos-shell}"
 PLATFORM_SRC="${PLAYOS_PLATFORM_SRC:-$ROOT/../playos-platform-api}"
 SAMPLES_SRC="${PLAYOS_SAMPLES_SRC:-$ROOT/../playos-samples}"
 
+# ── Detect SSH public key on the host (nspawn can't see host ~/.ssh) ────────
+if [ -n "${PLAYOS_SSH_PUBKEY:-}" ]; then
+    : # already set via environment
+elif [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
+    PLAYOS_SSH_PUBKEY="$(cat "${HOME}/.ssh/id_ed25519.pub")"
+elif [ -f "${HOME}/.ssh/id_rsa.pub" ]; then
+    PLAYOS_SSH_PUBKEY="$(cat "${HOME}/.ssh/id_rsa.pub")"
+fi
+[ -n "${PLAYOS_SSH_PUBKEY:-}" ] && echo "==> SSH key: $(echo "$PLAYOS_SSH_PUBKEY" | awk '{print $3}')"
+
 echo "==> Building PlayOS compositor + shell + disk image + ISO"
 
 # ── Phase 0: Create disk image layout on the host ────────────────────────────
@@ -96,6 +106,7 @@ sudo systemd-nspawn \
     --setenv="PLAYOS_ALPINE_BRANCH=${ALPINE_BRANCH}" \
     --setenv="PLAYOS_APORTS_BRANCH=${PLAYOS_APORTS_BRANCH:-3.24-stable}" \
     --setenv="PLAYOS_ARCH=${ARCH}" \
+    --setenv="PLAYOS_SSH_PUBKEY=${PLAYOS_SSH_PUBKEY:-}" \
     --setenv="DISK_MNT=${DISK_MNT}" \
     --setenv="ROOT_UUID=${ROOT_UUID}" \
     --setenv="EFI_UUID=${EFI_UUID}" \
@@ -155,6 +166,7 @@ sudo systemd-nspawn \
     --setenv="PLAYOS_ALPINE_BRANCH=${ALPINE_BRANCH}" \
     --setenv="PLAYOS_APORTS_BRANCH=${PLAYOS_APORTS_BRANCH:-3.24-stable}" \
     --setenv="PLAYOS_ARCH=${ARCH}" \
+    --setenv="PLAYOS_SSH_PUBKEY=${PLAYOS_SSH_PUBKEY:-}" \
     --setenv="TMPDIR=/var/tmp" \
     /bin/sh -c '
         set -e

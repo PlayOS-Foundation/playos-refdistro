@@ -83,10 +83,12 @@ Three bugs found and fixed during ROG Ally hardware testing:
 | Data partition 1.5G after install | Filesystem size copied from 6GB image | `resize2fs` in `playos-firstboot` | playos-refdistro |
 | WiFi retry fails after wrong pw | NM keeps stale failed profile | Delete NM profile before each connect attempt | playos-platform-api |
 
-### Phase 3: Raylib 5.0 → 6.0 migration ⬅️ NEXT
+### Phase 3: Raylib 5.0 → 6.0 migration ⬅️ IN PROGRESS
 
-Independent of the kernel work. See [`mig2raylib6.md`](mig2raylib6.md) for
-the full plan — custom APKBUILD + soname updates across 6 files.
+Build Raylib 6.0 from source (instead of Alpine's 5.0 package), update soname
+references from `libraylib.so.450` → `libraylib.so.600`. See [`mig2raylib6.md`](mig2raylib6.md)
+for the implementation details. Approach: direct cmake+ninja source build in
+`build-playos-components.sh` (skipped APKBUILD to avoid signing complexity).
 
 ### Phase 4: Build + QEMU validation
 

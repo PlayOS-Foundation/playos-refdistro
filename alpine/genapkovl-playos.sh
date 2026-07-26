@@ -172,9 +172,9 @@ if [ -f /usr/bin/playos-shell ]; then
     chmod 0755 "$tmp/usr/bin/playos-shell"
     # Bundle raylib + glfw shared libraries (shell links against them at runtime).
     mkdir -p "$tmp/usr/lib"
-    if [ -f /usr/lib/libraylib.so.450 ]; then
-        cp /usr/lib/libraylib.so.450 "$tmp/usr/lib/"
-        ln -sf libraylib.so.450 "$tmp/usr/lib/libraylib.so"
+    if [ -f /usr/lib/libraylib.so.600 ]; then
+        cp /usr/lib/libraylib.so.600 "$tmp/usr/lib/"
+        ln -sf libraylib.so.600 "$tmp/usr/lib/libraylib.so"
     fi
     if [ -f /usr/lib/libglfw.so.3 ]; then
         cp /usr/lib/libglfw.so.3 "$tmp/usr/lib/"

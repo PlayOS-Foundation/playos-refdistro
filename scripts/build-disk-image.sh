@@ -108,7 +108,6 @@ apk --root $MNT add --no-cache \
     openssh \
     openrc \
     pipewire \
-    raylib \
     seatd seatd-openrc \
     wayland \
     wireplumber wireplumber-openrc \
@@ -174,9 +173,9 @@ if [ -f /usr/bin/playos-shell ]; then
 fi
 
 # Shared libraries (shell links against these at runtime)
-if [ -f /usr/lib/libraylib.so.450 ]; then
-    cp -a /usr/lib/libraylib.so.450 $MNT/usr/lib/
-    ln -sf libraylib.so.450 $MNT/usr/lib/libraylib.so
+if [ -f /usr/lib/libraylib.so.600 ]; then
+    cp -a /usr/lib/libraylib.so.600 $MNT/usr/lib/
+    ln -sf libraylib.so.600 $MNT/usr/lib/libraylib.so
 fi
 if [ -f /usr/lib/libglfw.so.3 ]; then
     cp -a /usr/lib/libglfw.so.3 $MNT/usr/lib/

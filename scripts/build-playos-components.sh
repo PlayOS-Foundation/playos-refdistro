@@ -14,7 +14,7 @@ apk add --no-cache \
     cmake ninja g++ make git ccache \
     wlroots0.19-dev wayland-dev wayland-protocols \
     libxkbcommon-dev libdrm-dev mesa-dev \
-    raylib-dev glfw-dev seatd \
+    glfw-dev seatd curl \
     gptfdisk parted e2fsprogs zstd \
     dosfstools util-linux coreutils sgdisk \
     2>&1 | tail -5
@@ -25,6 +25,28 @@ export PATH="/usr/lib/ccache/bin:$PATH"
 mkdir -p "$CCACHE_DIR"
 
 mkdir -p "$BUILD_DIR"
+
+# ── Build Raylib 6.0 from source ──────────────────────────────────
+# Alpine 3.24 ships raylib 5.0 (libraylib.so.450).  Build 6.0
+# (libraylib.so.600) from source and install to /usr so the shell
+# and samples pick it up via pkg-config.
+RAYLIB_VER=6.0
+RAYLIB_SRC=/var/tmp/raylib-${RAYLIB_VER}
+if [ ! -f "$RAYLIB_SRC/CMakeLists.txt" ]; then
+    echo "==> Downloading Raylib ${RAYLIB_VER}"
+    curl -sSL "https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VER}.tar.gz" \
+        -o /var/tmp/raylib-${RAYLIB_VER}.tar.gz
+    tar xzf /var/tmp/raylib-${RAYLIB_VER}.tar.gz -C /var/tmp
+fi
+echo "==> Building Raylib ${RAYLIB_VER}"
+cmake -B /var/tmp/raylib-build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DUSE_EXTERNAL_GLFW=ON \
+    -DBUILD_EXAMPLES=OFF \
+    "$RAYLIB_SRC"
+cmake --build /var/tmp/raylib-build
+cmake --install /var/tmp/raylib-build
 
 # ── Build playos-platform-api ─────────────────────────────────────
 echo "==> Building playos-platform-api"
@@ -42,7 +64,7 @@ cmake -B "$BUILD_DIR/runtime" -G Ninja \
 cmake --build "$BUILD_DIR/runtime"
 
 # ── Build playos-shell ────────────────────────────────────────────
-# Use Alpine system raylib (5.0) instead of FetchContent raylib 6.0.
+# Use system-installed Raylib 6.0 instead of FetchContent.
 # Mount sibling repos so the shell finds them locally.
 echo "==> Building playos-shell (Wayland)"
 cmake -B "$BUILD_DIR/shell" -G Ninja \

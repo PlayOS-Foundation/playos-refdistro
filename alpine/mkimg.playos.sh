@@ -82,7 +82,6 @@ profile_playos() {
         systemd-boot
         efibootmgr
         zstd
-        raylib
         glfw
         e2fsprogs
         util-linux

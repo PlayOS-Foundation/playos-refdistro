@@ -1,4 +1,10 @@
-# Migration: Raylib 5.0 → 6.0 on Alpine (Custom APKBUILD)
+# Migration: Raylib 5.0 → 6.0 on Alpine
+
+> **Implementation note (2025-06):** We chose direct cmake+ninja source build
+> in `build-playos-components.sh` instead of the custom APKBUILD approach.
+> Rationale: APKBUILD requires an Alpine signing key, private key management in
+> CI, and `abuild` tooling setup. The direct build is simpler and adds ~30s to
+> the build. The APKBUILD approach is preserved below as a future alternative.
 
 ## Overview
 

@@ -140,7 +140,7 @@ start() {
             done
             # Copy shared libraries that the shell/compositor link against.
             # These are custom-built and NOT in any APK repo.
-            for lib in /usr/lib/libraylib.so.450 /usr/lib/libraylib.so /usr/lib/libglfw.so.3; do
+            for lib in /usr/lib/libraylib.so.600 /usr/lib/libraylib.so /usr/lib/libglfw.so.3; do
                 [ -f "$lib" ] && cp -a "$lib" "/mnt${lib}"
             done
             # Copy samples from the live ISO overlay

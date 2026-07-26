@@ -76,6 +76,7 @@ wlroots0.19
 systemd-boot
 efibootmgr
 zstd
+hid-asus-ally-stable
 EOF
 
 # Alpine base boot services.

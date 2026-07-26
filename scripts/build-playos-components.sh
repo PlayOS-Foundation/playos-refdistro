@@ -78,4 +78,7 @@ if [ -f "$SAMPLES_SRC/CMakeLists.txt" ]; then
     echo "==> Samples built: $(ls "$SAMPLES_OUT")"
 fi
 
+# ── Build hid-asus-ally kernel module (ROG Ally controller driver) ──
+/workspace/scripts/build-hid-asus-ally.sh
+
 echo "==> PlayOS compositor and shell built successfully"

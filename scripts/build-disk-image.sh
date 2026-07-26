@@ -124,6 +124,20 @@ apk --root $MNT add --no-cache \
 echo "==> Installing kernel (modules only, no post-install scripts)"
 apk --root $MNT add --no-cache --no-scripts linux-stable
 
+# Install hid-asus-ally-stable (ROG Ally HID driver) from our local APK repo.
+# Build by build-hid-asus-ally.sh earlier in the nspawn session.
+LOCAL_APK_DIR="${PLAYOS_APK_OUT:-/var/tmp/playos-apks}"
+if [ -f "$LOCAL_APK_DIR/hid-asus-ally-stable"*.apk ] && [ -f "$LOCAL_APK_DIR/APKINDEX.tar.gz" ]; then
+    echo "==> Installing hid-asus-ally-stable from local repo"
+    apk --root $MNT add --no-cache --no-scripts \
+        --repository "$LOCAL_APK_DIR" \
+        --allow-untrusted \
+        hid-asus-ally-stable
+    echo "    hid-asus-ally-stable installed"
+else
+    echo "    WARNING: hid-asus-ally-stable not found — skipping (non-fatal)"
+fi
+
 KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
 if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
     echo "==> Generating module dependencies for $KERNEL_VER"

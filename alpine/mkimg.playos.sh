@@ -86,5 +86,6 @@ profile_playos() {
         glfw
         e2fsprogs
         util-linux
+        hid-asus-ally-stable
     "
 }

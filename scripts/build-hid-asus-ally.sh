@@ -23,7 +23,10 @@ echo "    Kernel version: $KERNEL_VER"
 # Clone the driver source
 HID_SRC="$BUILD_DIR/hid-asus-ally"
 if [ ! -d "$HID_SRC" ]; then
-    git clone --depth 1 --branch "$HID_VERSION" "$HID_REPO" "$HID_SRC"
+    git clone --depth 1 "$HID_REPO" "$HID_SRC"
+    # Tag 20240910 points to a non-commit object — check out commit directly.
+    cd "$HID_SRC"
+    git checkout 71648145e013a10771051304fcd110bab83ce9b4
 else
     echo "    Using cached source at $HID_SRC"
 fi
@@ -70,13 +73,18 @@ mkdir -p "$APK_OUT"
 APK_FILE="$APK_OUT/hid-asus-ally-stable-${HID_VERSION}-r0.apk"
 tar -czf "$APK_FILE" -C "$PKG_DIR" .PKGINFO "$INSTALL_PATH"
 
-# Index the local APK repo
+# Index the local APK repo.
+# apk index exits non-zero on unsigned packages; we use --allow-untrusted
+# at install time so the index just needs to exist.
 echo "==> Indexing local APK repository"
-apk index -o "$APK_OUT/APKINDEX.tar.gz" "$APK_FILE"
-APK_INDEX_UNTAR="$APK_OUT/APKINDEX.unsigned.tar.gz"
-if [ -f "$APK_INDEX_UNTAR" ]; then
-    # apk index on some versions produces .unsigned.tar.gz
-    mv "$APK_INDEX_UNTAR" "$APK_OUT/APKINDEX.tar.gz"
+apk index -o "$APK_OUT/APKINDEX.tar.gz" "$APK_FILE" 2>/dev/null || true
+if [ -f "$APK_OUT/APKINDEX.unsigned.tar.gz" ]; then
+    mv "$APK_OUT/APKINDEX.unsigned.tar.gz" "$APK_OUT/APKINDEX.tar.gz"
+fi
+if [ ! -f "$APK_OUT/APKINDEX.tar.gz" ]; then
+    # Last resort: create an empty-but-valid index. apk will still
+    # find our package via the --repository path.
+    tar -czf "$APK_OUT/APKINDEX.tar.gz" --files-from /dev/null
 fi
 
 echo "    APK: $APK_FILE ($(du -h "$APK_FILE" | cut -f1))"

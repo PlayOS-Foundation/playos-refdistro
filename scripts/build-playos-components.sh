@@ -15,6 +15,7 @@ apk add --no-cache \
     wlroots0.19-dev wayland-dev wayland-protocols \
     libxkbcommon-dev libdrm-dev mesa-dev \
     glfw-dev seatd curl \
+    libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
     gptfdisk parted e2fsprogs zstd \
     dosfstools util-linux coreutils sgdisk \
     2>&1 | tail -5

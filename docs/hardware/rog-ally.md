@@ -93,6 +93,23 @@ Potential solutions to the USB bus sharing conflict:
    `glfwSetJoystickCallback`) so that gamepad mapping is restored after a
    disconnect/reconnect cycle.
 
+### Driver availability (kernel 7.1.4 — feat/kernel-stable-rog-ally)
+
+The `feat/kernel-stable-rog-ally` branch switches from `linux-lts` (6.18) to
+`linux-stable` (7.1.4), unlocking new drivers for ROG Ally hardware:
+
+| Driver | Status | Provides |
+|---|---|---|
+| `asus-wmi` | ✅ Already in 6.18 | TDP, fan curves, GPU switching |
+| `asus-armoury` | ✅ New in 7.1.4 | Advanced TDP: core count, APU memory, dGPU TGP |
+| `hid-asus-ally` | ✅ Built as `.ko` | Back paddles (M1/M2), gyroscope, ROG Crate/CC buttons |
+
+These drivers do **not** fix the USB bus sharing conflict (that's a hardware
+topology issue), but they do expose controller features that xpad alone cannot
+— back paddles, gyro input, and the ROG Crate/Command Center buttons are now
+accessible via HID input events.  The `InputBackend` in `playos-platform-api`
+can map these new button codes through device profiles (RFC-0006).
+
 Verification commands for runtime diagnosis:
 ```bash
 # Monitor USB events in real time during WiFi scan

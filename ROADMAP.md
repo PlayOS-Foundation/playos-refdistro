@@ -40,48 +40,50 @@ image provides. A comprehensive driver survey is in
 that drive these priorities are in
 [`docs/hardware/rog-ally.md`](docs/hardware/rog-ally.md).
 
-### Phase 1: Switch `linux-lts` → `linux-stable` (unlocks `asus-armoury`)
+### Phase 1: Switch `linux-lts` → `linux-stable` ✅ (complete)
 
 Alpine v3.24 community ships `linux-stable 7.1.4`, which includes the
 `asus-armoury` platform driver (mainlined in 6.19). This gives us advanced
 TDP controls (core count, APU memory, dGPU TGP) without a custom kernel build.
 
-**Files to change (7):**
+**Completed:**
+- `alpine/mkimg.playos.sh`: `kernel_flavors="stable"`, `kernel_addons=""`
+- `scripts/build-disk-image.sh`: `linux-stable` apk + all boot paths → `-stable`
+- `scripts/build-iso-ubuntu.sh`: all `-lts` → `-stable` paths
+- `alpine/boot.ipxe`, `alpine/boot-debug.ipxe`: kernel paths → `-stable`
+- `scripts/verify-build.sh`: expected filenames → `-stable`
+- `xtables-addons`: cleared `kernel_addons=""` (no `-stable` variant in Alpine)
+- QEMU boot test: 7/7 boot markers passed on `linux-stable 7.1.4`
+- ROG Ally hardware boot: confirmed kernel 7.1.4-0-stable
 
-| File | Change |
-|---|---|
-| `alpine/mkimg.playos.sh` | `kernel_flavors="lts"` → `"stable"` |
-| `scripts/build-disk-image.sh` | `linux-lts` → `linux-stable` apk; all `vmlinuz-lts`/`initramfs-lts` → `-stable` |
-| `scripts/build-iso-ubuntu.sh` | All `vmlinuz-lts`/`initramfs-lts`/`modloop-lts` → `-stable` |
-| `alpine/boot.ipxe` | All `-lts` suffixes → `-stable` |
-| `alpine/boot-debug.ipxe` | All `-lts` suffixes → `-stable` |
-| `scripts/verify-build.sh` | Update expected artifact filenames |
-| `scripts/build-playos-components.sh` | Add `linux-stable-dev` for kernel headers (if needed) |
+See commits on `feat/kernel-stable-rog-ally`: `b1e5a82`–`deb0b61`.
 
-**Risk:** `linux-stable` is in community (not main) and kernel 7.1.4 is
-untested on ROG Ally. QEMU validation required before hardware testing.
+### Phase 2: `hid-asus-ally` kernel module ✅ (complete)
 
-### Phase 2: `hid-asus-ally` APKBUILD (controller features)
+The ROG Ally controller needs a device-specific HID driver for back
+paddles (M1/M2), gyroscope, ROG Crate, and Command Center buttons.
 
-The ROG Ally controller needs a device-specific HID driver to expose back
-paddles (M1/M2), gyroscope, ROG Crate, and Command Center buttons. The xpad
-driver only exposes standard Xbox 360 inputs. This driver is out-of-tree and
-must be built against the running kernel.
+**Completed:**
+- `scripts/build-hid-asus-ally.sh`: builds `.ko` against `linux-stable-dev`
+- Integrated into `build-playos-components.sh` (nspawn build)
+- `.ko` installed directly into rootfs modules tree (bypassed APK signing)
+- Confirmed in rootfs: `/lib/modules/7.1.4-0-stable/kernel/drivers/hid/hid-asus-ally.ko` (1.1 MB)
+- QEMU boot test: 7/7 boot markers passed
+- ROG Ally hardware: module present in installed system
 
-**Files to create/change (5):**
+See commits on `feat/kernel-stable-rog-ally`: `deb0b61`–`7dd3449`.
 
-| File | Change |
-|---|---|
-| `alpine/apkbuilds/hid-asus-ally/APKBUILD` | New — build against `linux-stable-dev`, produce `.apk` |
-| `scripts/build-playos-components.sh` | Register custom APK repo, add `hid-asus-ally` package |
-| `alpine/mkimg.playos.sh` | Add `hid-asus-ally` to apks list |
-| `scripts/build-disk-image.sh` | Add `hid-asus-ally` to `apk add` list |
-| `alpine/genapkovl-playos.sh` | Bundle kernel module in live ISO overlay |
+### Phase 2.5: Installer bug fixes ✅ (complete)
 
-**Risk:** Out-of-tree module may need patches for kernel 7.1. Driver is
-maintained but not yet mainlined.
+Three bugs found and fixed during ROG Ally hardware testing:
 
-### Phase 3: Raylib 5.0 → 6.0 migration
+| Bug | Root Cause | Fix | Repo |
+|---|---|---|---|
+| Data fs fail after dd | Filesystem dirty flag blocks `resize2fs` | `e2fsck -f -y` before `resize2fs` in Shell installer | playos-shell |
+| Data partition 1.5G after install | Filesystem size copied from 6GB image | `resize2fs` in `playos-firstboot` | playos-refdistro |
+| WiFi retry fails after wrong pw | NM keeps stale failed profile | Delete NM profile before each connect attempt | playos-platform-api |
+
+### Phase 3: Raylib 5.0 → 6.0 migration ⬅️ NEXT
 
 Independent of the kernel work. See [`mig2raylib6.md`](mig2raylib6.md) for
 the full plan — custom APKBUILD + soname updates across 6 files.
@@ -98,9 +100,9 @@ bash scripts/test-iso-qemu.sh             # ISO boot test
 ### Dependency order
 
 ```
-Phase 1 (kernel switch) ──→ Phase 2 (hid-asus-ally)
+Phase 1 (kernel switch) ✅ ──→ Phase 2 (hid-asus-ally) ✅
                                         │
-Phase 3 (raylib 6.0) ───────────────────┤
+Phase 3 (raylib 6.0) ⬅️ NEXT ──────────┤
                                         │
                                         └──→ Phase 4 (validate)
 ```

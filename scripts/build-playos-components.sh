@@ -43,6 +43,7 @@ echo "==> Building Raylib ${RAYLIB_VER}"
 cmake -B /var/tmp/raylib-build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
+    -DBUILD_SHARED_LIBS=ON \
     -DUSE_EXTERNAL_GLFW=ON \
     -DBUILD_EXAMPLES=OFF \
     "$RAYLIB_SRC"

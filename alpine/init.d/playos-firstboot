@@ -178,6 +178,23 @@ start() {
             log_msg "WARNING: Could not regenerate data UUID"
     fi
 
+    # ── 3b. Resize filesystems to fill partitions ─────────────────────────
+    # The disk image is built at a fixed size (e.g., 6 GB) so the data
+    # filesystem is created small (~1.5 GB).  After dd'ing to a larger
+    # physical disk, the filesystem must be expanded to fill the actual
+    # partition.  setup-disk (used by playos-installer) also preserves
+    # the original filesystem size.
+    if [ -n "$ROOT_DEV" ] && [ -b "$ROOT_DEV" ]; then
+        resize2fs -p "$ROOT_DEV" 2>/dev/null && \
+            log_msg "Root filesystem resized to fill partition" || \
+            log_msg "Root resize skipped (already full size or not needed)"
+    fi
+    if [ -n "$DATA_PART" ] && [ -b "$DATA_PART" ]; then
+        resize2fs -p "$DATA_PART" 2>/dev/null && \
+            log_msg "Data filesystem resized to fill partition" || \
+            log_msg "WARNING: Could not resize data filesystem"
+    fi
+
     # ── 4. Update fstab with new UUIDs ────────────────────────────────────
     if [ -n "$ROOT_DEV" ]; then
         NEW_ROOT_UUID=$(blkid -s UUID -o value "$ROOT_DEV" 2>/dev/null || true)

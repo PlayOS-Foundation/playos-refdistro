@@ -13,6 +13,7 @@ depend() {
 start() {
     ebegin "Starting PlayOS compositor"
     export XDG_RUNTIME_DIR=/run/playos
+    export PLAYOS_PROFILE="${PLAYOS_PROFILE:-rog-ally}"
     mkdir -p "$XDG_RUNTIME_DIR"
     chmod 700 "$XDG_RUNTIME_DIR"
     start-stop-daemon --start --background --make-pidfile \

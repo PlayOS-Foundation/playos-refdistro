@@ -195,6 +195,17 @@ elif [ ! -f "$SAMPLES_DIR/hello-playos" ]; then
     echo "==> WARNING: hello-playos not found in $SAMPLES_DIR — skipping sample bundle"
 fi
 
+# ── Deploy device profiles ───────────────────────────────────────────────────
+# Copy from playos-reference-devices sibling repo if available.
+REFDEV_DIR="${PLAYOS_REFERENCE_DEVICES:-/mnt/playos-reference-devices}"
+ROG_ALLY_PROFILE="$REFDEV_DIR/rog-ally/device-profile.toml"
+if [ -f "$ROG_ALLY_PROFILE" ]; then
+    echo "==> Deploying device profiles"
+    mkdir -p $MNT/etc/playos/device-profiles
+    cp "$ROG_ALLY_PROFILE" $MNT/etc/playos/device-profiles/rog-ally.toml
+    echo "    rog-ally profile installed"
+fi
+
 # ── Install compositor init script ───────────────────────────────────────────
 if [ -f "$ROOT/alpine/init.d/playos-compositor" ]; then
     install -m 0755 "$ROOT/alpine/init.d/playos-compositor" \

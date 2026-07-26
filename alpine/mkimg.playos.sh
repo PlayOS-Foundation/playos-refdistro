@@ -24,6 +24,12 @@ profile_playos() {
     kernel_cmdline="console=tty0 amdgpu.sg_display=0 loglevel=7 softlevel=playos-visual"
     syslinux_serial="0 115200"
 
+    # xtables-addons-stable doesn't exist in Alpine 3.24 (only -lts is built).
+    # PlayOS doesn't need advanced netfilter modules — basic kernel
+    # netfilter is sufficient. Clear the kernel_addons inherited from
+    # profile_standard to prevent xtables-addons-${flavor} from being added.
+    kernel_addons=""
+
     apks="$apks
         alpine-base
         alpine-conf

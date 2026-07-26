@@ -134,8 +134,8 @@ if [ -f "$STUB" ]; then
     if [ -n "$KERNEL_VER" ]; then
         sudo tee "${DISK_MNT}/boot/efi/loader/entries/playos.conf" > /dev/null <<CONFENTRY
 title   PlayOS
-linux   /vmlinuz-lts
-initrd  /initramfs-lts
+linux   /vmlinuz-stable
+initrd  /initramfs-stable
 options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=5 quiet loglevel=3
 CONFENTRY
 
@@ -145,8 +145,8 @@ timeout 0
 console-mode keep
 LOADERCONF
 
-        sudo cp "${DISK_MNT}/boot/vmlinuz-lts"   "${DISK_MNT}/boot/efi/vmlinuz-lts"
-        sudo cp "${DISK_MNT}/boot/initramfs-lts" "${DISK_MNT}/boot/efi/initramfs-lts"
+        sudo cp "${DISK_MNT}/boot/vmlinuz-stable"   "${DISK_MNT}/boot/efi/vmlinuz-stable"
+        sudo cp "${DISK_MNT}/boot/initramfs-stable" "${DISK_MNT}/boot/efi/initramfs-stable"
         echo "    systemd-boot installed to ESP"
     fi
 else
@@ -212,13 +212,13 @@ if [ -n "$ISO" ] && [ -f "$ISO" ]; then
     
     sudo cp "$ISO" "$PXE_DIR/alpine-playos-${PLAYOS_ALPINE_BRANCH:-v3.24}-${PLAYOS_ARCH:-x86_64}.iso"
     sudo cp "$MNT/playos.apkovl.tar.gz" "$PXE_DIR/"
-    sudo cp "$MNT/boot/vmlinuz-lts" "$PXE_DIR/"
-    sudo cp "$MNT/boot/initramfs-lts" "$PXE_DIR/"
+    sudo cp "$MNT/boot/vmlinuz-stable" "$PXE_DIR/"
+    sudo cp "$MNT/boot/initramfs-stable" "$PXE_DIR/"
     PXE_INITRAMFS=$(mktemp)
-    "$ROOT/scripts/build-pxe-initramfs.sh" "$MNT/boot/initramfs-lts" "$PXE_INITRAMFS"
-    sudo cp "$PXE_INITRAMFS" "$PXE_DIR/initramfs-pxe-lts"
+    "$ROOT/scripts/build-pxe-initramfs.sh" "$MNT/boot/initramfs-stable" "$PXE_INITRAMFS"
+    sudo cp "$PXE_INITRAMFS" "$PXE_DIR/initramfs-pxe-stable"
     rm -f "$PXE_INITRAMFS"
-    sudo cp "$MNT/boot/modloop-lts" "$PXE_DIR/"
+    sudo cp "$MNT/boot/modloop-stable" "$PXE_DIR/"
     sudo rm -rf "$PXE_DIR/apks"
     sudo cp -r "$MNT/apks" "$PXE_DIR/"
     sudo cp "$ROOT/alpine/boot.ipxe" "$PXE_DIR/"

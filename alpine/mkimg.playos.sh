@@ -13,7 +13,7 @@ profile_playos() {
     title="PlayOS Reference OS"
     desc="Alpine-based PlayOS Runtime Device image"
     arch="x86_64"
-    kernel_flavors="lts"
+    kernel_flavors="stable"
     hostname="playos"
     apkovl="genapkovl-playos.sh"
 

@@ -7,13 +7,13 @@ set base-url http://${server}/playos
 
 echo == PlayOS Alpine netboot diagnostics ==
 echo Server : ${server}
-echo Initrd : ${base-url}/initramfs-pxe-lts
+echo Initrd : ${base-url}/initramfs-pxe-stable
 
-kernel ${base-url}/vmlinuz-lts \
+kernel ${base-url}/vmlinuz-stable \
     ip=dhcp \
     usbdelay=5 \
     alpine_repo=${base-url}/apks \
-    modloop=${base-url}/modloop-lts \
+    modloop=${base-url}/modloop-stable \
     apkovl=${base-url}/playos.apkovl.tar.gz \
     console=tty0 \
     console=ttyS0,115200 \
@@ -26,6 +26,6 @@ kernel ${base-url}/vmlinuz-lts \
     debug_init \
     softlevel=playos-visual
 
-initrd ${base-url}/initramfs-pxe-lts
+initrd ${base-url}/initramfs-pxe-stable
 
 boot

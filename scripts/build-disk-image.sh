@@ -122,7 +122,7 @@ apk --root $MNT add --no-cache \
 # vmlinuz in the host container context, not in $MNT.  We run depmod
 # manually afterwards with the correct base directory.
 echo "==> Installing kernel (modules only, no post-install scripts)"
-apk --root $MNT add --no-cache --no-scripts linux-lts
+apk --root $MNT add --no-cache --no-scripts linux-stable
 
 KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
 if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
@@ -136,9 +136,9 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
         -b "$MNT" \
         -c "$MNT/etc/mkinitfs/mkinitfs.conf" \
         -P "$MNT/etc/mkinitfs/features.d" \
-        -o "$MNT/boot/initramfs-lts" \
+        -o "$MNT/boot/initramfs-stable" \
         "$KERNEL_VER"
-    test -s "$MNT/boot/initramfs-lts"
+    test -s "$MNT/boot/initramfs-stable"
 else
     echo "error: kernel modules were not installed; cannot generate initramfs" >&2
     exit 1
@@ -337,8 +337,8 @@ if mountpoint -q "$MNT/boot/efi" 2>/dev/null && [ -f "$STUB" ]; then
 
     cat > "$MNT/boot/efi/loader/entries/playos.conf" <<CONFENTRY
 title   PlayOS
-linux   /vmlinuz-lts
-initrd  /initramfs-lts
+linux   /vmlinuz-stable
+initrd  /initramfs-stable
 options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=5 quiet loglevel=3
 CONFENTRY
 
@@ -348,8 +348,8 @@ timeout 0
 console-mode keep
 LOADERCONF
 
-    cp "$MNT/boot/vmlinuz-lts"   "$MNT/boot/efi/vmlinuz-lts"
-    cp "$MNT/boot/initramfs-lts" "$MNT/boot/efi/initramfs-lts"
+    cp "$MNT/boot/vmlinuz-stable"   "$MNT/boot/efi/vmlinuz-stable"
+    cp "$MNT/boot/initramfs-stable" "$MNT/boot/efi/initramfs-stable"
     echo "    systemd-boot installed to ESP"
 else
     echo "    ESP not directly accessible (nspawn mode) — host wrapper will install bootloader"

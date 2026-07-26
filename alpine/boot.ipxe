@@ -7,17 +7,17 @@ set base-url http://${server}/playos
 
 echo == PlayOS Alpine netboot ==
 echo Server : ${server}
-echo Kernel : ${base-url}/vmlinuz-lts
-echo Initrd : ${base-url}/initramfs-pxe-lts
-echo Modloop: ${base-url}/modloop-lts
+echo Kernel : ${base-url}/vmlinuz-stable
+echo Initrd : ${base-url}/initramfs-pxe-stable
+echo Modloop: ${base-url}/modloop-stable
 echo APK repo: ${base-url}/apks
 echo Overlay: ${base-url}/playos.apkovl.tar.gz
 
-kernel ${base-url}/vmlinuz-lts \
+kernel ${base-url}/vmlinuz-stable \
     ip=dhcp \
     usbdelay=5 \
     alpine_repo=http://192.168.0.196/playos/apks \
-    modloop=http://192.168.0.196/playos/modloop-lts \
+    modloop=http://192.168.0.196/playos/modloop-stable \
     apkovl=http://192.168.0.196/playos/playos-minimal.apkovl.tar.gz \
     console=tty0 \
     console=ttyS0,115200 \
@@ -26,6 +26,6 @@ kernel ${base-url}/vmlinuz-lts \
     loglevel=7 \
     softlevel=playos-visual
 
-initrd ${base-url}/initramfs-pxe-lts
+initrd ${base-url}/initramfs-pxe-stable
 
 boot

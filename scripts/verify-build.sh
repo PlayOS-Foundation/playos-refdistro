@@ -122,7 +122,7 @@ else
     PXE_PASS=0
     PXE_FAIL=0
 
-    for f in "*.iso" "playos.apkovl.tar.gz" "vmlinuz-lts" "initramfs-lts" "modloop-lts"; do
+    for f in "*.iso" "playos.apkovl.tar.gz" "vmlinuz-stable" "initramfs-stable" "modloop-stable"; do
         if find "$PXE_DIR" -maxdepth 1 -name "$f" -print -quit 2>/dev/null | grep -q .; then
             PXE_PASS=$((PXE_PASS + 1))
         else

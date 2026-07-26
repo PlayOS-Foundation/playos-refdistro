@@ -124,21 +124,23 @@ apk --root $MNT add --no-cache \
 echo "==> Installing kernel (modules only, no post-install scripts)"
 apk --root $MNT add --no-cache --no-scripts linux-stable
 
-# Install hid-asus-ally-stable (ROG Ally HID driver) from our local APK repo.
-# Build by build-hid-asus-ally.sh earlier in the nspawn session.
-LOCAL_APK_DIR="${PLAYOS_APK_OUT:-/var/tmp/playos-apks}"
-if [ -f "$LOCAL_APK_DIR/hid-asus-ally-stable"*.apk ] && [ -f "$LOCAL_APK_DIR/APKINDEX.tar.gz" ]; then
-    echo "==> Installing hid-asus-ally-stable from local repo"
-    apk --root $MNT add --no-cache --no-scripts \
-        --repository "$LOCAL_APK_DIR" \
-        --allow-untrusted \
-        hid-asus-ally-stable
-    echo "    hid-asus-ally-stable installed"
-else
-    echo "    WARNING: hid-asus-ally-stable not found — skipping (non-fatal)"
+KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
+
+# Install hid-asus-ally kernel module (ROG Ally HID driver), built by
+# build-hid-asus-ally.sh earlier in the nspawn session.  Must happen
+# after kernel install (so $MNT/lib/modules/$KERNEL_VER exists) but
+# before depmod + initramfs (so the module is included in the initramfs).
+HID_KO="/var/tmp/playos-build/hid-asus-ally/hid-asus-ally.ko"
+if [ -f "$HID_KO" ] && [ -n "$KERNEL_VER" ]; then
+    echo "==> Installing hid-asus-ally kernel module"
+    MOD_DEST="$MNT/lib/modules/$KERNEL_VER/kernel/drivers/hid"
+    mkdir -p "$MOD_DEST"
+    cp "$HID_KO" "$MOD_DEST/hid-asus-ally.ko"
+    echo "    hid-asus-ally.ko installed to $MOD_DEST"
+elif [ ! -f "$HID_KO" ]; then
+    echo "    WARNING: hid-asus-ally.ko not found — skipping (non-fatal)"
 fi
 
-KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
 if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
     echo "==> Generating module dependencies for $KERNEL_VER"
     depmod -b "$MNT" "$KERNEL_VER" 2>/dev/null && \

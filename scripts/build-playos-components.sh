@@ -86,7 +86,7 @@ install -m 0755 "$ROOT/alpine/init.d/playos-compositor"     /etc/init.d/playos-c
 # ── Add to playos-visual runlevel ──────────────────────────────────
 ln -sf /etc/init.d/playos-compositor /etc/runlevels/playos-visual/playos-compositor 2>/dev/null || true
 
-# ── Build samples (hello-playos, space-invaders) ──────────────────
+# ── Build samples (hello-playos, space-invaders, input-debug) ──────────────────
 SAMPLES_SRC="${PLAYOS_SAMPLES_SRC:-/mnt/playos-samples}"
 SAMPLES_OUT="${PLAYOS_SAMPLES_OUT:-/workspace/.build/samples-out}"
 if [ -f "$SAMPLES_SRC/CMakeLists.txt" ]; then
@@ -95,10 +95,11 @@ if [ -f "$SAMPLES_SRC/CMakeLists.txt" ]; then
         -DCMAKE_BUILD_TYPE=Release \
         -DPLAYOS_USE_SYSTEM_RAYLIB=ON \
         "$SAMPLES_SRC"
-    cmake --build "$BUILD_DIR/samples" --target hello-playos space-invaders
+    cmake --build "$BUILD_DIR/samples" --target hello-playos space-invaders input-debug
     mkdir -p "$SAMPLES_OUT"
     cp "$BUILD_DIR/samples/hello-playos"   "$SAMPLES_OUT/hello-playos"
     cp "$BUILD_DIR/samples/space-invaders" "$SAMPLES_OUT/space-invaders"
+    cp "$BUILD_DIR/samples/input-debug"    "$SAMPLES_OUT/input-debug"
     echo "==> Samples built: $(ls "$SAMPLES_OUT")"
 fi
 

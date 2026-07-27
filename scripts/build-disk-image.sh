@@ -188,6 +188,7 @@ if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
     mkdir -p $MNT/playos-samples/build
     install -m 0755 "$SAMPLES_DIR/hello-playos"   $MNT/playos-samples/build/hello-playos
     install -m 0755 "$SAMPLES_DIR/space-invaders" $MNT/playos-samples/build/space-invaders
+    install -m 0755 "$SAMPLES_DIR/input-debug"    $MNT/playos-samples/build/input-debug
     echo "    Samples bundled: $(ls $MNT/playos-samples/build/)"
 elif [ ! -d "$SAMPLES_DIR" ]; then
     echo "==> WARNING: Samples directory $SAMPLES_DIR not found — skipping sample bundle"

@@ -14,6 +14,17 @@ start() {
     ebegin "Starting PlayOS compositor"
     export XDG_RUNTIME_DIR=/run/playos
     export PLAYOS_PROFILE="${PLAYOS_PROFILE:-rog-ally}"
+
+    # Stage device profile to tmpfs (/run/playos/profiles/) —
+    # tomlplusplus segfaults when reading from ext4/xfs-backed
+    # filesystem paths.  Both the compositor input backend and the
+    # shell read the profile from /run/playos/profiles/ to avoid this.
+    mkdir -p /run/playos/profiles
+    if [ -f "/etc/playos/device-profiles/${PLAYOS_PROFILE}.toml" ]; then
+        cp "/etc/playos/device-profiles/${PLAYOS_PROFILE}.toml" \
+           "/run/playos/profiles/${PLAYOS_PROFILE}.toml"
+    fi
+
     mkdir -p "$XDG_RUNTIME_DIR"
     chmod 700 "$XDG_RUNTIME_DIR"
     start-stop-daemon --start --background --make-pidfile \

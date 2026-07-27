@@ -276,13 +276,13 @@ rc_add killprocs shutdown
 rc_add savecache shutdown
 
 # PlayOS visual path (first-frame critical)
-rc_add dbus default
-rc_add seatd default
-rc_add playos-compositor default
+rc_add dbus playos-visual
+rc_add seatd playos-visual
+rc_add playos-compositor playos-visual
 
 # WiFi backend — iwd for NetworkManager
-rc_add iwd default
-rc_add networkmanager default
+rc_add iwd playos-visual
+rc_add networkmanager playos-visual
 
 # ── NetworkManager configuration ──────────────────────────────────────────────
 echo "==> Configuring NetworkManager"
@@ -320,10 +320,10 @@ EOF
 chmod 600 $MNT/etc/NetworkManager/system-connections/00-wired-dhcp.nmconnection
 
 # SSH debug access
-rc_add sshd default
+rc_add sshd playos-visual
 
 # First-boot one-shot (runs once, deletes itself)
-rc_add playos-firstboot default
+rc_add playos-firstboot playos-visual
 
 # ── Create firstboot flag file ───────────────────────────────────────────────
 mkdir -p $MNT/etc/playos

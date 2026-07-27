@@ -136,7 +136,7 @@ if [ -f "$STUB" ]; then
 title   PlayOS
 linux   /vmlinuz-stable
 initrd  /initramfs-stable
-options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=5 quiet loglevel=3
+options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=5 loglevel=7 softlevel=playos-visual
 CONFENTRY
 
         sudo tee "${DISK_MNT}/boot/efi/loader/loader.conf" > /dev/null <<LOADERCONF

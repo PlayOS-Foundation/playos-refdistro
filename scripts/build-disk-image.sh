@@ -146,6 +146,33 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
         echo "    depmod OK" || \
         echo "    depmod failed (non-fatal — initramfs will regenerate on boot)"
 
+    # Install GPU mkinitfs feature files — required for AMD/NVIDIA GPU
+    # firmware and kernel modules in the initramfs.  The ISO build
+    # (build-alpine-iso.sh, Phase 3) installs these globally, but the
+    # disk-image build runs earlier (Phase 1) — source them directly
+    # from the workspace bind mount.
+    echo "==> Installing GPU mkinitfs feature files"
+    mkdir -p "$MNT/etc/mkinitfs/features.d"
+    for feat in amdgpu.modules amdgpu-firmware.files nvidia.modules nvidia-firmware.files; do
+        SRC="/workspace/alpine/$feat"
+        if [ -f "$SRC" ]; then
+            cp "$SRC" "$MNT/etc/mkinitfs/features.d/$feat"
+            echo "    $feat"
+        else
+            echo "    WARNING: $SRC not found — GPU may not initialize on disk boot"
+        fi
+    done
+
+    # Append GPU features to the default mkinitfs.conf so the initramfs
+    # includes amdgpu/nvidia modules + firmware.  Without this, the ROG Ally
+    # (and any AMD dGPU device) will black-screen because the amdgpu driver
+    # cannot bind without firmware present in early boot.
+    if ! grep -q 'amdgpu' "$MNT/etc/mkinitfs/mkinitfs.conf" 2>/dev/null; then
+        sed -i 's/^features="\(.*\)"/features="\1 amdgpu amdgpu-firmware nvidia nvidia-firmware"/' \
+            "$MNT/etc/mkinitfs/mkinitfs.conf"
+        echo "    GPU features appended to mkinitfs.conf"
+    fi
+
     echo "==> Generating initramfs for $KERNEL_VER"
     mkinitfs \
         -b "$MNT" \
@@ -366,7 +393,7 @@ if mountpoint -q "$MNT/boot/efi" 2>/dev/null && [ -f "$STUB" ]; then
 title   PlayOS
 linux   /vmlinuz-stable
 initrd  /initramfs-stable
-options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=5 quiet loglevel=3
+options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=5 loglevel=7 softlevel=playos-visual
 CONFENTRY
 
     cat > "$MNT/boot/efi/loader/loader.conf" <<LOADERCONF

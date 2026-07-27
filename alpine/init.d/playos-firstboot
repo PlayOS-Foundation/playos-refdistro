@@ -257,6 +257,7 @@ start() {
     rm -f /etc/runlevels/default/playos-firstboot
     rm -f /etc/runlevels/boot/playos-firstboot
     rm -f /etc/runlevels/sysinit/playos-firstboot
+    rm -f /etc/runlevels/playos-visual/playos-firstboot
 
     # ── 8. Remove flag file (prevents re-run if service is re-added) ──────
     rm -f /etc/playos/firstboot

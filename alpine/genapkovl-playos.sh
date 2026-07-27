@@ -183,7 +183,7 @@ fi
 # Installer is now integrated into playos-shell (dd-based pipeline).
 # The standalone playos-installer-gui and playos-installer shell script have been retired.
 
-# Bundle pre-built samples (hello-playos, space-invaders) so they
+# Bundle pre-built samples (hello-playos, space-invaders, input-debug) so they
 # are available on first boot without manual deployment.
 SAMPLES_DIR="/workspace/.build/samples-out"
 if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
@@ -191,8 +191,10 @@ if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
     mkdir -p "$tmp/playos-samples/build"
     cp "$SAMPLES_DIR/hello-playos"   "$tmp/playos-samples/build/hello-playos"
     cp "$SAMPLES_DIR/space-invaders" "$tmp/playos-samples/build/space-invaders"
+    cp "$SAMPLES_DIR/input-debug"    "$tmp/playos-samples/build/input-debug"
     chmod 0755 "$tmp/playos-samples/build/hello-playos"
     chmod 0755 "$tmp/playos-samples/build/space-invaders"
+    chmod 0755 "$tmp/playos-samples/build/input-debug"
 fi
 
 # The disk image is bundled as a separate file on the ISO (not inside

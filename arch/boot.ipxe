@@ -1,0 +1,25 @@
+#!ipxe
+# PlayOS Arch PXE boot — iPXE script for network booting Arch-based PlayOS.
+#
+# Deploy alongside vmlinuz-stable, initramfs-stable, and the ISO
+# on the PXE HTTP server at /var/www/html/playos/.
+
+set base-url http://${next-server}/playos
+
+echo PlayOS Arch — iPXE netboot
+echo Kernel: ${base-url}/vmlinuz-stable
+
+kernel ${base-url}/vmlinuz-stable \
+    ip=dhcp \
+    usbdelay=5 \
+    archisobasedir=playos \
+    archiso_http_srv=${base-url} \
+    console=tty0 \
+    console=ttyS0,115200 \
+    amdgpu.sg_display=0 \
+    loglevel=7 \
+    initrd=${base-url}/initramfs-stable
+
+initrd ${base-url}/initramfs-stable
+
+boot

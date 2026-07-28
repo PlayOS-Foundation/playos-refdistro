@@ -1,0 +1,40 @@
+# PlayOS Arch x86_64 runtime package set — General variant
+# Kernel: linux-cachyos (EEVDF, Clang ThinLTO, AutoFDO PGO)
+# Keep sorted alphabetically within categories.
+
+# === System base ===
+base
+systemd
+
+# === Boot ===
+efibootmgr
+
+# === GPU & Display ===
+libdrm
+linux-firmware
+mesa
+wayland
+wayland-protocols
+
+# === Input ===
+libinput
+libxkbcommon
+seatd
+
+# === Audio ===
+pipewire
+wireplumber
+
+# === Network ===
+iwd
+networkmanager
+
+# === Utilities ===
+dosfstools
+e2fsprogs
+openssh
+util-linux
+zstd
+
+# === Kernel ===
+linux-cachyos

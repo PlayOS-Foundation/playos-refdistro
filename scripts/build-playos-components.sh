@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Build PlayOS compositor and shell inside Alpine nspawn.
-# Run inside the nspawn container before mkimage.sh.
+# Build PlayOS compositor and shell inside nspawn container.
+# Runs inside the nspawn container before disk population.
+# Auto-detects Alpine vs Arch and uses the right package manager.
 set -euo pipefail
 
 ROOT="${PLAYOS_ROOT:-/workspace}"
@@ -9,16 +10,29 @@ RUNTIME_SRC="${PLAYOS_RUNTIME_SRC:-/mnt/playos-runtime}"
 PLATFORM_SRC="${PLAYOS_PLATFORM_SRC:-/mnt/playos-platform-api}"
 BUILD_DIR=/var/tmp/playos-build
 
-echo "==> Installing PlayOS build dependencies"
-apk add --no-cache \
-    cmake ninja g++ make git ccache \
-    wlroots0.19-dev wayland-dev wayland-protocols \
-    libxkbcommon-dev libdrm-dev mesa-dev \
-    glfw-dev seatd curl \
-    libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
-    gptfdisk parted e2fsprogs zstd \
-    dosfstools util-linux coreutils sgdisk \
-    2>&1 | tail -5
+# ── Detect distro and install build deps if needed ──────────────────
+if command -v apk >/dev/null 2>&1; then
+    echo "==> Installing PlayOS build dependencies (Alpine)"
+    apk add --no-cache \
+        cmake ninja g++ make git ccache \
+        wlroots0.19-dev wayland-dev wayland-protocols \
+        libxkbcommon-dev libdrm-dev mesa-dev \
+        glfw-dev seatd curl \
+        libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+        gptfdisk parted e2fsprogs zstd \
+        dosfstools util-linux coreutils sgdisk \
+        2>&1 | tail -5
+elif command -v pacman >/dev/null 2>&1; then
+    echo "==> Arch build deps should be pre-installed (setup-ubuntu-build-host.sh)"
+    # Verify cmake is available
+    command -v cmake >/dev/null 2>&1 || {
+        echo "error: cmake not found — run setup-ubuntu-build-host.sh first" >&2
+        exit 1
+    }
+else
+    echo "error: neither apk nor pacman found — unsupported build environment" >&2
+    exit 1
+fi
 
 # ccache: speed up repeated C++ builds with compiler cache.
 export CCACHE_DIR=/var/cache/ccache
@@ -80,11 +94,14 @@ cmake --build "$BUILD_DIR/shell"
 echo "==> Installing binaries"
 install -m 0755 "$BUILD_DIR/runtime/compositor/playos-compositor" /usr/bin/playos-compositor
 install -m 0755 "$BUILD_DIR/shell/playos-shell"             /usr/bin/playos-shell
-# ── OpenRC init scripts ────────────────────────────────────────────
-install -m 0755 "$ROOT/alpine/init.d/playos-compositor"     /etc/init.d/playos-compositor
 
-# ── Add to playos-visual runlevel ──────────────────────────────────
-ln -sf /etc/init.d/playos-compositor /etc/runlevels/playos-visual/playos-compositor 2>/dev/null || true
+# ── Init script — OpenRC for Alpine, systemd for Arch ──────────────
+if command -v apk >/dev/null 2>&1; then
+    install -m 0755 "$ROOT/alpine/init.d/playos-compositor" /etc/init.d/playos-compositor
+    ln -sf /etc/init.d/playos-compositor /etc/runlevels/playos-visual/playos-compositor 2>/dev/null || true
+else
+    echo "    Skipping OpenRC init (Arch uses systemd units in build-disk-image-arch.sh)"
+fi
 
 # ── Build samples (hello-playos, space-invaders, input-debug) ──────────────────
 SAMPLES_SRC="${PLAYOS_SAMPLES_SRC:-/mnt/playos-samples}"
@@ -104,6 +121,11 @@ if [ -f "$SAMPLES_SRC/CMakeLists.txt" ]; then
 fi
 
 # ── Build hid-asus-ally kernel module (ROG Ally controller driver) ──
-/workspace/scripts/build-hid-asus-ally.sh
+# Only needed on Alpine — CachyOS kernels include asus-armoury in-tree.
+if command -v apk >/dev/null 2>&1; then
+    /workspace/scripts/build-hid-asus-ally.sh
+else
+    echo "==> Skipping hid-asus-ally (CachyOS kernel bundles it in-tree)"
+fi
 
 echo "==> PlayOS compositor and shell built successfully"

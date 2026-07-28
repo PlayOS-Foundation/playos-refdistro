@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-disk-image.sh — Populate a pre-mounted disk image with PlayOS.
+# build-disk-image-alpine.sh — Populate a pre-mounted disk image with Alpine Linux + PlayOS.
 #
 # Two modes:
 #   DISK_MNT set in env → image is already partitioned + mounted at $DISK_MNT
@@ -225,7 +225,9 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
             rm -f /tmp/initramfs-verify-err.log
         fi
         echo "    first 20 files in initramfs:"
+        set +o pipefail
         $DECOMP "$INITRAMFS" 2>/dev/null | cpio -t 2>/dev/null | head -20 | sed 's/^/        /'
+        set -o pipefail
     fi
 else
     echo "error: kernel modules were not installed; cannot generate initramfs" >&2

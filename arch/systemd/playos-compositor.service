@@ -1,0 +1,28 @@
+[Unit]
+Description=PlayOS Compositor (wlroots Wayland compositor)
+Documentation=https://github.com/PlayOS-Foundation/playos-runtime
+After=seatd.service local-fs.target
+Requires=seatd.service
+
+[Service]
+Type=simple
+Environment=XDG_RUNTIME_DIR=/run/playos
+Environment=PLAYOS_PROFILE=rog-ally
+Environment=WLR_RENDERER=vulkan
+
+# Stage device profile to tmpfs — tomlplusplus segfaults when reading
+# from ext4/xfs-backed filesystem paths.
+ExecStartPre=/usr/bin/mkdir -p /run/playos/profiles
+ExecStartPre=/usr/bin/bash -c 'if [ -f "/etc/playos/device-profiles/${PLAYOS_PROFILE}.toml" ]; then cp "/etc/playos/device-profiles/${PLAYOS_PROFILE}.toml" "/run/playos/profiles/${PLAYOS_PROFILE}.toml"; fi'
+ExecStartPre=/usr/bin/mkdir -p /run/playos
+ExecStartPre=/usr/bin/chmod 700 /run/playos
+
+ExecStart=/usr/bin/playos-compositor -- /usr/bin/playos-shell
+
+Restart=always
+RestartSec=1
+
+# First-frame-first: compositor must not wait for background services
+
+[Install]
+WantedBy=multi-user.target

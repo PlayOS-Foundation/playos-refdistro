@@ -29,6 +29,10 @@ check() {
 # ── E1: Build artifacts ─────────────────────────────────────────────────────
 echo "=== E1: Build artifacts ==="
 
+# Detect distro from artifact names
+ARTIFACT_DISTRO="alpine"
+find "$OUT" -maxdepth 1 -name 'playos-gpt-arch-*.img.zst' -print -quit 2>/dev/null | grep -q . && ARTIFACT_DISTRO="arch"
+
 DISK_ZST=$(find "$OUT" -maxdepth 1 -name 'playos-gpt-*.img.zst' -print 2>/dev/null | head -1)
 DISK_SHA="${DISK_ZST}.sha256"
 ISO=$(find "$OUT" -maxdepth 1 -name '*.iso' -print 2>/dev/null | head -1)
@@ -38,10 +42,12 @@ if [ -z "$DISK_ZST" ]; then
 else
     SIZE=$(stat -c%s "$DISK_ZST" 2>/dev/null || echo 0)
     SIZE_MB=$((SIZE / 1048576))
-    if [ "$SIZE_MB" -gt 1536 ]; then
-        check "Disk image size (${SIZE_MB} MiB > 1.5 GiB max)" fail
+    # Arch images may be slightly larger due to glibc + CachyOS kernel
+    MAX_SIZE=$([ "$ARTIFACT_DISTRO" = "arch" ] && echo 2048 || echo 1536)
+    if [ "$SIZE_MB" -gt "$MAX_SIZE" ]; then
+        check "Disk image size (${SIZE_MB} MiB > ${MAX_SIZE} MiB max for ${ARTIFACT_DISTRO})" fail
     else
-        check "Disk image exists (${SIZE_MB} MiB)" pass
+        check "Disk image exists (${SIZE_MB} MiB, ${ARTIFACT_DISTRO})" pass
     fi
 fi
 
@@ -122,27 +128,40 @@ else
     PXE_PASS=0
     PXE_FAIL=0
 
-    for f in "*.iso" "playos.apkovl.tar.gz" "vmlinuz-stable" "initramfs-stable" "modloop-stable"; do
-        if find "$PXE_DIR" -maxdepth 1 -name "$f" -print -quit 2>/dev/null | grep -q .; then
-            PXE_PASS=$((PXE_PASS + 1))
-        else
-            check "PXE: $f missing" fail
-            PXE_FAIL=$((PXE_FAIL + 1))
-        fi
-    done
-
-    if [ -d "$PXE_DIR/apks" ]; then
-        APK_COUNT=$(find "$PXE_DIR/apks" -name '*.apk' 2>/dev/null | wc -l)
-        if [ "$APK_COUNT" -gt 0 ]; then
-            check "PXE: apks/ ($APK_COUNT packages)" pass
-            PXE_PASS=$((PXE_PASS + 1))
-        else
-            check "PXE: apks/ empty" fail
-            PXE_FAIL=$((PXE_FAIL + 1))
-        fi
+    if [ "$ARTIFACT_DISTRO" = "arch" ]; then
+        # Arch PXE: kernel + initramfs + iso + disk image
+        for f in "*.iso" "vmlinuz-stable" "initramfs-stable"; do
+            if find "$PXE_DIR" -maxdepth 1 -name "$f" -print -quit 2>/dev/null | grep -q .; then
+                PXE_PASS=$((PXE_PASS + 1))
+            else
+                check "PXE: $f missing" fail
+                PXE_FAIL=$((PXE_FAIL + 1))
+            fi
+        done
     else
-        check "PXE: apks/ directory missing" fail
-        PXE_FAIL=$((PXE_FAIL + 1))
+        # Alpine PXE: iso + apkovl + kernel + initramfs + modloop + apks
+        for f in "*.iso" "playos.apkovl.tar.gz" "vmlinuz-stable" "initramfs-stable" "modloop-stable"; do
+            if find "$PXE_DIR" -maxdepth 1 -name "$f" -print -quit 2>/dev/null | grep -q .; then
+                PXE_PASS=$((PXE_PASS + 1))
+            else
+                check "PXE: $f missing" fail
+                PXE_FAIL=$((PXE_FAIL + 1))
+            fi
+        done
+
+        if [ -d "$PXE_DIR/apks" ]; then
+            APK_COUNT=$(find "$PXE_DIR/apks" -name '*.apk' 2>/dev/null | wc -l)
+            if [ "$APK_COUNT" -gt 0 ]; then
+                check "PXE: apks/ ($APK_COUNT packages)" pass
+                PXE_PASS=$((PXE_PASS + 1))
+            else
+                check "PXE: apks/ empty" fail
+                PXE_FAIL=$((PXE_FAIL + 1))
+            fi
+        else
+            check "PXE: apks/ directory missing" fail
+            PXE_FAIL=$((PXE_FAIL + 1))
+        fi
     fi
 
     if find "$PXE_DIR" -maxdepth 1 -name '*.img.zst' -print -quit 2>/dev/null | grep -q .; then

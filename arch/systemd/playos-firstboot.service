@@ -1,0 +1,15 @@
+[Unit]
+Description=PlayOS First Boot Setup (one-shot)
+Documentation=https://github.com/PlayOS-Foundation/playos-refdistro
+After=local-fs.target network.target networkmanager.service
+ConditionPathExists=/etc/playos/firstboot
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/playos/playos-firstboot
+RemainAfterExit=no
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

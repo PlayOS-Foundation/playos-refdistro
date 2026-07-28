@@ -1,0 +1,44 @@
+# PlayOS Arch x86_64 runtime package set — Handheld variant
+# Kernel: linux-cachyos-deckify (BORE scheduler, handheld patches)
+# Keep sorted alphabetically within categories.
+# NOTE: built on top of general variant — duplicates listed for standalone builds.
+
+# === System base ===
+base
+systemd
+
+# === Boot ===
+efibootmgr
+
+# === GPU & Display ===
+libdrm
+linux-firmware
+mesa
+wayland
+wayland-protocols
+
+# === Input ===
+libinput
+libxkbcommon
+seatd
+
+# === Audio ===
+pipewire
+wireplumber
+
+# === Network ===
+iwd
+networkmanager
+
+# === Utilities ===
+dosfstools
+e2fsprogs
+openssh
+util-linux
+zstd
+
+# === Handheld-optimized kernel ===
+linux-cachyos-deckify
+
+# === Handheld drivers ===
+asusctl

@@ -10,6 +10,34 @@
 - The disk image uses systemd-boot, a separate data partition, and one-shot
   first-boot initialization.
 
+## Arch Linux + CachyOS backend ✅ (complete)
+
+Two Arch Linux ISO variants now build alongside the existing Alpine pipeline
+using CachyOS optimized kernels:
+
+- **MinArch** (`linux-cachyos`): EEVDF scheduler, Clang ThinLTO, AutoFDO PGO —
+  optimal for general devices.
+- **MinArch Handheld** (`linux-cachyos-deckify`): BORE scheduler, handheld
+  patches (ROG Ally, Steam Deck, MSI Claw, Legion Go drivers), plus `asusctl`
+  for TDP/fan/GPU control.
+
+See `feat/arch-distro-backend` branch. Commits: `fec08a5`.
+
+```bash
+# General variant
+PLAYOS_DISTRO=arch PLAYOS_KERNEL_VARIANT=cachyos bash scripts/build-iso-ubuntu.sh
+
+# Handheld variant
+PLAYOS_DISTRO=arch PLAYOS_KERNEL_VARIANT=deckify bash scripts/build-iso-ubuntu.sh
+```
+
+Both produce: `playos-gpt-arch-{variant}-x86_64.img.zst` + `playos-arch-{variant}-x86_64.iso`.
+
+Architecture: shared code extracted from Alpine scripts into `shared/`,
+Arch-specific config in `arch/` (pacman.conf with pinned archive + CachyOS znver4
+repos, systemd units, mkinitcpio.conf), disk population via `pacman -r`, initramfs
+via mkinitcpio, bootloader via systemd-boot.
+
 ## Next milestones
 
 1. **Migrate Raylib to 6.0 via custom APKBUILD.** Alpine 3.24 ships raylib

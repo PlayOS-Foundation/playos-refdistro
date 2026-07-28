@@ -15,7 +15,10 @@ Platform behaviour is specified in `playos-spec`. ADR-0004 selects Alpine Linux,
 1. **First frame first.** Only GPU/input readiness, seatd, compositor, and shell belong on the visual path.
 2. **Use Alpine-native mechanisms.** New work uses apk, OpenRC, aports, mkimage, initramfs, modloop, and supported Alpine persistence patterns.
 3. **Pin releases.** Released images use a pinned Alpine stable branch. Do not consume unpinned edge repositories.
-4. **Keep one active distro implementation.** Alpine is the only supported profile. The retired Arch implementation is preserved in Git history, not in the active tree.
+4. **Support multiple distro backends.** Alpine is the reference. Arch + CachyOS
+   is an alternative backend for optimized handheld and desktop builds. Both
+   produce identical output formats: compressed GPT disk images + bootable ISOs.
+   Distro-specific code lives in `alpine/` or `arch/`; shared logic in `shared/`.
 5. **Keep runtime code distribution-independent.** Package/init/image code belongs here. Runtime and shell sources must build on musl without depending on apk or OpenRC APIs.
 6. **VMs and hardware boot.** Image builds do not validate DRM/KMS, input,
    suspend, or firmware.
@@ -24,17 +27,24 @@ Platform behaviour is specified in `playos-spec`. ADR-0004 selects Alpine Linux,
 ## Primary workflow
 
 ```text
-Ubuntu wrapper or optional container wrapper
-  → pinned Alpine build root
-  → aports/mkimage PlayOS profile
-  → out/*.iso
-  → QEMU/OVMF smoke test
-  → ROG Ally hardware test
+# Alpine (reference)
+bash scripts/build-iso-ubuntu.sh
+
+# Arch + CachyOS (general optimized)
+PLAYOS_DISTRO=arch PLAYOS_KERNEL_VARIANT=cachyos bash scripts/build-iso-ubuntu.sh
+
+# Arch + CachyOS (handheld optimized — ROG Ally, Steam Deck)
+PLAYOS_DISTRO=arch PLAYOS_KERNEL_VARIANT=deckify bash scripts/build-iso-ubuntu.sh
 ```
+
+Each pipeline: Ubuntu wrapper → pinned build root → distro-specific image
+tooling → compressed GPT disk image + bootable ISO → QEMU/OVMF smoke test.
 
 ## Layout policy
 
 - `alpine/`: authoritative profile, package lists, overlays, and image configuration.
+- `arch/`: Arch Linux profile — packages, pacman.conf (pinned + CachyOS repos), mkinitcpio.conf, systemd units.
+- `shared/`: distro-agnostic code (partition layout, bootloader install, fstab, device profiles, firstboot).
 - `scripts/build-alpine-iso.sh`: shared image entrypoint.
 - `docs/README.md`: canonical documentation index.
 - `docs/build/ubuntu.md`: Ubuntu host workflow.

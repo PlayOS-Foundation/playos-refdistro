@@ -1,41 +1,58 @@
 # PlayOS Alpine x86_64 runtime package set
-# Keep aligned with alpine/mkimg.playos.sh until PlayOS APKBUILD packages own it.
+# Authoritative: alpine/mkimg.playos.sh — keep aligned with its apks variable.
+# Generated from mkimg.playos.sh profile_playos() on 2026-07-27.
 
 alpine-base
 alpine-conf
 bluez
 bluez-openrc
+coreutils
 dbus
 dbus-openrc
+e2fsprogs
+e2fsprogs-extra
+efibootmgr
 eudev
 eudev-openrc
+glfw
+gptfdisk
 iwd
+iwd-openrc
 kmod
 libdrm
 libinput
 libxkbcommon
 linux-firmware-amdgpu
-linux-firmware-intel
-linux-firmware-mediatek
-wireless-regdb
 linux-firmware-ath10k
 linux-firmware-ath11k
 linux-firmware-brcm
+linux-firmware-intel
+linux-firmware-mediatek
+linux-firmware-nvidia
 mesa-dri-gallium
 mesa-egl
 mesa-gbm
 mesa-gles
 mesa-vulkan-ati
+mesa-vulkan-intel
+mesa-vulkan-nouveau
 networkmanager
 networkmanager-cli
-networkmanager-wifi
 networkmanager-openrc
+networkmanager-tui
+networkmanager-wifi
 openssh
 openrc
+parted
 pipewire
 seatd
 seatd-openrc
+sgdisk
+systemd-boot
+util-linux
 wayland
 wireplumber
 wireplumber-openrc
+wireless-regdb
 wlroots0.19
+zstd

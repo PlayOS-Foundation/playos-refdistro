@@ -96,6 +96,9 @@ apk --root $MNT add --no-cache \
     linux-firmware-nvidia \
     linux-firmware-intel \
     linux-firmware-mediatek \
+    linux-firmware-ath10k \
+    linux-firmware-ath11k \
+    linux-firmware-brcm \
     wireless-regdb \
     mesa-dri-gallium \
     mesa-egl \
@@ -124,6 +127,15 @@ echo "==> Installing kernel (modules only, no post-install scripts)"
 apk --root $MNT add --no-cache --no-scripts linux-stable
 
 KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
+
+# Install GPU firmware globally in the build container.
+# mkinitfs does NOT apply -b to firmware file lookups — it always reads
+# from /lib/firmware/ in the running environment.  The --root install above
+# placed firmware at $MNT/lib/firmware/ (correct for the installed system),
+# but mkinitfs needs it at /lib/firmware/ in the build container to include
+# it in the initramfs.  Without this, amdgpu/nvidia devices black-screen.
+echo "==> Installing GPU firmware in build container (for initramfs)"
+apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel
 
 # Install hid-asus-ally kernel module (ROG Ally HID driver), built by
 # build-hid-asus-ally.sh earlier in the nspawn session.  Must happen
@@ -181,6 +193,40 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
         -o "$MNT/boot/initramfs-stable" \
         "$KERNEL_VER"
     test -s "$MNT/boot/initramfs-stable"
+
+    # Verify GPU firmware landed in the initramfs.
+    # Note: mkinitfs may use lz4 or xz compression depending on config.
+    # Detect compression and decompress accordingly.
+    echo "==> Verifying initramfs firmware inclusion"
+    INITRAMFS="$MNT/boot/initramfs-stable"
+
+    # Detect initramfs compression by reading magic bytes.
+    # gzip: 0x1F 0x8B, xz: 0xFD 0x37 0x7A, lz4: 0x04 0x22 0x4D 0x18
+    magic=$(od -A n -t x1 -N 4 "$INITRAMFS" | tr -d ' ')
+    case "$magic" in
+        1f8b*)       DECOMP="gunzip -c"  ; LABEL="gzip" ;;
+        fd377a58*)   DECOMP="xzcat"      ; LABEL="xz"   ;;
+        04224d18*)   DECOMP="lz4cat"     ; LABEL="lz4"  ;;
+        30373037*)   DECOMP="cat"        ; LABEL="cpio (uncompressed)" ;;
+        *)           DECOMP="gunzip -c"  ; LABEL="unknown (trying gzip)" ;;
+    esac
+    echo "    initramfs format: $LABEL"
+
+    if $DECOMP "$INITRAMFS" 2>/tmp/initramfs-verify-err.log \
+        | cpio -t 2>>/tmp/initramfs-verify-err.log \
+        | grep -q 'lib/firmware/amdgpu/'; then
+        echo "    amdgpu firmware: OK"
+        rm -f /tmp/initramfs-verify-err.log
+    else
+        echo "    WARNING: amdgpu firmware MISSING from initramfs"
+        echo "    decompress errors:"
+        if [ -s /tmp/initramfs-verify-err.log ]; then
+            head -5 /tmp/initramfs-verify-err.log | sed 's/^/        /'
+            rm -f /tmp/initramfs-verify-err.log
+        fi
+        echo "    first 20 files in initramfs:"
+        $DECOMP "$INITRAMFS" 2>/dev/null | cpio -t 2>/dev/null | head -20 | sed 's/^/        /'
+    fi
 else
     echo "error: kernel modules were not installed; cannot generate initramfs" >&2
     exit 1
@@ -354,7 +400,7 @@ chmod 600 $MNT/root/.ssh/authorized_keys
 # ── Kernel cmdline (applied by bootloader) ───────────────────────────────────
 mkdir -p $MNT/etc/kernel
 cat > $MNT/etc/kernel/cmdline <<'EOF'
-console=tty0 console=ttyS0 amdgpu.sg_display=0 quiet loglevel=3
+console=tty0 console=ttyS0 amdgpu.sg_display=0 loglevel=7
 EOF
 
 # ── Data partition directories ────────────────────────────────────────────────
@@ -362,10 +408,14 @@ echo "==> Creating /data directory structure"
 mkdir -p $MNT/data/games $MNT/data/saves $MNT/data/config
 
 # ── fstab ────────────────────────────────────────────────────────────────────
-ROOT_UUID="${ROOT_UUID:-$(blkid -s UUID -o value "${LOOP}p2" 2>/dev/null)}"
-EFI_UUID="${EFI_UUID:-$(blkid -s UUID -o value "${LOOP}p1" 2>/dev/null)}"
-DATA_UUID="${DATA_UUID:-$(blkid -s UUID -o value "${LOOP}p3" 2>/dev/null)}"
-ROOT_PARTUUID="${ROOT_PARTUUID:-$(blkid -s PARTUUID -o value "${LOOP}p2" 2>/dev/null)}"
+# In nspawn mode (DISK_MNT pre-set), UUIDs come from the host via env vars.
+# In standalone mode, LOOP is defined and we can query the loop device directly.
+if [ -n "${LOOP:-}" ] && [ -b "${LOOP}p2" ] 2>/dev/null; then
+    ROOT_UUID="${ROOT_UUID:-$(blkid -s UUID -o value "${LOOP}p2" 2>/dev/null)}"
+    EFI_UUID="${EFI_UUID:-$(blkid -s UUID -o value "${LOOP}p1" 2>/dev/null)}"
+    DATA_UUID="${DATA_UUID:-$(blkid -s UUID -o value "${LOOP}p3" 2>/dev/null)}"
+    ROOT_PARTUUID="${ROOT_PARTUUID:-$(blkid -s PARTUUID -o value "${LOOP}p2" 2>/dev/null)}"
+fi
 
 cat > $MNT/etc/fstab <<EOF
 # /etc/fstab — PlayOS installed system
@@ -393,7 +443,7 @@ if mountpoint -q "$MNT/boot/efi" 2>/dev/null && [ -f "$STUB" ]; then
 title   PlayOS
 linux   /vmlinuz-stable
 initrd  /initramfs-stable
-options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=2 quiet loglevel=3 softlevel=playos-visual
+options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=2 loglevel=7 softlevel=playos-visual
 CONFENTRY
 
     cat > "$MNT/boot/efi/loader/loader.conf" <<LOADERCONF

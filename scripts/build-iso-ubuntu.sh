@@ -19,6 +19,7 @@ RUNTIME_SRC="${PLAYOS_RUNTIME_SRC:-$ROOT/../playos-runtime}"
 SHELL_SRC="${PLAYOS_SHELL_SRC:-$ROOT/../playos-shell}"
 PLATFORM_SRC="${PLAYOS_PLATFORM_SRC:-$ROOT/../playos-platform-api}"
 SAMPLES_SRC="${PLAYOS_SAMPLES_SRC:-$ROOT/../playos-samples}"
+REFDEV_SRC="${PLAYOS_REFERENCE_DEVICES:-$ROOT/../playos-reference-devices}"
 
 # ── Detect SSH public key on the host (nspawn can't see host ~/.ssh) ────────
 if [ -n "${PLAYOS_SSH_PUBKEY:-}" ]; then
@@ -34,6 +35,23 @@ echo "==> Building PlayOS compositor + shell + disk image + ISO"
 
 # ── Phase 0: Create disk image layout on the host ────────────────────────────
 # sgdisk + losetup -P needs the host kernel for partition device nodes.
+
+# ── Pre-flight: verify sibling repos exist ───────────────────────────────────
+echo "==> Verifying sibling repositories"
+for repo_name in RUNTIME_SRC SHELL_SRC PLATFORM_SRC SAMPLES_SRC; do
+    repo_path="${!repo_name}"
+    if [ ! -d "$repo_path" ]; then
+        echo "error: ${repo_name}=${repo_path} does not exist" >&2
+        echo "Clone it alongside this repo or set $repo_name to the correct path." >&2
+        exit 1
+    fi
+    if [ ! -f "$repo_path/CMakeLists.txt" ]; then
+        echo "error: ${repo_name}=${repo_path} is missing CMakeLists.txt — is this the right repo?" >&2
+        exit 1
+    fi
+    echo "    $repo_name: $repo_path"
+done
+
 ALPINE_BRANCH="${PLAYOS_ALPINE_BRANCH:-v3.24}"
 ARCH="${PLAYOS_ARCH:-x86_64}"
 IMAGE_NAME="playos-gpt-${ALPINE_BRANCH}-${ARCH}"
@@ -98,6 +116,7 @@ sudo systemd-nspawn \
     --bind="$PLATFORM_SRC:/mnt/playos-platform-api" \
     --bind="$SAMPLES_SRC:/mnt/playos-samples" \
     --bind="$DISK_MNT:$DISK_MNT" \
+    $( [ -d "$REFDEV_SRC" ] && echo "--bind=$REFDEV_SRC:/mnt/playos-reference-devices" ) \
     --setenv="PLAYOS_ROOT=/workspace" \
     --setenv="PLAYOS_RUNTIME_SRC=/mnt/playos-runtime" \
     --setenv="PLAYOS_SHELL_SRC=/mnt/playos-shell" \
@@ -136,7 +155,7 @@ if [ -f "$STUB" ]; then
 title   PlayOS
 linux   /vmlinuz-stable
 initrd  /initramfs-stable
-options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=2 quiet loglevel=3 softlevel=playos-visual
+options root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=2 loglevel=7 softlevel=playos-visual
 CONFENTRY
 
         sudo tee "${DISK_MNT}/boot/efi/loader/loader.conf" > /dev/null <<LOADERCONF
@@ -174,7 +193,7 @@ sudo systemd-nspawn \
         # Compress disk image now so genapkovl can bundle it into the ISO
         echo "==> Compressing disk image for ISO bundling"
         IMG=$(echo /workspace/out/playos-gpt-*.img | head -1)
-        zstd -f -T2 --rm -12 "$IMG"
+        zstd -f -T0 --rm -12 "$IMG"
         IMG_ZST="${IMG}.zst"
         (
             cd "$(dirname "$IMG_ZST")"

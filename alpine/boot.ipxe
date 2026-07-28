@@ -16,9 +16,9 @@ echo Overlay: ${base-url}/playos.apkovl.tar.gz
 kernel ${base-url}/vmlinuz-stable \
     ip=dhcp \
     usbdelay=5 \
-    alpine_repo=http://192.168.0.196/playos/apks \
-    modloop=http://192.168.0.196/playos/modloop-stable \
-    apkovl=http://192.168.0.196/playos/playos-minimal.apkovl.tar.gz \
+    alpine_repo=${base-url}/apks \
+    modloop=${base-url}/modloop-stable \
+    apkovl=${base-url}/playos.apkovl.tar.gz \
     console=tty0 \
     console=ttyS0,115200 \
     amdgpu.sg_display=0 \

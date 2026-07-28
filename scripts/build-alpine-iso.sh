@@ -49,6 +49,15 @@ sed -i 's/cp -Lrs/cp -rL/' "$APORTS/scripts/mkimage.sh"
 # copies DESTDIR to a safe location for our own ISO rebuild.
 sed -i '/^[[:space:]]*xorrisofs \\/i\cp -a "${DESTDIR}" /var/tmp/playos-destdir-backup' "$APORTS/scripts/mkimg.base.sh"
 
+# Verify the sed injection succeeded — if Alpine upstream changed the
+# formatting of mkimg.base.sh, this will fail early with a clear error.
+if ! grep -q 'cp -a.*DESTDIR.*playos-destdir-backup' "$APORTS/scripts/mkimg.base.sh"; then
+    echo "ERROR: Failed to inject DESTDIR backup into mkimg.base.sh" >&2
+    echo "The xorrisofs line pattern may have changed upstream. Check:" >&2
+    echo "  grep -n xorrisofs $APORTS/scripts/mkimg.base.sh" >&2
+    exit 1
+fi
+
 # Remove sd-mod,usb-storage and quiet from default initfs_cmdline.
 # sd-mod/usb-storage probe hardware that may hang during netboot;
 # quiet suppresses messages needed for debugging.

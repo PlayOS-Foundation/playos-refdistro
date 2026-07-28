@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -euo pipefail
 
 ALPINE_BRANCH="${PLAYOS_ALPINE_BRANCH:-v3.24}"
 

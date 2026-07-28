@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh -eu
 
 HOSTNAME="${1:-playos}"
 tmp="$(mktemp -d)"
@@ -35,9 +35,12 @@ bluez-openrc
 coreutils
 dbus
 dbus-openrc
+e2fsprogs
 e2fsprogs-extra
+efibootmgr
 eudev
 eudev-openrc
+glfw
 gptfdisk
 iwd
 iwd-openrc
@@ -46,21 +49,23 @@ libdrm
 libinput
 libxkbcommon
 linux-firmware-amdgpu
-linux-firmware-nvidia
+linux-firmware-ath10k
+linux-firmware-ath11k
+linux-firmware-brcm
 linux-firmware-intel
 linux-firmware-mediatek
-wireless-regdb
+linux-firmware-nvidia
 mesa-dri-gallium
 mesa-egl
 mesa-gbm
 mesa-gles
 mesa-vulkan-ati
-mesa-vulkan-nouveau
 mesa-vulkan-intel
+mesa-vulkan-nouveau
 networkmanager
 networkmanager-cli
-networkmanager-tui
 networkmanager-openrc
+networkmanager-tui
 networkmanager-wifi
 openssh
 openrc
@@ -69,12 +74,13 @@ pipewire
 seatd
 seatd-openrc
 sgdisk
+systemd-boot
+util-linux
 wayland
 wireplumber
 wireplumber-openrc
+wireless-regdb
 wlroots0.19
-systemd-boot
-efibootmgr
 zstd
 EOF
 
@@ -203,4 +209,23 @@ echo "==> Disk image is placed alongside the apkovl on the ISO (not bundled insi
 
 mkdir -p "$tmp/etc/runlevels/playos-async"
 
-tar -c -C "$tmp" etc usr root playos-samples 2>/dev/null | gzip -9n > "$HOSTNAME.apkovl.tar.gz"
+# Build the apkovl archive from the overlay tree.
+# Each top-level directory is optional — only include what exists to avoid
+# silent failures when components (samples, etc.) weren't built.
+echo "==> Building apkovl overlay archive"
+OVERLAY_DIRS=""
+for dir in etc root usr playos-samples; do
+    if [ -d "$tmp/$dir" ]; then
+        OVERLAY_DIRS="$OVERLAY_DIRS $dir"
+    else
+        echo "    Note: $dir overlay directory not present — skipping"
+    fi
+done
+
+if [ -z "$OVERLAY_DIRS" ]; then
+    echo "ERROR: No overlay directories found — nothing to archive" >&2
+    exit 1
+fi
+
+tar -c -C "$tmp" $OVERLAY_DIRS | gzip -9n > "$HOSTNAME.apkovl.tar.gz"
+echo "    apkovl: $HOSTNAME.apkovl.tar.gz ($(du -h "$HOSTNAME.apkovl.tar.gz" | cut -f1))"

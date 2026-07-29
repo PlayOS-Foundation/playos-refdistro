@@ -7,8 +7,7 @@
 description="Gate playos-async runlevel on compositor readiness"
 
 depend() {
-    need playos-compositor
-    after dbus seatd
+    after playos-compositor dbus seatd
 }
 
 start() {

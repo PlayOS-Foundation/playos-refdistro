@@ -8,7 +8,6 @@
 # Usage:
 #   bash scripts/setup-ubuntu-build-host.sh                    # Alpine only
 #   PLAYOS_DISTRO=arch bash scripts/setup-ubuntu-build-host.sh # Arch only
-#   bash scripts/setup-ubuntu-build-host.sh && PLAYOS_DISTRO=arch bash scripts/setup-ubuntu-build-host.sh  # both
 set -euo pipefail
 
 DISTRO="${PLAYOS_DISTRO:-alpine}"
@@ -21,18 +20,21 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_ROOT="$ROOT/.build"
 CACHE="$BUILD_ROOT/cache"
 
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 if [[ ! -r /etc/os-release ]]; then
-    echo "error: /etc/os-release is unavailable" >&2
+    _log_error "/etc/os-release is unavailable"
     exit 1
 fi
 
 . /etc/os-release
 if [[ "${ID:-}" != "ubuntu" ]]; then
-    echo "error: this setup wrapper targets Ubuntu Server" >&2
+    _log_error "this setup wrapper targets Ubuntu Server"
     exit 1
 fi
 
-echo "==> Installing Ubuntu host dependencies"
+_log_step "Installing Ubuntu host dependencies"
 sudo apt-get update
 sudo apt-get install -y \
     ca-certificates \
@@ -43,6 +45,7 @@ sudo apt-get install -y \
     systemd-container \
     xz-utils \
     zstd
+_log_success "Ubuntu host dependencies installed"
 
 # ── Distro-specific setup functions ──────────────────────────────────────────
 
@@ -55,11 +58,11 @@ setup_alpine() {
 
     mkdir -p "$CACHE"
     if [[ ! -f "$CACHE/$ARCHIVE" ]]; then
-        echo "==> [Alpine] Downloading $URL"
+        _log_step "[Alpine] Downloading $URL"
         curl --fail --location --output "$CACHE/$ARCHIVE" "$URL"
     fi
 
-    echo "==> [Alpine] Verifying minirootfs checksum"
+    _log_step "[Alpine] Verifying minirootfs checksum"
     curl --fail --location --output "$CACHE/$ARCHIVE.sha256" "$URL.sha256"
     (
         cd "$CACHE"
@@ -69,16 +72,16 @@ setup_alpine() {
     if [[ -f "$MARKER" ]]; then
         installed_version="$(sudo cat "$MARKER")"
         if [[ "$installed_version" != "$ALPINE_VERSION-$ARCH" ]]; then
-            echo "error: $ROOTFS contains Alpine $installed_version" >&2
-            echo "Move that directory aside before changing versions." >&2
+            _log_error "$ROOTFS contains Alpine $installed_version"
+            _log_info "Move that directory aside before changing versions."
             exit 1
         fi
     elif [[ -d "$ROOTFS" ]] && [[ -n "$(sudo find "$ROOTFS" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
-        echo "error: $ROOTFS is non-empty but has no PlayOS version marker" >&2
-        echo "Move it aside and run this script again." >&2
+        _log_error "$ROOTFS is non-empty but has no PlayOS version marker"
+        _log_info "Move it aside and run this script again."
         exit 1
     else
-        echo "==> [Alpine] Extracting minirootfs"
+        _log_step "[Alpine] Extracting minirootfs"
         sudo mkdir -p "$ROOTFS"
         sudo tar --extract --gzip --numeric-owner \
             --file "$CACHE/$ARCHIVE" \
@@ -86,7 +89,7 @@ setup_alpine() {
         echo "$ALPINE_VERSION-$ARCH" | sudo tee "$MARKER" >/dev/null
     fi
 
-    echo "==> [Alpine] Installing build dependencies in systemd-nspawn"
+    _log_step "[Alpine] Installing build dependencies in systemd-nspawn"
     sudo systemd-nspawn \
         --quiet \
         --directory="$ROOTFS" \
@@ -109,24 +112,24 @@ setup_arch() {
     if [[ -f "$MARKER" ]]; then
         installed_version="$(sudo cat "$MARKER")"
         if [[ "$installed_version" != "$SNAPSHOT_DATE-$ARCH" ]]; then
-            echo "error: $ROOTFS contains Arch snapshot $installed_version" >&2
-            echo "Move that directory aside before changing snapshots." >&2
+            _log_error "$ROOTFS contains Arch snapshot $installed_version"
+            _log_info "Move that directory aside before changing snapshots."
             exit 1
         fi
     elif [[ -d "$ROOTFS" ]] && [[ -n "$(sudo find "$ROOTFS" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
-        echo "error: $ROOTFS is non-empty but has no PlayOS version marker" >&2
-        echo "Move it aside and run this script again." >&2
+        _log_error "$ROOTFS is non-empty but has no PlayOS version marker"
+        _log_info "Move it aside and run this script again."
         exit 1
     else
         mkdir -p "$CACHE"
 
         # Download Arch bootstrap tarball
         if [[ ! -f "$CACHE/$BOOTSTRAP_ARCHIVE" ]]; then
-            echo "==> [Arch] Downloading bootstrap tarball: $BOOTSTRAP_URL"
+            _log_step "[Arch] Downloading bootstrap tarball: $BOOTSTRAP_URL"
             curl --fail --location --output "$CACHE/$BOOTSTRAP_ARCHIVE" "$BOOTSTRAP_URL"
         fi
 
-        echo "==> [Arch] Extracting bootstrap tarball"
+        _log_step "[Arch] Extracting bootstrap tarball"
         sudo mkdir -p "$ROOTFS"
         sudo tar --extract --zstd --numeric-owner \
             --file "$CACHE/$BOOTSTRAP_ARCHIVE" \
@@ -136,13 +139,13 @@ setup_arch() {
         echo "$SNAPSHOT_DATE-$ARCH" | sudo tee "$MARKER" >/dev/null
 
         # Copy PlayOS pacman.conf + mirrors (bootstrap ships with mirrors commented out)
-        echo "==> [Arch] Installing pacman.conf and mirrorlists"
+        _log_step "[Arch] Installing pacman.conf and mirrorlists"
         sudo cp "$ROOT/arch/pacman.conf" "$ROOTFS/etc/pacman.conf"
         sudo mkdir -p "$ROOTFS/etc/pacman.d"
         sudo cp "$ROOT/arch/cachyos-mirrorlist" "$ROOTFS/etc/pacman.d/cachyos-mirrorlist"
 
         # First nspawn: initialize pacman keyring + install base
-        echo "==> [Arch] Initializing pacman keyring"
+        _log_step "[Arch] Initializing pacman keyring"
         sudo systemd-nspawn \
             --quiet \
             --directory="$ROOTFS" \
@@ -155,7 +158,7 @@ setup_arch() {
             '
 
         # Install build deps via nspawn
-        echo "==> [Arch] Installing build dependencies"
+        _log_step "[Arch] Installing build dependencies"
         sudo systemd-nspawn \
             --quiet \
             --directory="$ROOTFS" \
@@ -172,7 +175,7 @@ case "$DISTRO" in
     alpine) ROOTFS="$BUILD_ROOT/alpine-rootfs"; setup_alpine ;;
     arch)   ROOTFS="$BUILD_ROOT/arch-rootfs";   setup_arch   ;;
     *)
-        echo "error: unknown PLAYOS_DISTRO=$DISTRO (expect alpine or arch)" >&2
+        _log_error "unknown PLAYOS_DISTRO=$DISTRO (expect alpine or arch)"
         exit 1
         ;;
 esac

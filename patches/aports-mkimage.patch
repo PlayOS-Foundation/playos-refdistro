@@ -1,0 +1,43 @@
+diff --git a/scripts/mkimage.sh b/scripts/mkimage.sh
+index c31a1d85..608efb71 100755
+--- a/scripts/mkimage.sh
++++ b/scripts/mkimage.sh
+@@ -172,7 +172,7 @@ build_profile() {
+ 			mkdir -p "$DESTDIR"
+ 			for _dir in $_my_sections; do
+ 				for _fn in $WORKDIR/$_dir/*; do
+-					[ ! -e "$_fn" ] || cp -Lrs $_fn $DESTDIR/
++					[ ! -e "$_fn" ] || cp -rL $_fn $DESTDIR/
+ 				done
+ 			done
+ 			echo "${image_name}-${RELEASE} ${build_date}" > "$DESTDIR"/.alpine-release
+@@ -285,7 +285,7 @@ for ARCH in $req_arch; do
+ 		if [ -n "$_abuild_pubkey" ]; then
+ 			cp "$_abuild_pubkey" "$APKROOT"/etc/apk/keys
+ 		fi
+-		apk --arch "$ARCH" --root "$APKROOT" add --initdb --no-chown
++		apk --arch "$ARCH" --root "$APKROOT" add --initdb 
+ 
+ 		_repositories="$APKROOT/etc/apk/repositories"
+ 		if [ -n "$REPOS_FILE" ]; then
+diff --git a/scripts/mkimg.base.sh b/scripts/mkimg.base.sh
+index 41797d7d..89ddda20 100644
+--- a/scripts/mkimg.base.sh
++++ b/scripts/mkimg.base.sh
+@@ -301,6 +301,7 @@ create_image_iso() {
+ 			done
+ 			iso_opts="$iso_opts -no-emul-boot -eltorito-boot boot/merged.img"
+ 		fi
++cp -a "${DESTDIR}" /var/tmp/playos-destdir-backup
+ 		xorrisofs \
+ 			-quiet \
+ 			-output ${ISO} \
+@@ -326,7 +327,7 @@ create_image_targz() {
+ 
+ profile_base() {
+ 	kernel_flavors="lts"
+-	initfs_cmdline="modules=loop,squashfs,sd-mod,usb-storage quiet"
++	initfs_cmdline="modules=loop,squashfs"
+ 	initfs_features="ata base bootchart cdrom dhcp ext4 mmc nvme raid scsi squashfs usb virtio"
+ 	modloop_sign=yes
+ 	grub_mod="all_video disk part_gpt part_msdos linux normal configfile search search_label efi_gop fat iso9660 cat echo ls test true help gzio"

@@ -11,10 +11,14 @@
 set -euo pipefail
 
 ROOT="${PLAYOS_ROOT:-/workspace}"
+
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 MNT="${DISK_MNT:?}"
 KERNEL_VARIANT="${PLAYOS_KERNEL_VARIANT:-cachyos}"
 
-echo "==> Building PlayOS Arch disk image (kernel: $KERNEL_VARIANT)"
+_log_step "Building PlayOS Arch disk image (kernel: $KERNEL_VARIANT)"
 
 # ── Select kernel package ────────────────────────────────────────────────────
 case "$KERNEL_VARIANT" in
@@ -27,38 +31,38 @@ case "$KERNEL_VARIANT" in
         PACKAGES_FILE="$ROOT/arch/packages-handheld.x86_64"
         ;;
     *)
-        echo "error: unknown KERNEL_VARIANT=$KERNEL_VARIANT (expect cachyos or deckify)" >&2
+        _log_error "unknown KERNEL_VARIANT=$KERNEL_VARIANT (expect cachyos or deckify)" >&2
         exit 1
         ;;
 esac
 
-echo "    Kernel package: $KERNEL_PKG"
-echo "    Package list:   $PACKAGES_FILE"
+_log_info "Kernel package: $KERNEL_PKG"
+_log_info "Package list:   $PACKAGES_FILE"
 
 # ── Validate package list ────────────────────────────────────────────────────
 if [ ! -f "$PACKAGES_FILE" ]; then
-    echo "error: package list not found: $PACKAGES_FILE" >&2
+    _log_error "package list not found: $PACKAGES_FILE" >&2
     exit 1
 fi
 
 # ── Install Arch base system via pacstrap ─────────────────────────────────────
-echo "==> Bootstrapping Arch base system"
+_log_step "Bootstrapping Arch base system"
 
 # Install pacman.conf into build environment first
 mkdir -p /etc
 cp "$ROOT/arch/pacman.conf" /etc/pacman.conf
 
 # Install CachyOS GPG key
-echo "==> Importing CachyOS GPG key"
+_log_step "Importing CachyOS GPG key"
 pacman-key --init 2>/dev/null || true
 pacman-key --populate archlinux 2>/dev/null || true
 if ! pacman-key --list-keys F3B607488DB35A47 >/dev/null 2>&1; then
     pacman-key --recv-keys F3B607488DB35A47 --keyserver hkp://keyserver.ubuntu.com 2>/dev/null || \
         pacman-key --recv-keys F3B607488DB35A47 2>/dev/null || \
-        echo "    WARNING: Could not import CachyOS GPG key — signature verification may fail"
+        _log_warn "Could not import CachyOS GPG key — signature verification may fail"
     pacman-key --lsign-key F3B607488DB35A47 2>/dev/null || true
 fi
-echo "    CachyOS GPG key: OK"
+_log_info "CachyOS GPG key: OK"
 
 # Install base system
 # Read packages from file, filtering comments and blank lines
@@ -74,17 +78,17 @@ while IFS= read -r pkg; do
 done < "$PACKAGES_FILE"
 
 # Install base system using pacman directly (pacstrap is just a wrapper)
-echo "    Installing packages..."
+_log_info "Installing packages..."
 # pacman needs the db directory to exist on the target root
 mkdir -p "$MNT/var/lib/pacman/sync" "$MNT/var/cache/pacman/pkg"
 # shellcheck disable=SC2086
 pacman -r "$MNT" -Sy --noconfirm --disable-download-timeout $PACKAGES
 
 # Install CachyOS kernel (may need --overwrite for firmware files)
-echo "==> Installing kernel: $KERNEL_PKG"
+_log_step "Installing kernel: $KERNEL_PKG"
 # Pre-answer initramfs provider prompt (mkinitcpio = 1)
 echo "1" | pacman -r "$MNT" -S --noconfirm --disable-download-timeout "$KERNEL_PKG" || {
-    echo "    Retrying with --overwrite for firmware conflicts..."
+    _log_info "Retrying with --overwrite for firmware conflicts..."
     echo "1" | yes | pacman -r "$MNT" -S --overwrite='*' --noconfirm --disable-download-timeout "$KERNEL_PKG"
 }
 
@@ -92,7 +96,7 @@ echo "1" | pacman -r "$MNT" -S --noconfirm --disable-download-timeout "$KERNEL_P
 cp "$ROOT/arch/pacman.conf" "$MNT/etc/pacman.conf"
 
 # ── Install PlayOS custom binaries ──────────────────────────────────────────
-echo "==> Copying PlayOS binaries"
+_log_step "Copying PlayOS binaries"
 
 if [ -f /usr/bin/playos-compositor ]; then
     install -m 0755 /usr/bin/playos-compositor "$MNT/usr/bin/playos-compositor"
@@ -113,38 +117,38 @@ fi
 # ── Copy samples ─────────────────────────────────────────────────────────────
 SAMPLES_DIR="$ROOT/.build/samples-out"
 if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
-    echo "==> Bundling PlayOS samples"
+    _log_step "Bundling PlayOS samples"
     mkdir -p "$MNT/playos-samples/build"
     for sample in hello-playos space-invaders input-debug; do
         if [ -f "$SAMPLES_DIR/$sample" ]; then
             install -m 0755 "$SAMPLES_DIR/$sample" "$MNT/playos-samples/build/$sample"
         fi
     done
-    echo "    Samples: $(ls "$MNT/playos-samples/build/" 2>/dev/null | xargs)"
+    _log_info "Samples: $(ls "$MNT/playos-samples/build/" 2>/dev/null | xargs)"
 fi
 
 # ── Deploy device profiles ───────────────────────────────────────────────────
 REFDEV_DIR="${PLAYOS_REFERENCE_DEVICES:-/mnt/playos-reference-devices}"
 if [ -d "$REFDEV_DIR" ]; then
-    echo "==> Deploying device profiles"
+    _log_step "Deploying device profiles"
     mkdir -p "$MNT/etc/playos/device-profiles"
     for profile in "$REFDEV_DIR"/*/device-profile.toml; do
         if [ -f "$profile" ]; then
             name="$(basename "$(dirname "$profile")")"
             cp "$profile" "$MNT/etc/playos/device-profiles/${name}.toml"
-            echo "    $name"
+            _log_info "$name"
         fi
     done
 fi
 
 # ── Install systemd units ────────────────────────────────────────────────────
-echo "==> Installing systemd units"
+_log_step "Installing systemd units"
 mkdir -p "$MNT/etc/systemd/system/multi-user.target.wants"
 
 for unit in playos-compositor.service playos-firstboot.service seatd.service; do
     if [ -f "$ROOT/arch/systemd/$unit" ]; then
         install -m 0644 "$ROOT/arch/systemd/$unit" "$MNT/etc/systemd/system/$unit"
-        echo "    $unit"
+        _log_info "$unit"
     fi
 done
 
@@ -159,12 +163,12 @@ systemctl --root="$MNT" enable playos-firstboot.service 2>/dev/null || \
     ln -sf /etc/systemd/system/playos-firstboot.service "$MNT/etc/systemd/system/multi-user.target.wants/playos-firstboot.service"
 
 # ── Initramfs ────────────────────────────────────────────────────────────────
-echo "==> Generating initramfs"
+_log_step "Generating initramfs"
 
 # Install the same kernel + linux-firmware in the build environment so
 # mkinitcpio can find kernel modules at /lib/modules/ (it doesn't support
 # pointing to $MNT/lib/modules).
-echo "    Installing kernel in build env for mkinitcpio..."
+_log_info "Installing kernel in build env for mkinitcpio..."
 echo "1" | pacman -Sy --noconfirm --disable-download-timeout "$KERNEL_PKG" linux-firmware 2>/dev/null || true
 
 KERNEL_VER="$(ls /lib/modules/ | head -1 2>/dev/null || true)"
@@ -180,11 +184,43 @@ if [ -n "$KERNEL_VER" ]; then
     # Generate initramfs for the installed kernel (in build env)
     mkinitcpio -g /tmp/initramfs-linux.img -k "$KERNEL_VER"
 
-    echo "    initramfs generated for $KERNEL_VER"
+    _log_info "initramfs generated for $KERNEL_VER"
 
     # Copy kernel and initramfs to target disk
     cp /tmp/initramfs-linux.img "$MNT/boot/initramfs-linux.img"
     cp /tmp/initramfs-linux.img "$MNT/boot/initramfs-stable"
+
+    # Verify GPU firmware landed in the initramfs.
+    _log_step "Verifying initramfs firmware inclusion (Arch/mkinitcpio)"
+    INITRAMFS="$MNT/boot/initramfs-stable"
+
+    magic=$(od -A n -t x1 -N 4 "$INITRAMFS" | tr -d ' ')
+    case "$magic" in
+        1f8b*)       DECOMP="gunzip -c"  ; LABEL="gzip" ;;
+        fd377a58*)   DECOMP="xzcat"      ; LABEL="xz"   ;;
+        04224d18*)   DECOMP="lz4cat"     ; LABEL="lz4"  ;;
+        28b52ffd*)   DECOMP="zstdcat"    ; LABEL="zstd" ;;
+        30373037*)   DECOMP="cat"        ; LABEL="cpio (uncompressed)" ;;
+        *)           DECOMP="gunzip -c"  ; LABEL="unknown (trying gzip)" ;;
+    esac
+    _log_info "initramfs format: $LABEL"
+
+    INITRAMFS_LISTING=$(mktemp)
+    trap 'rm -f "$INITRAMFS_LISTING"' EXIT
+    set +o pipefail
+    $DECOMP "$INITRAMFS" 2>/dev/null | cpio -t 2>/dev/null > "$INITRAMFS_LISTING"
+    set -o pipefail
+
+    if grep -q 'amdgpu' "$INITRAMFS_LISTING"; then
+        AMDFW_COUNT=$(grep -c 'amdgpu' "$INITRAMFS_LISTING" || true)
+        _log_info "amdgpu firmware/module: OK ($AMDFW_COUNT entries)"
+    else
+        _log_warn "amdgpu module/firmware MISSING from Arch initramfs"
+        _log_info "hint: check mkinitcpio.conf MODULES= and FILES= arrays"
+        _log_info "first 20 files in initramfs:"
+        head -20 "$INITRAMFS_LISTING" | sed 's/^/        /'
+    fi
+    rm -f "$INITRAMFS_LISTING"
 
     # Copy kernel from build env (same kernel package installed in build env above)
     if [ -f "/boot/vmlinuz-linux-cachyos" ]; then
@@ -201,7 +237,7 @@ if [ -n "$KERNEL_VER" ]; then
     # Also copy mkinitcpio.conf to target for future kernel updates
     cp /etc/mkinitcpio.conf "$MNT/etc/mkinitcpio.conf"
 else
-    echo "error: kernel modules not installed — cannot generate initramfs" >&2
+    _log_error "kernel modules not installed — cannot generate initramfs" >&2
     exit 1
 fi
 
@@ -271,7 +307,7 @@ EOF
 chmod 600 "$MNT/etc/NetworkManager/system-connections/00-wired-dhcp.nmconnection"
 
 # ── Install firstboot script ─────────────────────────────────────────────────
-echo "==> Installing firstboot script"
+_log_step "Installing firstboot script"
 mkdir -p "$MNT/usr/lib/playos"
 if [ -f "$ROOT/shared/firstboot-common.sh" ]; then
     # Extract the firstboot logic from the OpenRC init script into
@@ -279,7 +315,7 @@ if [ -f "$ROOT/shared/firstboot-common.sh" ]; then
     cp "$ROOT/shared/firstboot-common.sh" "$MNT/usr/lib/playos/playos-firstboot"
     chmod 0755 "$MNT/usr/lib/playos/playos-firstboot"
 else
-    echo "    WARNING: firstboot-common.sh not found — creating stub"
+    _log_warn "firstboot-common.sh not found — creating stub"
     cat > "$MNT/usr/lib/playos/playos-firstboot" <<'STUB'
 #!/bin/sh
 # PlayOS firstboot stub — full implementation pending.
@@ -290,6 +326,6 @@ STUB
     chmod 0755 "$MNT/usr/lib/playos/playos-firstboot"
 fi
 
-echo "==> Arch disk image populated successfully"
-echo "    Root: $DISK_MNT"
-echo "    Kernel: $KERNEL_PKG ($KERNEL_VARIANT)"
+_log_step "Arch disk image populated successfully"
+_log_info "Root: $DISK_MNT"
+_log_info "Kernel: $KERNEL_PKG ($KERNEL_VARIANT)"

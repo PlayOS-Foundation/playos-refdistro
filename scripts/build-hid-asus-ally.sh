@@ -6,19 +6,24 @@
 # for kernel headers.
 set -euo pipefail
 
+ROOT="${PLAYOS_ROOT:-/workspace}"
+
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 HID_VERSION="20240910"
 HID_REPO="https://github.com/uejji/hid-asus-ally"
 BUILD_DIR="${PLAYOS_BUILD_DIR:-/var/tmp/playos-build}"
 APK_OUT="${PLAYOS_APK_OUT:-/var/tmp/playos-apks}"
 
-echo "==> Building hid-asus-ally kernel module"
+_log_step "Building hid-asus-ally kernel module"
 
 # Install kernel headers for the running kernel (linux-stable)
 apk add --no-cache linux-stable-dev 2>&1 | tail -3
 
 # Get kernel version string (e.g., "7.1.4-0-stable")
 KERNEL_VER=$(ls /lib/modules/ | head -1)
-echo "    Kernel version: $KERNEL_VER"
+_log_info "Kernel version: $KERNEL_VER"
 
 # Clone the driver source
 HID_SRC="$BUILD_DIR/hid-asus-ally"
@@ -28,11 +33,11 @@ if [ ! -d "$HID_SRC" ]; then
     cd "$HID_SRC"
     git checkout 71648145e013a10771051304fcd110bab83ce9b4
 else
-    echo "    Using cached source at $HID_SRC"
+    _log_info "Using cached source at $HID_SRC"
 fi
 
 # Build the kernel module
-echo "==> Compiling hid-asus-ally.ko"
+_log_step "Compiling hid-asus-ally.ko"
 make -C "$HID_SRC" \
     TARGET="$KERNEL_VER" \
     KERNEL_BUILD="/lib/modules/$KERNEL_VER/build" \
@@ -40,12 +45,12 @@ make -C "$HID_SRC" \
 
 MODULE="$HID_SRC/hid-asus-ally.ko"
 if [ ! -f "$MODULE" ]; then
-    echo "error: module build failed — hid-asus-ally.ko not found" >&2
+    _log_error "module build failed — hid-asus-ally.ko not found"
     exit 1
 fi
 
 # ── Package as APK ──────────────────────────────────────────────────
-echo "==> Packaging hid-asus-ally-stable APK"
+_log_step "Packaging hid-asus-ally-stable APK"
 MODULE_SIZE=$(stat -c%s "$MODULE")
 
 # Install path inside the APK: lib/modules/<kver>/kernel/drivers/hid/

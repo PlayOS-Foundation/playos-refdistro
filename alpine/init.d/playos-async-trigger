@@ -1,0 +1,40 @@
+#!/sbin/openrc-run
+# PlayOS Async Trigger — gates the playos-async runlevel behind compositor readiness.
+# After the compositor writes /run/playos-visual-ready, this service activates
+# the playos-async runlevel (networkmanager, iwd, sshd, and future async services).
+# This keeps networking and SSH off the visual critical path (first-frame rule).
+
+description="Gate playos-async runlevel on compositor readiness"
+
+depend() {
+    need playos-compositor
+    after dbus seatd
+}
+
+start() {
+    ebegin "Waiting for compositor readiness signal"
+
+    # Poll for up to 15 seconds. On fast hardware the compositor signals
+    # readiness within 1-2 seconds. The generous timeout handles slow
+    # first-boot scenarios (firmware load, DRM initialization).
+    for _ in $(seq 1 30); do
+        if [ -f /run/playos-visual-ready ]; then
+            einfo "Compositor signaled ready — activating playos-async runlevel"
+            openrc playos-async
+            eend 0
+            return 0
+        fi
+        sleep 0.5
+    done
+
+    ewarn "Compositor did not signal readiness within 15s"
+    ewarn "Activating playos-async runlevel anyway (network may compete with first frame)"
+    openrc playos-async
+    eend 0
+    return 0
+}
+
+stop() {
+    ebegin "Stopping playos-async-trigger"
+    eend 0
+}

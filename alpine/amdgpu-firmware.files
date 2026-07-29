@@ -1,1 +1,2 @@
 lib/firmware/amdgpu
+lib/firmware/amdgpu/*.bin

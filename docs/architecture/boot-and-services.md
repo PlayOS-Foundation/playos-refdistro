@@ -13,29 +13,27 @@ service.
 UEFI → Alpine kernel and initramfs → APK overlay
 → playos-visual softlevel → dbus → seatd
 → playos-compositor → playos-shell
+→ playos-async-trigger (polls for /run/playos-visual-ready)
+→ openrc playos-async → NetworkManager + iwd + sshd
 ```
 
-`genapkovl-playos.sh` currently also adds NetworkManager, iwd, and
-sshd to `playos-visual`. They are not dependencies of `playos-compositor`, but
-they are presently started in the same softlevel.
-
-WiFi uses **iwd** as the backend (`wifi.backend=iwd` in NetworkManager config).
-iwd is started as an OpenRC service in the playos-visual runlevel. The previous
-`wpa_supplicant` package was referenced but its binary and init script were
-never installed — iwd is the supported path.
+NetworkManager, iwd, and sshd are assigned to `playos-async`, not `playos-visual`.
+The compositor writes `/run/playos-visual-ready` after successful startup.
+`playos-async-trigger` polls for this flag (15s timeout) and activates the
+async runlevel. This keeps networking and SSH off the visual critical path.
 
 ### Installed disk image
 
 ```text
 UEFI → systemd-boot → kernel and initramfs → ext4 root
-→ OpenRC default runlevel → dbus → seatd → iwd
+→ OpenRC default runlevel → dbus → seatd
 → playos-compositor → playos-shell
+→ playos-async-trigger → openrc playos-async → NetworkManager + iwd + sshd
 → playos-firstboot (one-shot on the first boot)
 ```
 
-The installed-image script currently adds NetworkManager, iwd,
-sshd, and `playos-firstboot` to the default runlevel. NetworkManager is
-configured with `wifi.backend=iwd` and `wifi.iwd.autoconnect=yes`.
+The installed-image script assigns NetworkManager, iwd, and sshd to
+`playos-async`. `playos-firstboot` runs in the `default` runlevel on first boot.
 
 ## Target service policy
 
@@ -46,9 +44,10 @@ The desired service split is:
 | Visual path | GPU/input readiness, seatd, compositor, Shell |
 | Asynchronous path | audio, networking, Bluetooth, library scanning, updates, cloud, marketplace, telemetry, SSH/debug |
 
-`playos-async` is reserved for this asynchronous path, started only after
-compositor readiness. The current scripts do not yet implement that complete
-transition, so documentation must not represent it as completed behavior.
+`playos-async` is reserved for this asynchronous path, started via
+`playos-async-trigger` after compositor readiness. The trigger polls for
+`/run/playos-visual-ready` (written by the compositor after successful
+startup) with a 15-second timeout, then activates the async runlevel.
 
 ## Boot budget
 

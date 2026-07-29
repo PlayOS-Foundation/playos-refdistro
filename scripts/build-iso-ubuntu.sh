@@ -6,6 +6,9 @@
 #   PLAYOS_DISTRO=arch   bash scripts/build-iso-ubuntu.sh    # Arch + CachyOS
 #
 # Sets PLAYOS_KERNEL_VARIANT=cachyos|deckify for Arch handheld builds.
+#
+# Logging is automatically initialized — output goes to both console and
+# logs/<run-id>/ directory.  Set PLAYOS_LOG_LEVEL=debug for verbose output.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,22 +17,25 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DISTRO="${PLAYOS_DISTRO:-alpine}"
 KERNEL_VARIANT="${PLAYOS_KERNEL_VARIANT:-cachyos}"
 
-# ── Validate distro selection ────────────────────────────────────────────────
+# ── Source shared libraries ──────────────────────────────────────────────────
+source "$ROOT/shared/logging.sh"
+source "$ROOT/shared/verify-sibling-repos.sh"
+source "$ROOT/shared/partition-layout.sh"
+source "$ROOT/shared/bootloader-install.sh"
+
+# ── Initialize logging + validate distro ─────────────────────────────────────
+init_logging "build-iso-ubuntu"
+
 case "$DISTRO" in
     alpine|arch) ;;
     *)
-        echo "error: unknown PLAYOS_DISTRO=$DISTRO (expect alpine or arch)" >&2
+        log_error "unknown PLAYOS_DISTRO=$DISTRO (expect alpine or arch)"
         exit 1
         ;;
 esac
 
-echo "==> PlayOS image build: distro=$DISTRO"
-[ "$DISTRO" = "arch" ] && echo "    kernel variant: $KERNEL_VARIANT"
-
-# ── Source shared libraries ──────────────────────────────────────────────────
-source "$ROOT/shared/verify-sibling-repos.sh"
-source "$ROOT/shared/partition-layout.sh"
-source "$ROOT/shared/bootloader-install.sh"
+log_info "PlayOS image build: distro=$DISTRO"
+[ "$DISTRO" = "arch" ] && log_info "kernel variant: $KERNEL_VARIANT"
 
 # ── Sibling repo paths ───────────────────────────────────────────────────────
 RUNTIME_SRC="${PLAYOS_RUNTIME_SRC:-$ROOT/../playos-runtime}"
@@ -46,7 +52,20 @@ elif [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
 elif [ -f "${HOME}/.ssh/id_rsa.pub" ]; then
     PLAYOS_SSH_PUBKEY="$(cat "${HOME}/.ssh/id_rsa.pub")"
 fi
-[ -n "${PLAYOS_SSH_PUBKEY:-}" ] && echo "==> SSH key: $(echo "$PLAYOS_SSH_PUBKEY" | awk '{print $3}')"
+[ -n "${PLAYOS_SSH_PUBKEY:-}" ] && log_info "SSH key: $(echo "$PLAYOS_SSH_PUBKEY" | awk '{print $3}')"
+
+# ── Set up EXIT trap early so close_logging always runs ──────────────────────
+# (bash only supports one EXIT trap; the latest one wins)
+_combined_trap() {
+    local exit_code=$?
+    cleanup_disk_layout 2>/dev/null || true
+    close_logging "$exit_code" "Build of $DISTRO PlayOS image"
+    # Fix log ownership — files written inside nspawn are root:root
+    if [ -n "${PLAYOS_LOG_DIR:-}" ] && [ -d "$PLAYOS_LOG_DIR" ]; then
+        sudo chown -R "$(id -u):$(id -g)" "$PLAYOS_LOG_DIR" 2>/dev/null || true
+    fi
+}
+trap _combined_trap EXIT
 
 # ── Verify repos ─────────────────────────────────────────────────────────────
 verify_sibling_repos "$RUNTIME_SRC" "$SHELL_SRC" "$PLATFORM_SRC" "$SAMPLES_SRC" "$REFDEV_SRC"
@@ -68,10 +87,8 @@ mkdir -p "$ROOT/out"
 # ══════════════════════════════════════════════════════════════════════════════
 # Phase 0: Create GPT disk image (host-side, shared)
 # ══════════════════════════════════════════════════════════════════════════════
+log_step "Phase 0: Creating GPT disk image layout"
 create_disk_layout "$IMAGE_NAME" "$IMAGE_SIZE_MB" "$ESP_SIZE_MB" "$ROOT_SIZE_MB" "$ROOT/out"
-
-# shellcheck disable=SC2064
-trap "cleanup_disk_layout" EXIT
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Phase 1: Build PlayOS components + populate disk image (nspawn)
@@ -83,15 +100,18 @@ if [ "$DISTRO" = "alpine" ]; then
     MARKER="$ROOTFS/.playos-alpine-version"
 
     if [ ! -f "$MARKER" ]; then
-        echo "error: Alpine build root not initialized" >&2
-        echo "Run: bash scripts/setup-ubuntu-build-host.sh" >&2
+        log_error "Alpine build root not initialized"
+        log_info "Run: bash scripts/setup-ubuntu-build-host.sh"
         exit 1
     fi
 
     NSPAWN_EXTRA_BINDS=""
     [ -d "$REFDEV_SRC" ] && NSPAWN_EXTRA_BINDS="--bind=$REFDEV_SRC:/mnt/playos-reference-devices"
 
-    echo "==> Phase 1: Building PlayOS components + Alpine disk image"
+    # Translate host log path to /workspace-relative for nspawn
+    NSPAWN_LOG_DIR="${PLAYOS_LOG_DIR/#$ROOT/\/workspace}"
+
+    log_step "Phase 1: Building PlayOS components + Alpine disk image"
     sudo systemd-nspawn \
         --quiet \
         --directory="$ROOTFS" \
@@ -103,6 +123,7 @@ if [ "$DISTRO" = "alpine" ]; then
         --bind="$SAMPLES_SRC:/mnt/playos-samples" \
         --bind="$DISK_MNT:$DISK_MNT" \
         $NSPAWN_EXTRA_BINDS \
+        --setenv="TERM=dumb" \
         --setenv="PLAYOS_ROOT=/workspace" \
         --setenv="PLAYOS_RUNTIME_SRC=/mnt/playos-runtime" \
         --setenv="PLAYOS_SHELL_SRC=/mnt/playos-shell" \
@@ -112,12 +133,16 @@ if [ "$DISTRO" = "alpine" ]; then
         --setenv="PLAYOS_APORTS_BRANCH=${PLAYOS_APORTS_BRANCH:-3.24-stable}" \
         --setenv="PLAYOS_ARCH=${ARCH}" \
         --setenv="PLAYOS_SSH_PUBKEY=${PLAYOS_SSH_PUBKEY:-}" \
+        --setenv="PLAYOS_WIFI_SSID=${PLAYOS_WIFI_SSID:-}" \
+        --setenv="PLAYOS_WIFI_PSK=${PLAYOS_WIFI_PSK:-}" \
         --setenv="DISK_MNT=${DISK_MNT}" \
         --setenv="ROOT_UUID=${ROOT_UUID}" \
         --setenv="EFI_UUID=${EFI_UUID}" \
         --setenv="DATA_UUID=${DATA_UUID}" \
         --setenv="ROOT_PARTUUID=${ROOT_PARTUUID}" \
         --setenv="TMPDIR=/var/tmp" \
+        --setenv="PLAYOS_LOG_DIR=${NSPAWN_LOG_DIR}" \
+        --setenv="PLAYOS_LOG_LEVEL=${PLAYOS_LOG_LEVEL}" \
         /bin/sh -c '
             set -e
             /workspace/scripts/build-playos-components.sh
@@ -136,15 +161,18 @@ else
     MARKER="$ROOTFS/.playos-arch-version"
 
     if [ ! -f "$MARKER" ]; then
-        echo "error: Arch build root not initialized" >&2
-        echo "Run: bash scripts/setup-ubuntu-build-host.sh" >&2
+        log_error "Arch build root not initialized"
+        log_info "Run: bash scripts/setup-ubuntu-build-host.sh"
         exit 1
     fi
 
     NSPAWN_EXTRA_BINDS=""
     [ -d "$REFDEV_SRC" ] && NSPAWN_EXTRA_BINDS="--bind=$REFDEV_SRC:/mnt/playos-reference-devices"
 
-    echo "==> Phase 1: Building PlayOS components + Arch disk image ($KERNEL_VARIANT)"
+    # Translate host log path to /workspace-relative for nspawn
+    NSPAWN_LOG_DIR="${PLAYOS_LOG_DIR/#$ROOT/\/workspace}"
+
+    log_step "Phase 1: Building PlayOS components + Arch disk image ($KERNEL_VARIANT)"
     sudo systemd-nspawn \
         --quiet \
         --directory="$ROOTFS" \
@@ -156,6 +184,7 @@ else
         --bind="$SAMPLES_SRC:/mnt/playos-samples" \
         --bind="$DISK_MNT:$DISK_MNT" \
         $NSPAWN_EXTRA_BINDS \
+        --setenv="TERM=dumb" \
         --setenv="PLAYOS_ROOT=/workspace" \
         --setenv="PLAYOS_RUNTIME_SRC=/mnt/playos-runtime" \
         --setenv="PLAYOS_SHELL_SRC=/mnt/playos-shell" \
@@ -164,12 +193,16 @@ else
         --setenv="PLAYOS_KERNEL_VARIANT=${KERNEL_VARIANT}" \
         --setenv="PLAYOS_ARCH=${ARCH}" \
         --setenv="PLAYOS_SSH_PUBKEY=${PLAYOS_SSH_PUBKEY:-}" \
+        --setenv="PLAYOS_WIFI_SSID=${PLAYOS_WIFI_SSID:-}" \
+        --setenv="PLAYOS_WIFI_PSK=${PLAYOS_WIFI_PSK:-}" \
         --setenv="DISK_MNT=${DISK_MNT}" \
         --setenv="ROOT_UUID=${ROOT_UUID}" \
         --setenv="EFI_UUID=${EFI_UUID}" \
         --setenv="DATA_UUID=${DATA_UUID}" \
         --setenv="ROOT_PARTUUID=${ROOT_PARTUUID}" \
         --setenv="TMPDIR=/var/tmp" \
+        --setenv="PLAYOS_LOG_DIR=${NSPAWN_LOG_DIR}" \
+        --setenv="PLAYOS_LOG_LEVEL=${PLAYOS_LOG_LEVEL}" \
         /bin/sh -c '
             set -e
             /workspace/scripts/build-playos-components.sh
@@ -186,18 +219,24 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 # Phase 2: Install bootloader (host-side — nspawn can't see sub-mounts)
 # ══════════════════════════════════════════════════════════════════════════════
+log_step "Phase 2: Installing bootloader (systemd-boot)"
 install_bootloader "$DISK_MNT" "$BOOTLOADER_ID" "$KERNEL_IMAGE" "$INITRD_IMAGE" "$KERNEL_CMDLINE"
 sync
+log_success "Bootloader installed"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Phase 3: Compress + build ISO (inside nspawn)
 # ══════════════════════════════════════════════════════════════════════════════
-echo "==> Compressing disk image and building ISO"
+# Translate host log path to /workspace-relative for nspawn
+NSPAWN_LOG_DIR="${PLAYOS_LOG_DIR/#$ROOT/\/workspace}"
+
+log_step "Phase 3: Compressing disk image and building ISO"
 sudo systemd-nspawn \
     --quiet \
     --directory="$ROOTFS" \
     --resolv-conf=replace-host \
     --bind="$ROOT:/workspace" \
+    --setenv="TERM=dumb" \
     --setenv="PLAYOS_ROOT=/workspace" \
     --setenv="PLAYOS_ALPINE_BRANCH=${PLAYOS_ALPINE_BRANCH:-v3.24}" \
     --setenv="PLAYOS_APORTS_BRANCH=${PLAYOS_APORTS_BRANCH:-3.24-stable}" \
@@ -205,6 +244,8 @@ sudo systemd-nspawn \
     --setenv="PLAYOS_ARCH=${ARCH}" \
     --setenv="PLAYOS_SSH_PUBKEY=${PLAYOS_SSH_PUBKEY:-}" \
     --setenv="TMPDIR=/var/tmp" \
+    --setenv="PLAYOS_LOG_DIR=${NSPAWN_LOG_DIR}" \
+    --setenv="PLAYOS_LOG_LEVEL=${PLAYOS_LOG_LEVEL}" \
     /bin/sh -c '
         set -e
 
@@ -223,25 +264,25 @@ sudo systemd-nspawn \
 # ══════════════════════════════════════════════════════════════════════════════
 # Phase 4: Fix ownership + deploy PXE (shared)
 # ══════════════════════════════════════════════════════════════════════════════
+log_step "Phase 4: Finalizing artifacts"
 ZST_PATH="${DISK_IMG}.zst"
 if [ -f "$ZST_PATH" ]; then
     sudo chown "$(id -u):$(id -g)" "$ZST_PATH" "${ZST_PATH}.sha256" 2>/dev/null || true
     DISK_SIZE="$(du -h "$ZST_PATH" | cut -f1)"
-    echo "==> Disk image compressed: $ZST_PATH ($DISK_SIZE)"
-    echo "    Checksum: ${ZST_PATH}.sha256"
+    log_success "Disk image compressed: $(basename "$ZST_PATH") ($DISK_SIZE)"
+    log_info "Checksum: ${ZST_PATH}.sha256"
 fi
 
 sudo chown -R "$(id -u):$(id -g)" "$ROOT/out"
 
-echo
-echo "Built images:"
-find "$ROOT/out" -maxdepth 1 -type f -name '*.iso' -exec ls -lh {} \;
-find "$ROOT/out" -maxdepth 1 -type f \( -name '*.img.zst' -o -name '*.sha256' \) -exec ls -lh {} \; 2>/dev/null || true
+log_info "Built images:"
+while IFS= read -r f; do
+    log_info "  $(ls -lh "$f" | awk '{print $5, $NF}')"
+done < <(find "$ROOT/out" -maxdepth 1 -type f \( -name '*.iso' -o -name '*.img.zst' -o -name '*.sha256' \) 2>/dev/null || true)
 
 # ── Deploy to PXE server ─────────────────────────────────────────────────────
 PXE_DIR="/var/www/html/playos"
-echo
-echo "==> Deploying to PXE server: $PXE_DIR"
+log_step "Deploying to PXE server: $PXE_DIR"
 
 ISO="$(find "$ROOT/out" -maxdepth 1 -type f -name '*.iso' | head -1)"
 if [ -n "$ISO" ] && [ -f "$ISO" ]; then
@@ -268,7 +309,7 @@ if [ -n "$ISO" ] && [ -f "$ISO" ]; then
             sudo cp "$MNT/boot/vmlinuz-linux-cachyos" "$PXE_DIR/vmlinuz-stable" 2>/dev/null || \
             echo "    WARNING: kernel not found in ISO"
         sudo cp "$MNT/boot/initramfs-linux.img" "$PXE_DIR/initramfs-stable" 2>/dev/null || \
-            echo "    WARNING: initramfs not found in ISO"
+            log_warn "initramfs not found in ISO"
         if [ -f "$ROOT/arch/boot.ipxe" ]; then
             sudo cp "$ROOT/arch/boot.ipxe" "$PXE_DIR/"
         fi
@@ -278,8 +319,8 @@ if [ -n "$ISO" ] && [ -f "$ISO" ]; then
     sudo umount "$MNT"
     rmdir "$MNT"
 
-    echo "  Deployed: $(ls "$PXE_DIR"/*.iso 2>/dev/null | head -1)"
+    log_info "Deployed: $(ls "$PXE_DIR"/*.iso 2>/dev/null | head -1)"
 fi
 
-echo
-echo "==> Build complete: distro=$DISTRO variant=$KERNEL_VARIANT"
+log_step "Build complete — distro=$DISTRO variant=$KERNEL_VARIANT"
+log_duration

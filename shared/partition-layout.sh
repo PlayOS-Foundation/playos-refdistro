@@ -20,7 +20,7 @@ create_disk_layout() {
 
     DISK_IMG="$OUT_DIR/${IMAGE_NAME}.img"
 
-    echo "==> Creating ${IMAGE_SIZE_MB} MiB disk image layout (ESP + root + data)"
+    log_step "Creating ${IMAGE_SIZE_MB} MiB disk image layout (ESP + root + data)"
     rm -f "$DISK_IMG"
     truncate -s "${IMAGE_SIZE_MB}M" "$DISK_IMG"
     sgdisk -Z "$DISK_IMG"
@@ -29,7 +29,7 @@ create_disk_layout() {
     sgdisk -n 3:0:0 -t 3:8300 "$DISK_IMG"
 
     LOOP_DEV="$(sudo losetup --find --show -P "$DISK_IMG")"
-    echo "    Loop: $LOOP_DEV"
+    log_info "Loop: $LOOP_DEV"
 
     sudo mkfs.vfat -F32 -n PLAYOS_EFI "${LOOP_DEV}p1"
     sudo mkfs.ext4 -F -L playos-root "${LOOP_DEV}p2"
@@ -41,22 +41,22 @@ create_disk_layout() {
     sudo mkdir -p "$DISK_MNT/boot/efi" "$DISK_MNT/data"
     sudo mount "${LOOP_DEV}p1" "$DISK_MNT/boot/efi"
     sudo mount "${LOOP_DEV}p3" "$DISK_MNT/data"
-    echo "    Mounted at $DISK_MNT"
+    log_info "Mounted at $DISK_MNT"
 
     # Grab filesystem UUIDs while mounted
     ROOT_UUID="$(sudo blkid -s UUID -o value "${LOOP_DEV}p2")"
     EFI_UUID="$(sudo blkid -s UUID -o value "${LOOP_DEV}p1")"
     DATA_UUID="$(sudo blkid -s UUID -o value "${LOOP_DEV}p3")"
     ROOT_PARTUUID="$(sudo blkid -s PARTUUID -o value "${LOOP_DEV}p2")"
-    echo "    Root UUID: $ROOT_UUID"
-    echo "    EFI  UUID: $EFI_UUID"
-    echo "    Data UUID: $DATA_UUID"
-    echo "    Root PARTUUID: $ROOT_PARTUUID"
+    log_info "Root UUID: $ROOT_UUID"
+    log_info "EFI  UUID: $EFI_UUID"
+    log_info "Data UUID: $DATA_UUID"
+    log_info "Root PARTUUID: $ROOT_PARTUUID"
 }
 
 # Call this in a trap: trap cleanup_disk_layout EXIT
 cleanup_disk_layout() {
-    echo "==> Cleaning up disk image mounts"
+    log_step "Cleaning up disk image mounts"
     sudo mountpoint -q "$DISK_MNT/data" 2>/dev/null && sudo umount "$DISK_MNT/data" || true
     sudo mountpoint -q "$DISK_MNT/boot/efi" 2>/dev/null && sudo umount "$DISK_MNT/boot/efi" || true
     sudo mountpoint -q "$DISK_MNT" 2>/dev/null && sudo umount "$DISK_MNT" || true

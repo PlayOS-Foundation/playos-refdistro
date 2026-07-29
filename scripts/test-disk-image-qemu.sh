@@ -10,6 +10,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 QEMU_DIR="$ROOT/.build/qemu"
 OUT="$ROOT/out"
 TIMEOUT_SEC=150
@@ -23,31 +27,31 @@ else
 fi
 
 if [[ -z "${ZST:-}" || ! -f "$ZST" ]]; then
-    echo "error: no disk image found; pass a .img.zst path or build it first" >&2
+    _log_error "no disk image found; pass a .img.zst path or build it first"
     exit 1
 fi
 
-echo "==> Disk image: $ZST"
+_log_step "Disk image: $ZST"
 
 # ── Verify checksum if available ─────────────────────────────────────────────
 if [[ -f "${ZST}.sha256" ]]; then
-    echo "==> Verifying checksum"
+    _log_info "Verifying checksum"
     ZST_DIR="$(dirname "$ZST")"
     ZST_NAME="$(basename "$ZST")"
     if ! (cd "$ZST_DIR" && sha256sum -c "${ZST_NAME}.sha256" --quiet 2>/dev/null); then
-        echo "error: checksum mismatch for $ZST" >&2
+        _log_error "checksum mismatch for $ZST"
         exit 1
     fi
-    echo "    Checksum OK"
+    _log_success "Checksum OK"
 fi
 
 # ── Decompress ───────────────────────────────────────────────────────────────
 RAW="$ROOT/.build/qemu/playos-test-boot.img"
 mkdir -p "$(dirname "$RAW")"
-echo "==> Decompressing to $RAW"
+_log_step "Decompressing to $RAW"
 zstd -d -f -o "$RAW" "$ZST"
 RAW_SIZE=$(du -h "$RAW" | cut -f1)
-echo "    Size: $RAW_SIZE"
+_log_info "Size: $RAW_SIZE"
 
 cleanup_raw() { rm -f "$RAW"; }
 trap cleanup_raw EXIT
@@ -55,7 +59,7 @@ trap cleanup_raw EXIT
 # ── Patch boot entry for QEMU/TCG compatibility ──────────────────────────────
 # Ensure usbdelay=30 (extends nlplug-findfs timeout for slow TCG block detection)
 # and console=ttyS0 is present for boot marker detection on serial.
-echo "==> Patching boot entry for QEMU compatibility"
+_log_step "Patching boot entry for QEMU compatibility"
 LOOP_PATCH=$(sudo losetup --find --show -P "$RAW")
 MNT_PATCH=$(mktemp -d)
 sudo mount "${LOOP_PATCH}p1" "$MNT_PATCH"
@@ -66,7 +70,7 @@ fi
 if ! grep -q 'console=ttyS0' "$CONF" 2>/dev/null; then
     sudo sed -i 's/console=tty0 /console=tty0 console=ttyS0 /' "$CONF"
 fi
-echo "    Boot entry: $(grep '^options' "$CONF")"
+_log_info "Boot entry: $(grep '^options' "$CONF")"
 sudo umount "$MNT_PATCH"
 rmdir "$MNT_PATCH"
 sudo losetup -d "$LOOP_PATCH"
@@ -82,7 +86,7 @@ for v in /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd; do
 done
 
 if [[ -z "$CODE" ]]; then
-    echo "error: OVMF firmware not found" >&2
+    _log_error "OVMF firmware not found"
     exit 1
 fi
 
@@ -121,8 +125,8 @@ MARKERS=(
 )
 
 # ── Boot ─────────────────────────────────────────────────────────────────────
-echo "==> Booting disk image (timeout: ${TIMEOUT_SEC}s)"
-echo "    QEMU console: Ctrl-A X exits"
+_log_step "Booting disk image (timeout: ${TIMEOUT_SEC}s)"
+_log_info "QEMU console: Ctrl-A X exits"
 
 SERIAL_LOG="$QEMU_DIR/qemu-boot.log"
 : > "$SERIAL_LOG"

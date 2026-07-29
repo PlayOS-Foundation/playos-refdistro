@@ -4,8 +4,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 if [[ $# -gt 1 ]]; then
-    echo "usage: $0 [path-to.iso]" >&2
+    _log_error "usage: $0 [path-to.iso]"
     exit 1
 fi
 
@@ -16,7 +19,7 @@ else
 fi
 
 if [[ -z "${ISO:-}" || ! -f "$ISO" ]]; then
-    echo "error: no ISO found; pass one explicitly or build it first" >&2
+    _log_error "no ISO found; pass one explicitly or build it first"
     exit 1
 fi
 
@@ -36,7 +39,7 @@ for candidate in     /usr/share/OVMF/OVMF_VARS_4M.fd     /usr/share/OVMF/OVMF_VA
 done
 
 if [[ -z "$CODE" ]]; then
-    echo "error: OVMF firmware not found; install the Ubuntu ovmf package" >&2
+    _log_error "OVMF firmware not found; install the Ubuntu ovmf package"
     exit 1
 fi
 
@@ -57,7 +60,7 @@ if [[ -n "$VARS" ]]; then
     )
 fi
 
-echo "Booting: $ISO"
-echo "QEMU console: Ctrl-A X exits"
+_log_step "Booting: $ISO"
+_log_info "QEMU console: Ctrl-A X exits"
 
 exec qemu-system-x86_64     "${ACCEL[@]}"     "${FIRMWARE[@]}"     -m 2048     -smp 4     -device virtio-vga     -display none     -serial mon:stdio     -nic user,model=virtio-net-pci     -cdrom "$ISO"     -boot order=d     -no-reboot

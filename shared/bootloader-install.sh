@@ -23,11 +23,11 @@ install_bootloader() {
     local STUB="${DISK_MNT}/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 
     if [ ! -f "$STUB" ]; then
-        echo "    WARNING: systemd-boot stub not found at $STUB — skipping bootloader install"
+        log_warn "systemd-boot stub not found at $STUB — skipping bootloader install"
         return 0
     fi
 
-    echo "==> Installing systemd-boot to ESP"
+    log_step "Installing systemd-boot to ESP"
 
     sudo mkdir -p "${DISK_MNT}/boot/efi/EFI/BOOT"
     sudo mkdir -p "${DISK_MNT}/boot/efi/EFI/systemd"
@@ -39,7 +39,7 @@ install_bootloader() {
     local KERNEL_VER
     KERNEL_VER="$(ls "${DISK_MNT}/lib/modules/" | head -1)"
     if [ -z "$KERNEL_VER" ]; then
-        echo "    WARNING: no kernel modules found — skipping bootloader configuration"
+        log_warn "no kernel modules found — skipping bootloader configuration"
         return 0
     fi
 
@@ -64,14 +64,14 @@ LOADERCONF
     elif [ -f "${DISK_MNT}/boot/vmlinuz-stable" ]; then
         sudo cp "${DISK_MNT}/boot/vmlinuz-stable"   "${DISK_MNT}/boot/efi/vmlinuz-stable"
     else
-        echo "    WARNING: kernel image not found — skipping kernel copy to ESP"
+        log_warn "kernel image not found — skipping kernel copy to ESP"
     fi
     if [ -f "${DISK_MNT}/boot/${INITRD_SRC}" ]; then
         sudo cp "${DISK_MNT}/boot/${INITRD_SRC}" "${DISK_MNT}/boot/efi/${INITRD_SRC}"
     elif [ -f "${DISK_MNT}/boot/initramfs-stable" ]; then
         sudo cp "${DISK_MNT}/boot/initramfs-stable" "${DISK_MNT}/boot/efi/initramfs-stable"
     else
-        echo "    WARNING: initramfs image not found — skipping initramfs copy to ESP"
+        log_warn "initramfs image not found — skipping initramfs copy to ESP"
     fi
-    echo "    systemd-boot installed to ESP (entry: ${BOOTLOADER_ID}.conf)"
+    log_success "systemd-boot installed to ESP (entry: ${BOOTLOADER_ID}.conf)"
 }

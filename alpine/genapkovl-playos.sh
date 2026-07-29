@@ -103,15 +103,21 @@ rc_add mount-ro shutdown
 rc_add killprocs shutdown
 rc_add savecache shutdown
 
-# The PlayOS critical path.
+# The PlayOS critical path — visual runlevel: GPU → seat → compositor → shell.
+# No networking or background services here (first-frame rule).
 rc_add dbus playos-visual
 rc_add seatd playos-visual
 rc_add playos-compositor playos-visual
 
+# Gate: activates playos-async after compositor signals readiness.
+rc_add playos-async-trigger playos-visual
+
 # WiFi backend — iwd for NetworkManager (iwd is lighter and doesn't
 # need a separate OpenRC wpa_supplicant service).
-rc_add networkmanager playos-visual
-rc_add iwd playos-visual
+# These run in playos-async, started only after compositor signals
+# /run/playos-visual-ready, so they don't compete with first frame.
+rc_add networkmanager playos-async
+rc_add iwd playos-async
 
 # NetworkManager configuration: auto-connect wired interfaces, manage WiFi via iwd.
 mkdir -p "$tmp/etc/NetworkManager/conf.d"
@@ -159,13 +165,45 @@ fi
 echo "$SSH_PUBKEY" > "$tmp/root/.ssh/authorized_keys"
 chown root:root "$tmp/root/.ssh/authorized_keys"
 chmod 0600 "$tmp/root/.ssh/authorized_keys"
-rc_add sshd playos-visual
+rc_add sshd playos-async
+
+# WiFi auto-connect profile (baked into LiveUSB for headless/PXE debugging)
+mkdir -p "$tmp/etc/NetworkManager/system-connections"
+if [ -n "${PLAYOS_WIFI_SSID:-}" ] && [ -n "${PLAYOS_WIFI_PSK:-}" ]; then
+    echo "==> Baking WiFi auto-connect profile into apkovl: $PLAYOS_WIFI_SSID"
+    cat > "$tmp/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection" <<WIFIEOF
+[connection]
+id=${PLAYOS_WIFI_SSID}
+type=wifi
+autoconnect=true
+autoconnect-priority=50
+
+[wifi]
+ssid=${PLAYOS_WIFI_SSID}
+mode=infrastructure
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=${PLAYOS_WIFI_PSK}
+
+[ipv4]
+method=auto
+WIFIEOF
+    chown root:root "$tmp/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection"
+    chmod 0600 "$tmp/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection"
+fi
 
 # Include the compositor init script and binaries in the overlay.
 if [ -f /etc/init.d/playos-compositor ]; then
     mkdir -p "$tmp/etc/init.d"
     cp /etc/init.d/playos-compositor "$tmp/etc/init.d/playos-compositor"
     chmod 0755 "$tmp/etc/init.d/playos-compositor"
+fi
+# Include the async trigger init script (gates playos-async runlevel).
+if [ -f /etc/init.d/playos-async-trigger ]; then
+    mkdir -p "$tmp/etc/init.d"
+    cp /etc/init.d/playos-async-trigger "$tmp/etc/init.d/playos-async-trigger"
+    chmod 0755 "$tmp/etc/init.d/playos-async-trigger"
 fi
 if [ -f /usr/bin/playos-compositor ]; then
     mkdir -p "$tmp/usr/bin"

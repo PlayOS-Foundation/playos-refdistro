@@ -3,6 +3,9 @@ set -euo pipefail
 
 ROOT="${PLAYOS_ROOT:-/workspace}"
 OUT="$ROOT/out"
+
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
 WORK="${PLAYOS_WORKDIR:-/var/tmp/playos-mkimage}"
 APORTS="${PLAYOS_APORTS_DIR:-/var/cache/playos-aports}"
 APORTS_BRANCH="${PLAYOS_APORTS_BRANCH:-3.24-stable}"
@@ -10,7 +13,7 @@ TAG="${PLAYOS_ALPINE_BRANCH:-v3.24}"
 ARCH="${PLAYOS_ARCH:-x86_64}"
 
 if [[ "$TAG" == "edge" ]]; then
-    echo "error: unpinned Alpine edge builds are forbidden" >&2
+    _log_error "unpinned Alpine edge builds are forbidden"
     exit 1
 fi
 
@@ -36,36 +39,16 @@ install -m 0644 "$ROOT/alpine/amdgpu-firmware.files"   /etc/mkinitfs/features.d/
 install -m 0644 "$ROOT/alpine/nvidia.modules"          /etc/mkinitfs/features.d/nvidia.modules
 install -m 0644 "$ROOT/alpine/nvidia-firmware.files"   /etc/mkinitfs/features.d/nvidia-firmware.files
 
-# apk-tools 3.0.6+: --no-chown conflicts with root (implies usermode).
-# Remove it — we run as root in nspawn, so chown is fine.
-sed -i 's/--no-chown//g' "$APORTS/scripts/mkimage.sh"
-
-# Replace cp -Lrs (symlinks) with cp -rL (hard copies) to avoid xorriso
-# symlink-following bugs that corrupt the apkovl on the ISO.
-sed -i 's/cp -Lrs/cp -rL/' "$APORTS/scripts/mkimage.sh"
-
-# Intercept the DESTDIR before xorrisofs corrupts the apkovl.
-# Insert a line before the xorrisofs call in create_image_iso that
-# copies DESTDIR to a safe location for our own ISO rebuild.
-sed -i '/^[[:space:]]*xorrisofs \\/i\cp -a "${DESTDIR}" /var/tmp/playos-destdir-backup' "$APORTS/scripts/mkimg.base.sh"
-
-# Verify the sed injection succeeded — if Alpine upstream changed the
-# formatting of mkimg.base.sh, this will fail early with a clear error.
-if ! grep -q 'cp -a.*DESTDIR.*playos-destdir-backup' "$APORTS/scripts/mkimg.base.sh"; then
-    echo "ERROR: Failed to inject DESTDIR backup into mkimg.base.sh" >&2
-    echo "The xorrisofs line pattern may have changed upstream. Check:" >&2
-    echo "  grep -n xorrisofs $APORTS/scripts/mkimg.base.sh" >&2
-    exit 1
-fi
-
-# Remove sd-mod,usb-storage and quiet from default initfs_cmdline.
-# sd-mod/usb-storage probe hardware that may hang during netboot;
-# quiet suppresses messages needed for debugging.
-sed -i 's/initfs_cmdline="modules=loop,squashfs,sd-mod,usb-storage quiet"/initfs_cmdline="modules=loop,squashfs"/' "$APORTS/scripts/mkimg.base.sh"
+# Apply PlayOS patches to the Alpine aports scripts.
+# This replaces the old fragile sed injections with a version-pinned
+# .patch file.  If the patch doesn't apply cleanly, the build fails
+# immediately with a clear error telling the maintainer to regenerate.
+APORTS_BRANCH="${APORTS_BRANCH}" PLAYOS_ROOT="${PLAYOS_ROOT:-$ROOT}" \
+    bash "$ROOT/scripts/apply-aports-patches.sh" "$APORTS"
 
 # Ensure GPU firmware is installed so mkinitfs can bundle it into the
 # initramfs (otherwise GPU probe fails before the apkovl is extracted).
-apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel 2>&1 | tail -1
+apk add --no-cache --no-progress linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel 2>&1 | tail -1
 
 # Create a non-root build user for abuild-keygen (Alpine-native requirement).
 if ! id build >/dev/null 2>&1; then
@@ -110,7 +93,7 @@ DISK_IMAGE=$(find "$ROOT/out" -maxdepth 1 -name 'playos-gpt-*.img.zst' -print 2>
 STAGING="/var/tmp/playos-destdir-backup"
 
 if [ ! -d "$STAGING" ]; then
-    echo "ERROR: DESTDIR backup not found at $STAGING — sed injection may have failed" >&2
+    echo "ERROR: DESTDIR backup not found at $STAGING — patch application may have failed" >&2
     exit 1
 fi
 
@@ -119,19 +102,19 @@ if [ -z "$ISO" ] || [ ! -f "$ISO" ]; then
     exit 1
 fi
 
-echo "==> Using backup DESTDIR: $(du -sh "$STAGING" | cut -f1)"
+_log_info "Using backup DESTDIR: $(du -sh "$STAGING" | cut -f1)"
 
 # Verify the apkovl is valid gzip in backup DESTDIR
 APKOVL=$(find "$STAGING" -maxdepth 1 -name '*.apkovl.tar.gz' -print 2>/dev/null | head -1)
 if [ -n "$APKOVL" ] && gzip -t "$APKOVL" 2>/dev/null; then
-    echo "    ✅ apkovl in DESTDIR is valid gzip ($(du -h "$APKOVL" | cut -f1))"
+    _log_success "apkovl in DESTDIR is valid gzip ($(du -h "$APKOVL" | cut -f1))"
 else
-    echo "    ❌ apkovl in DESTDIR is missing or invalid"
+    _log_error "apkovl in DESTDIR is missing or invalid"
 fi
 
 # Add disk image to staging
 if [ -n "$DISK_IMAGE" ] && [ -f "$DISK_IMAGE" ]; then
-    echo "==> Adding disk image to staging: $(basename "$DISK_IMAGE")"
+    _log_info "Adding disk image to staging: $(basename "$DISK_IMAGE")"
     cp "$DISK_IMAGE" "$STAGING/"
 fi
 
@@ -139,7 +122,7 @@ fi
 VOLID=$(xorriso -indev "$ISO" -print_info 2>/dev/null | grep 'Volume id' | sed "s/.*'\(.*\)'/\1/" || echo "alpine-playos-x86_64")
 VOLID=${VOLID:-alpine-playos-x86_64}
 
-echo "==> Rebuilding ISO from DESTDIR ($VOLID)..."
+_log_step "Rebuilding ISO from DESTDIR ($VOLID)..."
 NEW_ISO="${ISO%.iso}-fixed.iso"
 
 # Build xorrisofs args (replicating Alpine's create_image_iso logic)
@@ -169,7 +152,7 @@ xorrisofs \
     "$STAGING/"
 
 # Verify the apkovl in the new ISO
-echo "==> Verifying new ISO..."
+_log_step "Verifying new ISO..."
 APKOVL_NAME=$(basename "$APKOVL" 2>/dev/null || echo "playos.apkovl.tar.gz")
 TMP_MOUNT="/var/tmp/playos-iso-verify"
 mkdir -p "$TMP_MOUNT"
@@ -177,9 +160,9 @@ mount -o loop,ro "$NEW_ISO" "$TMP_MOUNT" 2>/dev/null || true
 if [ -f "$TMP_MOUNT/$APKOVL_NAME" ]; then
     ISO_SIZE=$(stat -c%s "$TMP_MOUNT/$APKOVL_NAME" 2>/dev/null)
     if gzip -t "$TMP_MOUNT/$APKOVL_NAME" 2>/dev/null; then
-        echo "    ✅ apkovl on new ISO is valid gzip ($(numfmt --to=iec $ISO_SIZE))"
+        _log_success "apkovl on new ISO is valid gzip ($(numfmt --to=iec $ISO_SIZE))"
     else
-        echo "    ❌ apkovl on new ISO is STILL corrupted"
+        _log_error "apkovl on new ISO is STILL corrupted"
     fi
 fi
 umount "$TMP_MOUNT" 2>/dev/null || true
@@ -187,7 +170,7 @@ umount "$TMP_MOUNT" 2>/dev/null || true
 # Replace original with fixed
 rm -f "$ISO"
 mv "$NEW_ISO" "$ISO"
-echo "==> Final ISO: $(basename "$ISO") ($(du -h "$ISO" | cut -f1))"
+_log_success "Final ISO: $(basename "$ISO") ($(du -h "$ISO" | cut -f1))"
 
 # Cleanup
 rm -rf "$STAGING"

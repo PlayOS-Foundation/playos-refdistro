@@ -82,3 +82,64 @@ Every image change should record:
 - hardware result when device-facing code changed.
 
 See [`docs/validation.md`](docs/validation.md) for the validation matrix.
+
+## Logging infrastructure
+
+All build scripts write structured logs to `logs/YYYY-MM-DD_HH-MM-SS--<distro>-<version>--<arch>/` per run.
+
+### Architecture
+
+- **`shared/logging.sh`** — Full logging library for host-side scripts.
+  - `init_logging <script-name>` — Creates run directory, `latest` symlink, `metadata.json`.
+  - `log_step` / `log_info` / `log_warn` / `log_error` / `log_success` / `log_debug` — Level-aware logging.
+  - `log_cmd <desc> -- <command args...>` — Runs a command, logs stdout+stderr, captures exit code.
+  - `log_duration <start_time> <desc>` — Logs elapsed time for a phase.
+  - `close_logging` / `resume_logging <script-name>` — Lifecycle management.
+  - Log level controlled by `PLAYOS_LOG_LEVEL` env var: `debug` | `info` (default) | `warn` | `error`.
+
+- **`shared/logging-helpers.sh`** — Lightweight wrapper for nspawn-inner and standalone scripts.
+  - Sources `logging.sh` when `PLAYOS_LOG_DIR` is available from the orchestrator.
+  - Falls back to plain `echo` when running standalone (no log directory).
+  - Use `_log_step` / `_log_info` / `_log_warn` / `_log_error` / `_log_success` in inner scripts.
+
+### Log directory layout
+
+```
+logs/
+├── latest -> 2025-06-15_14-32-01--alpine-3.21--x86_64/
+├── 2025-06-15_14-32-01--alpine-3.21--x86_64/
+│   ├── summary.log          # High-level phase markers (orchestrator)
+│   ├── build-disk-image-alpine.log
+│   ├── build-playos-components.log
+│   ├── build-alpine-iso.log
+│   ├── setup-ubuntu-build-host.log
+│   └── metadata.json         # distro, version, arch, host, phases, duration, outcome
+```
+
+### nspawn log passing
+
+The orchestrator passes `PLAYOS_LOG_DIR` and `PLAYOS_LOG_LEVEL` via `--setenv` to nspawn containers.
+Inner scripts use `logging-helpers.sh` to either resume the full logging session or fall back to echo.
+
+### Script integration checklist
+
+When adding a new script or modifying an existing one:
+
+1. Add `source "$ROOT/shared/logging-helpers.sh"` near the top (after `set -euo pipefail`).
+2. Use `_log_step` for major phase markers (replaces `echo "==>"`).
+3. Use `_log_info` for details (replaces `echo "    "`).
+4. Use `_log_warn` for warnings (replaces `echo "    WARNING:"`).
+5. Use `_log_error` for errors (replaces `echo "error:" >&2`).
+6. Use `_log_success` for completion confirmations.
+
+### bash EXIT trap warning
+
+bash supports only a single EXIT trap — the last `trap ... EXIT` wins. When combining
+multiple cleanup functions, merge them into a single combined trap function:
+```bash
+_combined_trap() {
+    cleanup_disk_layout || true
+    close_logging
+}
+trap _combined_trap EXIT
+```

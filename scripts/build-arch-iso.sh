@@ -8,10 +8,14 @@
 set -euo pipefail
 
 ROOT="${PLAYOS_ROOT:-/workspace}"
+
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 KERNEL_VARIANT="${PLAYOS_KERNEL_VARIANT:-cachyos}"
 ARCH="${PLAYOS_ARCH:-x86_64}"
 
-echo "==> Building PlayOS Arch ISO (kernel: $KERNEL_VARIANT)"
+_log_step "Building PlayOS Arch ISO (kernel: $KERNEL_VARIANT)"
 
 ISO_NAME="playos-arch-${KERNEL_VARIANT}-${ARCH}"
 OUT_DIR="$ROOT/out"
@@ -21,12 +25,12 @@ ARCH_PROFILE="$ROOT/arch"
 ISO_ROOT="$(mktemp -d)"
 trap 'rm -rf "$ISO_ROOT"' EXIT
 
-echo "==> Assembling ISO root at $ISO_ROOT"
+_log_step "Assembling ISO root at $ISO_ROOT"
 
 # EFI bootloader
 mkdir -p "$ISO_ROOT/EFI/BOOT"
 cp /usr/lib/systemd/boot/efi/systemd-bootx64.efi "$ISO_ROOT/EFI/BOOT/BOOTX64.EFI" 2>/dev/null || \
-    echo "    WARNING: systemd-boot stub not found — ISO may not boot"
+    _log_warn "systemd-boot stub not found — ISO may not boot"
 
 # Kernel + initramfs (copy from build container)
 mkdir -p "$ISO_ROOT/boot"
@@ -67,11 +71,11 @@ if [ -f "$IMG_ZST" ]; then
     if [ -f "${IMG_ZST}.sha256" ]; then
         cp "${IMG_ZST}.sha256" "$ISO_ROOT/playos/"
     fi
-    echo "    Disk image bundled: $(basename "$IMG_ZST")"
+    _log_info "Disk image bundled: $(basename "$IMG_ZST")"
 fi
 
 # ── Build ISO with xorriso ───────────────────────────────────────────────────
-echo "==> Writing ISO: $OUT_DIR/$ISO_NAME.iso"
+_log_step "Writing ISO: $OUT_DIR/$ISO_NAME.iso"
 xorriso -as mkisofs \
     -iso-level 3 \
     -full-iso9660-filenames \
@@ -87,4 +91,4 @@ xorriso -as mkisofs \
     -output "$OUT_DIR/$ISO_NAME.iso" \
     "$ISO_ROOT"
 
-echo "    ISO: $OUT_DIR/$ISO_NAME.iso ($(du -h "$OUT_DIR/$ISO_NAME.iso" | cut -f1))"
+_log_info "ISO: $OUT_DIR/$ISO_NAME.iso ($(du -h "$OUT_DIR/$ISO_NAME.iso" | cut -f1))"

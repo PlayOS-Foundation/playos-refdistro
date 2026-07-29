@@ -11,6 +11,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 OUT="$ROOT/out"
 PXE_DIR="${PXE_DIR:-/var/www/html/playos}"
 PASS=0
@@ -19,15 +23,15 @@ FAIL=0
 check() {
     local desc="$1" status="$2"
     case "$status" in
-        pass) echo "  ✓ $desc"; PASS=$((PASS + 1)) ;;
-        fail) echo "  ✗ $desc"; FAIL=$((FAIL + 1)) ;;
-        warn) echo "  ⚠ $desc" ;;
-        skip) echo "  - $desc (skipped)" ;;
+        pass) _log_success "$desc"; PASS=$((PASS + 1)) ;;
+        fail) _log_error "$desc"; FAIL=$((FAIL + 1)) ;;
+        warn) _log_warn "$desc" ;;
+        skip) _log_info "$desc (skipped)" ;;
     esac
 }
 
 # ── E1: Build artifacts ─────────────────────────────────────────────────────
-echo "=== E1: Build artifacts ==="
+_log_step "E1: Build artifacts"
 
 # Detect distro from artifact names
 ARTIFACT_DISTRO="alpine"
@@ -70,13 +74,13 @@ else
 fi
 
 # ── E2: Disk image integrity ─────────────────────────────────────────────────
-echo "=== E2: Disk image integrity ==="
+_log_step "E2: Disk image integrity"
 
 if [ -z "$DISK_ZST" ]; then
     check "Decompress + verify (no disk image)" skip
 else
     TMP_IMG="/tmp/playos-verify.img"
-    echo "    Decompressing..."
+    _log_info "Decompressing..."
     zstd -d -f -o "$TMP_IMG" "$DISK_ZST" 2>/dev/null
 
     # GPT integrity
@@ -116,11 +120,11 @@ else
 
     TMP_SIZE=$(du -h "$TMP_IMG" | cut -f1)
     rm -f "$TMP_IMG"
-    echo "    Cleaned up temp image ($TMP_SIZE)"
+    _log_info "Cleaned up temp image ($TMP_SIZE)"
 fi
 
 # ── E3: PXE deployment ──────────────────────────────────────────────────────
-echo "=== E3: PXE deployment ==="
+_log_step "E3: PXE deployment"
 
 if [ ! -d "$PXE_DIR" ]; then
     check "PXE directory ($PXE_DIR)" skip
@@ -182,10 +186,7 @@ else
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
-echo
-echo "============================================================================"
-echo "Build verification: $PASS passed, $FAIL failed"
-echo "============================================================================"
+_log_step "Build verification: $PASS passed, $FAIL failed"
 
 if [ "$FAIL" -gt 0 ]; then
     exit 1

@@ -15,28 +15,30 @@ ARCH="${PLAYOS_ARCH:-x86_64}"
 IMAGE_SIZE_MB="${PLAYOS_IMAGE_SIZE_MB:-6144}"
 ESP_SIZE_MB="${PLAYOS_ESP_SIZE_MB:-512}"
 ROOT_SIZE_MB="${PLAYOS_ROOT_SIZE_MB:-4096}"
-IMAGE_NAME="playos-gpt-${ALPINE_BRANCH}-${ARCH}"
+IMAGE_NAME="playos-gpt-alpine-${ALPINE_BRANCH}-${ARCH}"
 MNT="${DISK_MNT:-}"
 
-echo "==> Building PlayOS disk image: $IMAGE_NAME"
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+_log_step "Building PlayOS disk image: $IMAGE_NAME"
 mkdir -p "$OUT"
 
 # ── Phase 1: Create + partition + format + mount (only when no DISK_MNT) ──────
 MUST_CLEANUP=""
 if [ -z "$MNT" ]; then
-    echo "==> Creating ${IMAGE_SIZE_MB} MiB sparse image"
+    _log_info "Creating ${IMAGE_SIZE_MB} MiB sparse image"
     truncate -s "${IMAGE_SIZE_MB}M" "$OUT/$IMAGE_NAME.img"
 
-    echo "==> Partitioning: GPT with ESP + root + data"
+    _log_info "Partitioning: GPT with ESP + root + data"
     sgdisk -Z "$OUT/$IMAGE_NAME.img"
     sgdisk -n "1:1M:+${ESP_SIZE_MB}M" -t 1:EF00 "$OUT/$IMAGE_NAME.img"
     sgdisk -n "2:0:+${ROOT_SIZE_MB}M" -t 2:8300 "$OUT/$IMAGE_NAME.img"
     sgdisk -n 3:0:0 -t 3:8300 "$OUT/$IMAGE_NAME.img"
 
     LOOP=$(losetup --find --show -P "$OUT/$IMAGE_NAME.img")
-    echo "    Loop device: $LOOP"
+    _log_info "Loop device: $LOOP"
 
-    echo "==> Formatting partitions"
+    _log_info "Formatting partitions"
     mkfs.vfat -F32 -n PLAYOS_EFI "${LOOP}p1"
     mkfs.ext4 -F -L playos-root "${LOOP}p2"
     mkfs.ext4 -F -L playos-data "${LOOP}p3"
@@ -51,7 +53,7 @@ if [ -z "$MNT" ]; then
     MUST_CLEANUP="yes"
 
     cleanup_loop() {
-        echo "==> Unmounting + detaching loop device"
+        _log_info "Unmounting + detaching loop device"
         sync
         mountpoint -q "$MNT/data" 2>/dev/null && umount "$MNT/data" || true
         mountpoint -q "$MNT/boot/efi" 2>/dev/null && umount "$MNT/boot/efi" || true
@@ -60,11 +62,11 @@ if [ -z "$MNT" ]; then
     }
     trap cleanup_loop EXIT
 else
-    echo "==> Using pre-mounted disk image at $MNT"
+    _log_info "Using pre-mounted disk image at $MNT"
 fi
 
 # ── Install Alpine base system ───────────────────────────────────────────────
-echo "==> Installing Alpine base system"
+_log_step "Installing Alpine base system"
 
 # APK repos MUST exist before any --root install, since apk reads them from the target root
 mkdir -p $MNT/etc/apk
@@ -76,11 +78,11 @@ REPOS
 mkdir -p $MNT/etc/apk/keys
 cp /etc/apk/keys/* $MNT/etc/apk/keys/
 
-apk --root $MNT --initdb add --no-cache alpine-base
+apk --root $MNT --initdb add --no-cache --no-progress alpine-base
 
 # ── Install PlayOS packages ──────────────────────────────────────────────────
-echo "==> Installing PlayOS system packages"
-apk --root $MNT add --no-cache \
+_log_step "Installing PlayOS system packages"
+apk --root $MNT add --no-cache --no-progress \
     alpine-conf \
     bluez bluez-openrc \
     dbus dbus-openrc \
@@ -123,8 +125,8 @@ apk --root $MNT add --no-cache \
 # fails in a cross-root install (apk --root $MNT) because depmod looks for
 # vmlinuz in the host container context, not in $MNT.  We run depmod
 # manually afterwards with the correct base directory.
-echo "==> Installing kernel (modules only, no post-install scripts)"
-apk --root $MNT add --no-cache --no-scripts linux-stable
+_log_step "Installing kernel (modules only, no post-install scripts)"
+apk --root $MNT add --no-cache --no-progress --no-scripts linux-stable
 
 KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
 
@@ -134,8 +136,8 @@ KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
 # placed firmware at $MNT/lib/firmware/ (correct for the installed system),
 # but mkinitfs needs it at /lib/firmware/ in the build container to include
 # it in the initramfs.  Without this, amdgpu/nvidia devices black-screen.
-echo "==> Installing GPU firmware in build container (for initramfs)"
-apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel
+_log_step "Installing GPU firmware in build container (for initramfs)"
+apk add --no-cache --no-progress linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel
 
 # Install hid-asus-ally kernel module (ROG Ally HID driver), built by
 # build-hid-asus-ally.sh earlier in the nspawn session.  Must happen
@@ -143,35 +145,35 @@ apk add --no-cache linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-in
 # before depmod + initramfs (so the module is included in the initramfs).
 HID_KO="/var/tmp/playos-build/hid-asus-ally/hid-asus-ally.ko"
 if [ -f "$HID_KO" ] && [ -n "$KERNEL_VER" ]; then
-    echo "==> Installing hid-asus-ally kernel module"
+    _log_step "Installing hid-asus-ally kernel module"
     MOD_DEST="$MNT/lib/modules/$KERNEL_VER/kernel/drivers/hid"
     mkdir -p "$MOD_DEST"
     cp "$HID_KO" "$MOD_DEST/hid-asus-ally.ko"
-    echo "    hid-asus-ally.ko installed to $MOD_DEST"
+    _log_info "hid-asus-ally.ko installed to $MOD_DEST"
 elif [ ! -f "$HID_KO" ]; then
-    echo "    WARNING: hid-asus-ally.ko not found — skipping (non-fatal)"
+    _log_warn "hid-asus-ally.ko not found — skipping (non-fatal)"
 fi
 
 if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
-    echo "==> Generating module dependencies for $KERNEL_VER"
+    _log_step "Generating module dependencies for $KERNEL_VER"
     depmod -b "$MNT" "$KERNEL_VER" 2>/dev/null && \
-        echo "    depmod OK" || \
-        echo "    depmod failed (non-fatal — initramfs will regenerate on boot)"
+        _log_success "depmod OK" || \
+        _log_warn "depmod failed (non-fatal — initramfs will regenerate on boot)"
 
     # Install GPU mkinitfs feature files — required for AMD/NVIDIA GPU
     # firmware and kernel modules in the initramfs.  The ISO build
     # (build-alpine-iso.sh, Phase 3) installs these globally, but the
     # disk-image build runs earlier (Phase 1) — source them directly
     # from the workspace bind mount.
-    echo "==> Installing GPU mkinitfs feature files"
+    _log_step "Installing GPU mkinitfs feature files"
     mkdir -p "$MNT/etc/mkinitfs/features.d"
     for feat in amdgpu.modules amdgpu-firmware.files nvidia.modules nvidia-firmware.files; do
         SRC="/workspace/alpine/$feat"
         if [ -f "$SRC" ]; then
             cp "$SRC" "$MNT/etc/mkinitfs/features.d/$feat"
-            echo "    $feat"
+            _log_info "$feat"
         else
-            echo "    WARNING: $SRC not found — GPU may not initialize on disk boot"
+            _log_warn "$SRC not found — GPU may not initialize on disk boot"
         fi
     done
 
@@ -182,10 +184,16 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
     if ! grep -q 'amdgpu' "$MNT/etc/mkinitfs/mkinitfs.conf" 2>/dev/null; then
         sed -i 's/^features="\(.*\)"/features="\1 amdgpu amdgpu-firmware nvidia nvidia-firmware"/' \
             "$MNT/etc/mkinitfs/mkinitfs.conf"
-        echo "    GPU features appended to mkinitfs.conf"
+        _log_success "GPU features appended to mkinitfs.conf"
     fi
 
-    echo "==> Generating initramfs for $KERNEL_VER"
+    _log_step "Generating initramfs for $KERNEL_VER"
+    # NOTE: -F flag in mkinitfs 3.14 expects an argument (features string),
+    # NOT a boolean "force" flag.  Using -F without an argument causes
+    # mkinitfs to consume the next flag (-c) as the features value,
+    # dropping config and treating the config path as the kernel version.
+    # GPU features are already in mkinitfs.conf (via sed) and features.d
+    # (via -P), so -F is unnecessary.
     mkinitfs \
         -b "$MNT" \
         -c "$MNT/etc/mkinitfs/mkinitfs.conf" \
@@ -197,7 +205,7 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
     # Verify GPU firmware landed in the initramfs.
     # Note: mkinitfs may use lz4 or xz compression depending on config.
     # Detect compression and decompress accordingly.
-    echo "==> Verifying initramfs firmware inclusion"
+    _log_step "Verifying initramfs firmware inclusion"
     INITRAMFS="$MNT/boot/initramfs-stable"
 
     # Detect initramfs compression by reading magic bytes.
@@ -212,30 +220,43 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
     esac
     echo "    initramfs format: $LABEL"
 
-    if $DECOMP "$INITRAMFS" 2>/tmp/initramfs-verify-err.log \
-        | cpio -t 2>>/tmp/initramfs-verify-err.log \
-        | grep -q 'lib/firmware/amdgpu/'; then
-        echo "    amdgpu firmware: OK"
-        rm -f /tmp/initramfs-verify-err.log
+    # Cache the decompressed file listing for multiple checks.
+    INITRAMFS_LISTING=$(mktemp)
+    trap 'rm -f "$INITRAMFS_LISTING"' EXIT
+    set +o pipefail
+    $DECOMP "$INITRAMFS" 2>/dev/null | cpio -t 2>/dev/null > "$INITRAMFS_LISTING"
+    set -o pipefail
+
+    # Check amdgpu firmware
+    if grep -q 'lib/firmware/amdgpu/' "$INITRAMFS_LISTING"; then
+        AMDFW_COUNT=$(grep -c 'lib/firmware/amdgpu/' "$INITRAMFS_LISTING" || true)
+        echo "    amdgpu firmware: OK ($AMDFW_COUNT files)"
     else
-        echo "    WARNING: amdgpu firmware MISSING from initramfs"
-        echo "    decompress errors:"
-        if [ -s /tmp/initramfs-verify-err.log ]; then
-            head -5 /tmp/initramfs-verify-err.log | sed 's/^/        /'
-            rm -f /tmp/initramfs-verify-err.log
-        fi
-        echo "    first 20 files in initramfs:"
-        set +o pipefail
-        $DECOMP "$INITRAMFS" 2>/dev/null | cpio -t 2>/dev/null | head -20 | sed 's/^/        /'
-        set -o pipefail
+        echo "    WARNING: amdgpu firmware MISSING from initramfs — ROG Ally will black-screen"
+        echo "    hint: mkinitfs -F should auto-include firmware; check /lib/firmware/amdgpu/ exists"
     fi
+
+    # Check nvidia firmware
+    if grep -q 'lib/firmware/nvidia/' "$INITRAMFS_LISTING"; then
+        NVFW_COUNT=$(grep -c 'lib/firmware/nvidia/' "$INITRAMFS_LISTING" || true)
+        echo "    nvidia firmware: OK ($NVFW_COUNT files)"
+    else
+        echo "    nvidia firmware: not found (non-critical for AMD GPUs)"
+    fi
+
+    # Show first 20 files on any failure for diagnostics
+    if ! grep -q 'lib/firmware/amdgpu/' "$INITRAMFS_LISTING"; then
+        echo "    first 20 files in initramfs:"
+        head -20 "$INITRAMFS_LISTING" | sed 's/^/        /'
+    fi
+    rm -f "$INITRAMFS_LISTING"
 else
-    echo "error: kernel modules were not installed; cannot generate initramfs" >&2
+    _log_error "kernel modules were not installed; cannot generate initramfs"
     exit 1
 fi
 
 # ── Copy PlayOS custom binaries ──────────────────────────────────────────────
-echo "==> Copying PlayOS binaries"
+_log_step "Copying PlayOS binaries"
 
 # Compositor
 if [ -f /usr/bin/playos-compositor ]; then
@@ -259,16 +280,16 @@ fi
 # ── Copy samples ─────────────────────────────────────────────────────────────
 SAMPLES_DIR="/workspace/.build/samples-out"
 if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
-    echo "==> Bundling PlayOS samples from $SAMPLES_DIR"
+    _log_step "Bundling PlayOS samples from $SAMPLES_DIR"
     mkdir -p $MNT/playos-samples/build
     install -m 0755 "$SAMPLES_DIR/hello-playos"   $MNT/playos-samples/build/hello-playos
     install -m 0755 "$SAMPLES_DIR/space-invaders" $MNT/playos-samples/build/space-invaders
     install -m 0755 "$SAMPLES_DIR/input-debug"    $MNT/playos-samples/build/input-debug
-    echo "    Samples bundled: $(ls $MNT/playos-samples/build/)"
+    _log_success "Samples bundled: $(ls $MNT/playos-samples/build/)"
 elif [ ! -d "$SAMPLES_DIR" ]; then
-    echo "==> WARNING: Samples directory $SAMPLES_DIR not found — skipping sample bundle"
+    _log_warn "Samples directory $SAMPLES_DIR not found — skipping sample bundle"
 elif [ ! -f "$SAMPLES_DIR/hello-playos" ]; then
-    echo "==> WARNING: hello-playos not found in $SAMPLES_DIR — skipping sample bundle"
+    _log_warn "hello-playos not found in $SAMPLES_DIR — skipping sample bundle"
 fi
 
 # ── Deploy device profiles ───────────────────────────────────────────────────
@@ -276,7 +297,7 @@ fi
 REFDEV_DIR="${PLAYOS_REFERENCE_DEVICES:-/mnt/playos-reference-devices}"
 ROG_ALLY_PROFILE="$REFDEV_DIR/rog-ally/device-profile.toml"
 if [ -f "$ROG_ALLY_PROFILE" ]; then
-    echo "==> Deploying device profiles"
+    _log_step "Deploying device profiles"
     mkdir -p $MNT/etc/playos/device-profiles
     cp "$ROG_ALLY_PROFILE" $MNT/etc/playos/device-profiles/rog-ally.toml
     echo "    rog-ally profile installed"
@@ -288,13 +309,19 @@ if [ -f "$ROOT/alpine/init.d/playos-compositor" ]; then
         $MNT/etc/init.d/playos-compositor
 fi
 
+# ── Install async trigger init script ────────────────────────────────────────
+if [ -f "$ROOT/alpine/init.d/playos-async-trigger" ]; then
+    install -m 0755 "$ROOT/alpine/init.d/playos-async-trigger" \
+        $MNT/etc/init.d/playos-async-trigger
+fi
+
 # ── Create first-boot init script ────────────────────────────────────────────
-echo "==> Installing first-boot service"
+_log_step "Installing first-boot service"
 install -m 0755 "$ROOT/alpine/init.d/playos-firstboot" \
     $MNT/etc/init.d/playos-firstboot
 
 # ── Configure OpenRC runlevels ───────────────────────────────────────────────
-echo "==> Configuring OpenRC runlevels"
+_log_step "Configuring OpenRC runlevels"
 
 # Helper: symlink init script into runlevel
 rc_add() {
@@ -327,13 +354,14 @@ rc_add savecache shutdown
 rc_add dbus playos-visual
 rc_add seatd playos-visual
 rc_add playos-compositor playos-visual
+rc_add playos-async-trigger playos-visual
 
-# WiFi backend — iwd for NetworkManager
-rc_add iwd playos-visual
-rc_add networkmanager playos-visual
+# WiFi backend — iwd for NetworkManager (playos-async — started after first frame)
+rc_add iwd playos-async
+rc_add networkmanager playos-async
 
 # ── NetworkManager configuration ──────────────────────────────────────────────
-echo "==> Configuring NetworkManager"
+_log_step "Configuring NetworkManager"
 
 mkdir -p $MNT/etc/NetworkManager/conf.d
 cat > $MNT/etc/NetworkManager/conf.d/playos.conf <<'EOF'
@@ -367,8 +395,36 @@ method=auto
 EOF
 chmod 600 $MNT/etc/NetworkManager/system-connections/00-wired-dhcp.nmconnection
 
+# ── WiFi auto-connect profile ────────────────────────────────────────────────
+# Set PLAYOS_WIFI_SSID + PLAYOS_WIFI_PSK at build time to bake a persistent
+# WiFi connection into the disk image.  This allows SSH access on first boot
+# even when the compositor fails (black screen debugging).
+if [ -n "${PLAYOS_WIFI_SSID:-}" ] && [ -n "${PLAYOS_WIFI_PSK:-}" ]; then
+    _log_step "Creating WiFi auto-connect profile: $PLAYOS_WIFI_SSID"
+    cat > "$MNT/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection" <<WIFIEOF
+[connection]
+id=${PLAYOS_WIFI_SSID}
+type=wifi
+autoconnect=true
+autoconnect-priority=50
+
+[wifi]
+ssid=${PLAYOS_WIFI_SSID}
+mode=infrastructure
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=${PLAYOS_WIFI_PSK}
+
+[ipv4]
+method=auto
+WIFIEOF
+    chmod 600 "$MNT/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection"
+    _log_success "WiFi profile baked into disk image"
+fi
+
 # SSH debug access
-rc_add sshd playos-visual
+rc_add sshd playos-async
 
 # First-boot one-shot (runs once, deletes itself)
 rc_add playos-firstboot playos-visual
@@ -406,7 +462,7 @@ console=tty0 console=ttyS0 amdgpu.sg_display=0 loglevel=7
 EOF
 
 # ── Data partition directories ────────────────────────────────────────────────
-echo "==> Creating /data directory structure"
+_log_step "Creating /data directory structure"
 mkdir -p $MNT/data/games $MNT/data/saves $MNT/data/config
 
 # ── fstab ────────────────────────────────────────────────────────────────────
@@ -431,7 +487,7 @@ EOF
 # the ESP when the ESP is directly accessible.  Inside nspawn with --bind the
 # ESP sub-mount is invisible, so we skip; the host wrapper (build-iso-ubuntu.sh)
 # handles ESP deployment externally in that case.
-echo "==> Installing systemd-boot to ESP"
+_log_step "Installing systemd-boot to ESP"
 STUB="$MNT/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 if mountpoint -q "$MNT/boot/efi" 2>/dev/null && [ -f "$STUB" ]; then
     mkdir -p "$MNT/boot/efi/EFI/BOOT" \
@@ -456,14 +512,14 @@ LOADERCONF
 
     cp "$MNT/boot/vmlinuz-stable"   "$MNT/boot/efi/vmlinuz-stable"
     cp "$MNT/boot/initramfs-stable" "$MNT/boot/efi/initramfs-stable"
-    echo "    systemd-boot installed to ESP"
+    _log_success "systemd-boot installed to ESP"
 else
-    echo "    ESP not directly accessible (nspawn mode) — host wrapper will install bootloader"
+    _log_info "ESP not directly accessible (nspawn mode) — host wrapper will install bootloader"
 fi
 
 # ── Unmount + compress (only when we created the image ourselves) ────────────
 if [ -n "$MUST_CLEANUP" ]; then
-    echo "==> Unmounting image"
+    _log_step "Unmounting image"
     sync
     umount "$MNT/data"
     umount "$MNT/boot/efi"
@@ -471,17 +527,17 @@ if [ -n "$MUST_CLEANUP" ]; then
     losetup -d "$LOOP"
     trap - EXIT
 
-    echo "==> Compressing with zstd"
+    _log_step "Compressing with zstd"
     UNCOMPRESSED_SIZE=$(du -h "$OUT/$IMAGE_NAME.img" | cut -f1)
     zstd -T0 --rm -12 "$OUT/$IMAGE_NAME.img"
     COMPRESSED_SIZE=$(du -h "$OUT/$IMAGE_NAME.img.zst" | cut -f1)
-    echo "    $UNCOMPRESSED_SIZE → $COMPRESSED_SIZE"
+    _log_success "$UNCOMPRESSED_SIZE → $COMPRESSED_SIZE"
 
-    echo "==> Computing SHA-256 checksum"
+    _log_step "Computing SHA-256 checksum"
     ( cd "$OUT" && sha256sum "$IMAGE_NAME.img.zst" > "$IMAGE_NAME.img.zst.sha256" )
-    echo "    $(cat $OUT/$IMAGE_NAME.img.zst.sha256)"
+    _log_info "$(cat $OUT/$IMAGE_NAME.img.zst.sha256)"
 else
-    echo "==> Disk image populated (compress + unmount handled by host wrapper)"
+    _log_info "Disk image populated (compress + unmount handled by host wrapper)"
 fi
 
-echo "==> Disk image done: $OUT/$IMAGE_NAME.img"
+_log_success "Disk image done: $OUT/$IMAGE_NAME.img"

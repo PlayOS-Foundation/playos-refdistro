@@ -13,6 +13,7 @@ description="PlayOS first-boot setup (one-shot)"
 depend() {
     need localmount
     after bootmisc hostname networkmanager
+    before playos-compositor
 }
 
 start() {

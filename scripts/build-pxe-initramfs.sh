@@ -8,8 +8,13 @@
 
 set -euo pipefail
 
+ROOT="${PLAYOS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
+# ── Initialize logging ──────────────────────────────────────────────────────
+source "$ROOT/shared/logging-helpers.sh"
+
 if [[ $# -ne 2 ]]; then
-    echo "Usage: $0 <input-initramfs> <output-initramfs>" >&2
+    _log_error "Usage: $0 <input-initramfs> <output-initramfs>"
     exit 2
 fi
 
@@ -19,7 +24,7 @@ WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
 if [[ ! -f "$INPUT_INITRAMFS" ]]; then
-    echo "error: input initramfs does not exist: $INPUT_INITRAMFS" >&2
+    _log_error "input initramfs does not exist: $INPUT_INITRAMFS"
     exit 1
 fi
 
@@ -31,12 +36,12 @@ gzip -cd "$INPUT_INITRAMFS" | (
 
 INIT="$WORKDIR/init"
 if [[ ! -f "$INIT" ]]; then
-    echo "error: extracted initramfs has no /init" >&2
+    _log_error "extracted initramfs has no /init"
     exit 1
 fi
 
 if ! grep -q '\$MOCK nlplug-findfs' "$INIT"; then
-    echo "error: extracted initramfs does not contain the expected nlplug-findfs invocation" >&2
+    _log_error "extracted initramfs does not contain the expected nlplug-findfs invocation"
     exit 1
 fi
 

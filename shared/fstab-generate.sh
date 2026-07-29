@@ -14,7 +14,7 @@ generate_fstab() {
     local EFI_UUID="${3:?}"
     local DATA_UUID="${4:?}"
 
-    echo "==> Generating fstab"
+    log_step "Generating fstab"
 
     cat > "$MNT/etc/fstab" <<EOF
 # /etc/fstab — PlayOS installed system
@@ -22,4 +22,5 @@ UUID=$ROOT_UUID /         ext4  defaults,noatime  0 1
 UUID=$EFI_UUID  /boot/efi vfat  defaults,noatime  0 2
 UUID=$DATA_UUID /data     ext4  defaults,noatime  0 2
 EOF
+    log_success "fstab generated"
 }

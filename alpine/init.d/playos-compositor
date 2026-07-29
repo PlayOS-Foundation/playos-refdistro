@@ -8,6 +8,10 @@ depend() {
     need seatd
     need localmount
     after bootmisc hostname
+    # firstboot runs before us (declared in playos-firstboot's depend()).
+    # This ordering is critical: firstboot's resize2fs causes heavy I/O
+    # disruption on ext4, which can corrupt the device profile copy or
+    # cause the compositor to read torn data, resulting in a black screen.
 }
 
 start() {
@@ -15,24 +19,99 @@ start() {
     export XDG_RUNTIME_DIR=/run/playos
     export PLAYOS_PROFILE="${PLAYOS_PROFILE:-rog-ally}"
 
-    # Stage device profile to tmpfs (/run/playos/profiles/) —
+    # ── Wait for GPU device ──────────────────────────────────────────
+    # On first boot after dd install, the GPU DRM device may not be
+    # immediately available (kernel module loading, firmware init).
+    # Poll for any /dev/dri/card* device for up to 10 seconds.
+    GPU_READY=""
+    for _ in $(seq 1 20); do
+        if ls /dev/dri/card* >/dev/null 2>&1; then
+            GPU_READY=yes
+            break
+        fi
+        sleep 0.5
+    done
+    if [ -z "$GPU_READY" ]; then
+        eerror "No GPU device found in /dev/dri/ after 10s — compositor cannot start"
+        eerror "  Check: ls /dev/dri/ — $(ls /dev/dri/ 2>/dev/null || echo 'directory missing')"
+        eend 1
+        return 1
+    fi
+
+    # ── Stage device profile to tmpfs ────────────────────────────────
     # tomlplusplus segfaults when reading from ext4/xfs-backed
     # filesystem paths.  Both the compositor input backend and the
     # shell read the profile from /run/playos/profiles/ to avoid this.
+    #
+    # Use a retry loop: firstboot's resize2fs (online ext4 resize) can
+    # cause transient I/O errors on ext4.  After firstboot finishes,
+    # the filesystem is stable and the copy will succeed.
     mkdir -p /run/playos/profiles
-    if [ -f "/etc/playos/device-profiles/${PLAYOS_PROFILE}.toml" ]; then
-        cp "/etc/playos/device-profiles/${PLAYOS_PROFILE}.toml" \
-           "/run/playos/profiles/${PLAYOS_PROFILE}.toml"
+    PROFILE_SRC="/etc/playos/device-profiles/${PLAYOS_PROFILE}.toml"
+    PROFILE_DST="/run/playos/profiles/${PLAYOS_PROFILE}.toml"
+
+    if [ -f "$PROFILE_SRC" ]; then
+        PROFILE_COPIED=""
+        for attempt in $(seq 1 5); do
+            if cp "$PROFILE_SRC" "$PROFILE_DST" 2>/dev/null; then
+                if [ -s "$PROFILE_DST" ]; then
+                    PROFILE_COPIED=yes
+                    break
+                fi
+            fi
+            sleep 1
+        done
+        if [ -z "$PROFILE_COPIED" ]; then
+            eerror "Failed to copy device profile after 5 attempts"
+            eerror "  src: $PROFILE_SRC"
+            eerror "  dst: $PROFILE_DST"
+            eend 1
+            return 1
+        fi
+    else
+        ewarn "Device profile not found: $PROFILE_SRC"
+        ewarn "  Compositor will start without device profile (input may be limited)"
     fi
 
     mkdir -p "$XDG_RUNTIME_DIR"
     chmod 700 "$XDG_RUNTIME_DIR"
+
+    # ── Launch compositor ────────────────────────────────────────────
+    # Set PLAYOS_DEBUG=1 to enable WLR_DEBUG logging (for
+    # diagnosing black-screen-on-boot issues after disk install).
+    export PLAYOS_DEBUG="${PLAYOS_DEBUG:-0}"
+
     start-stop-daemon --start --background --make-pidfile \
         --pidfile /run/playos-compositor.pid \
         --stdout /var/log/playos-compositor.log \
         --stderr /var/log/playos-compositor.log \
+        --env PLAYOS_DEBUG="$PLAYOS_DEBUG" \
+        --env XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+        --env PLAYOS_PROFILE="$PLAYOS_PROFILE" \
         --exec /usr/bin/playos-compositor -- /usr/bin/playos-shell
-    eend $?
+
+    # ── Crash detection ──────────────────────────────────────────────
+    # start-stop-daemon --background returns immediately after fork.
+    # If the compositor crashes during init (wlr_backend_autocreate,
+    # seatd connection, etc.), OpenRC won't notice because the daemon
+    # was forked into the background.  Poll briefly to detect a fast
+    # crash and report it so the user doesn't see a silent black screen.
+    sleep 1
+    PID=$(cat /run/playos-compositor.pid 2>/dev/null || true)
+    if [ -n "$PID" ] && ! kill -0 "$PID" 2>/dev/null; then
+        eerror "Compositor crashed during startup — check /var/log/playos-compositor.log"
+        eend 1
+        return 1
+    fi
+
+    # ── Signal async runlevel ────────────────────────────────────────
+    # The compositor is running — write the readiness flag that gates
+    # the playos-async runlevel (networkmanager, iwd, sshd). This
+    # implements the first-frame rule: networking and background
+    # services stay off the visual critical path.
+    touch /run/playos-visual-ready
+
+    eend 0
 }
 
 stop() {

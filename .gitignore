@@ -1,5 +1,7 @@
 out/
 *.iso
+logs/
+build.log
 
 
 # User-specific files

@@ -12,12 +12,12 @@ deploy_device_profiles() {
     local MNT="${1:?}"
     local REFDEV_DIR="${2:-/mnt/playos-reference-devices}"
 
-    echo "==> Deploying device profiles"
+    log_step "Deploying device profiles"
 
     mkdir -p "$MNT/etc/playos/device-profiles"
 
     if [ ! -d "$REFDEV_DIR" ]; then
-        echo "    No reference-devices directory found — skipping"
+        log_info "No reference-devices directory found — skipping"
         return 0
     fi
 
@@ -27,7 +27,7 @@ deploy_device_profiles() {
             local name
             name="$(basename "$(dirname "$profile")")"
             cp "$profile" "$MNT/etc/playos/device-profiles/${name}.toml"
-            echo "    $name profile installed"
+            log_info "$name profile installed"
             count=$((count + 1))
         fi
     done

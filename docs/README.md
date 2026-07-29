@@ -13,6 +13,7 @@ reference OS is built, configured, and validated.
 | Understand boot and service policy | [Boot and services](architecture/boot-and-services.md) |
 | Validate an artifact or device | [Validation](validation.md) |
 | Work on the ROG Ally reference device | [ROG Ally](hardware/rog-ally.md) |
+| Track and resolve known issues | [Audit Findings](audit-findings.md) |
 
 ## Documentation rules
 

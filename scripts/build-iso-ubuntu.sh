@@ -250,7 +250,11 @@ sudo systemd-nspawn \
         set -e
 
         echo "==> Compressing disk image"
-        IMG=$(echo /workspace/out/playos-gpt-*.img | head -1)
+        IMG=$(ls -1 /workspace/out/playos-gpt-*.img 2>/dev/null | head -1)
+        if [ -z "$IMG" ] || [ ! -f "$IMG" ]; then
+            echo "ERROR: No disk image found to compress" >&2
+            exit 1
+        fi
         zstd -f -T0 --rm -12 "$IMG"
         IMG_ZST="${IMG}.zst"
         (

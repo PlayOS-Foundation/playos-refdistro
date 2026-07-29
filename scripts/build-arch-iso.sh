@@ -65,13 +65,17 @@ EOF
 
 # Bundle compressed disk image in ISO
 mkdir -p "$ISO_ROOT/playos"
-IMG_ZST="$(echo "$OUT_DIR"/playos-gpt-*.img.zst | head -1)"
-if [ -f "$IMG_ZST" ]; then
+# Use a targeted glob (arch-specific) to avoid picking up Alpine images
+# and use ls -1 so head -1 gets exactly one filename even with multiple matches.
+IMG_ZST="$(ls -1 "$OUT_DIR"/playos-gpt-arch-*.img.zst 2>/dev/null | head -1)"
+if [ -n "$IMG_ZST" ] && [ -f "$IMG_ZST" ]; then
     cp "$IMG_ZST" "$ISO_ROOT/playos/"
     if [ -f "${IMG_ZST}.sha256" ]; then
         cp "${IMG_ZST}.sha256" "$ISO_ROOT/playos/"
     fi
     _log_info "Disk image bundled: $(basename "$IMG_ZST")"
+else
+    _log_warn "No Arch disk image found in $OUT_DIR — ISO will not contain a disk image"
 fi
 
 # ── Build ISO with xorriso ───────────────────────────────────────────────────

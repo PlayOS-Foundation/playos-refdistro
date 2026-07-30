@@ -122,6 +122,7 @@ rc_add playos-async-trigger playos-visual
 # before NM, enforced by the init script's depend() block.
 rc_add networkmanager playos-async
 rc_add iwd playos-async
+rc_add bluetooth playos-async
 
 # NetworkManager configuration: auto-connect wired interfaces, manage WiFi via iwd.
 mkdir -p "$tmp/etc/NetworkManager/conf.d"

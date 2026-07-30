@@ -386,6 +386,7 @@ rc_add playos-async-trigger playos-visual
 # alpine/init.d/networkmanager and docs/boot-analysis-rog-ally-*.md.
 rc_add iwd playos-async
 rc_add networkmanager playos-async
+rc_add bluetooth playos-async
 
 # playos-usb-gadget removed — g_serial kernel module unavailable; ROG Ally USB-C is host-only
 

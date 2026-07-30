@@ -245,6 +245,10 @@ fi
 mkdir -p "$MNT/etc/playos"
 touch "$MNT/etc/playos/firstboot"
 
+# ── Force vfat module loading (ESP mount requires it) ──────────────────────
+mkdir -p "$MNT/etc/modules-load.d"
+echo "vfat" > "$MNT/etc/modules-load.d/vfat.conf"
+
 # ── Hostname ─────────────────────────────────────────────────────────────────
 echo "playos" > "$MNT/etc/hostname"
 

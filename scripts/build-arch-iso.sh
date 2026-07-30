@@ -78,6 +78,37 @@ else
     _log_warn "No Arch disk image found in $OUT_DIR — ISO will not contain a disk image"
 fi
 
+# ── Build FAT ESP image for UEFI boot ───────────────────────────────────────
+# systemd-boot can only read from the ESP's FAT filesystem (no ISO9660
+# driver), so all boot files (EFI stub, loader config, kernel, initramfs)
+# must live inside a FAT image that xorriso will expose as the ESP.
+# Uses mtools (mformat/mcopy) to avoid needing loop mounts inside nspawn.
+_log_step "Building FAT ESP image for UEFI boot"
+# The ESP image must live INSIDE the ISO root: xorriso's -e option takes an
+# ISO-internal path (eltorito-alt-boot), not a host filesystem path.
+EFI_IMG="$ISO_ROOT/efi-boot.img"
+# Estimate size: kernel (~15M) + initramfs (~100M) + EFI stub + loader + overhead
+EFI_IMG_SIZE_MB=192
+dd if=/dev/zero of="$EFI_IMG" bs=1M count="$EFI_IMG_SIZE_MB" status=none
+mformat -i "$EFI_IMG" -F ::
+
+# Populate FAT image with boot files (no mount needed with mtools)
+mmd -i "$EFI_IMG" ::/EFI
+mmd -i "$EFI_IMG" ::/EFI/BOOT
+mcopy -i "$EFI_IMG" "$ISO_ROOT/EFI/BOOT/BOOTX64.EFI" ::/EFI/BOOT/ 2>/dev/null || \
+    _log_warn "systemd-boot stub not found — ISO may not boot"
+
+mmd -i "$EFI_IMG" ::/loader
+mmd -i "$EFI_IMG" ::/loader/entries
+mcopy -i "$EFI_IMG" "$ISO_ROOT/loader/loader.conf" ::/loader/
+mcopy -i "$EFI_IMG" "$ISO_ROOT/loader/entries/playos-arch.conf" ::/loader/entries/
+
+mmd -i "$EFI_IMG" ::/boot
+mcopy -i "$EFI_IMG" "$ISO_ROOT/boot/vmlinuz-linux" ::/boot/
+mcopy -i "$EFI_IMG" "$ISO_ROOT/boot/initramfs-linux.img" ::/boot/
+
+_log_info "ESP image: $EFI_IMG ($(du -h "$EFI_IMG" | cut -f1))"
+
 # ── Build ISO with xorriso ───────────────────────────────────────────────────
 _log_step "Writing ISO: $OUT_DIR/$ISO_NAME.iso"
 xorriso -as mkisofs \
@@ -85,13 +116,10 @@ xorriso -as mkisofs \
     -full-iso9660-filenames \
     -volid "PLAYOS_ARCH" \
     -appid "PlayOS Arch ${KERNEL_VARIANT}" \
-    -eltorito-boot EFI/BOOT/BOOTX64.EFI \
-    -no-emul-boot \
-    -boot-load-size 4 \
-    -boot-info-table \
     -eltorito-alt-boot \
-    -e EFI/BOOT/BOOTX64.EFI \
+    -e "efi-boot.img" \
     -no-emul-boot \
+    -isohybrid-gpt-basdat \
     -output "$OUT_DIR/$ISO_NAME.iso" \
     "$ISO_ROOT"
 

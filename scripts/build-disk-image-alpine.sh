@@ -87,6 +87,7 @@ apk --root $MNT add --no-cache --no-progress \
     bluez bluez-openrc \
     dbus dbus-openrc \
     eudev eudev-openrc \
+    foot font-dejavu \
     gptfdisk \
     glfw \
     iwd iwd-openrc \
@@ -96,6 +97,7 @@ apk --root $MNT add --no-cache --no-progress \
     libxkbcommon \
     linux-firmware-amdgpu \
     linux-firmware-nvidia \
+    linux-firmware-rtl_nic \
     linux-firmware-intel \
     linux-firmware-mediatek \
     linux-firmware-ath10k \
@@ -185,6 +187,14 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
         sed -i 's/^features="\(.*\)"/features="\1 amdgpu amdgpu-firmware nvidia nvidia-firmware"/' \
             "$MNT/etc/mkinitfs/mkinitfs.conf"
         _log_success "GPU features appended to mkinitfs.conf"
+    fi
+
+    # Drop the 'kms' feature: it loads amdgpu in early initramfs, which
+    # black-screens the ROG Ally.  The LiveUSB (no kms) boots fine — GPU
+    # drivers load later via udev, matching the proven-good live behavior.
+    if grep -q ' kms ' "$MNT/etc/mkinitfs/mkinitfs.conf" 2>/dev/null; then
+        sed -i 's/ kms / /' "$MNT/etc/mkinitfs/mkinitfs.conf"
+        _log_success "kms feature removed from mkinitfs.conf"
     fi
 
     _log_step "Generating initramfs for $KERNEL_VER"
@@ -301,6 +311,11 @@ if [ -f "$ROG_ALLY_PROFILE" ]; then
     mkdir -p $MNT/etc/playos/device-profiles
     cp "$ROG_ALLY_PROFILE" $MNT/etc/playos/device-profiles/rog-ally.toml
     echo "    rog-ally profile installed"
+    # Also install into the build container rootfs: the ISO build phase runs
+    # from this same nspawn rootfs, and genapkovl-playos.sh bundles profiles
+    # from here into the apkovl (it has no access to the refdev bind mount).
+    mkdir -p /etc/playos/device-profiles
+    cp "$ROG_ALLY_PROFILE" /etc/playos/device-profiles/rog-ally.toml
 fi
 
 # ── Install compositor init script ───────────────────────────────────────────
@@ -313,6 +328,15 @@ fi
 if [ -f "$ROOT/alpine/init.d/playos-async-trigger" ]; then
     install -m 0755 "$ROOT/alpine/init.d/playos-async-trigger" \
         $MNT/etc/init.d/playos-async-trigger
+fi
+
+# ── Install PlayOS networkmanager init script ─────────────────────────────────
+# Replaces the Alpine-packaged one with iwd D-Bus readiness polling so NM
+# doesn't start before iwd registers its D-Bus name (see §7.3 of
+# docs/boot-analysis-rog-ally-2026-07-30.md).
+if [ -f "$ROOT/alpine/init.d/networkmanager" ]; then
+    install -m 0755 "$ROOT/alpine/init.d/networkmanager" \
+        $MNT/etc/init.d/networkmanager
 fi
 
 # ── Create first-boot init script ────────────────────────────────────────────
@@ -356,12 +380,19 @@ rc_add seatd playos-visual
 rc_add playos-compositor playos-visual
 rc_add playos-async-trigger playos-visual
 
-# WiFi backend — iwd for NetworkManager (playos-async — started after first frame)
+# WiFi backend — iwd for NetworkManager, started after first frame.
+# iwd runs as a service; our custom init.d/networkmanager polls for
+# iwd's D-Bus name readiness before starting NM.  See
+# alpine/init.d/networkmanager and docs/boot-analysis-rog-ally-*.md.
 rc_add iwd playos-async
 rc_add networkmanager playos-async
 
+# playos-usb-gadget removed — g_serial kernel module unavailable; ROG Ally USB-C is host-only
+
 # ── NetworkManager configuration ──────────────────────────────────────────────
 _log_step "Configuring NetworkManager"
+
+# Custom init.d/networkmanager polls for iwd D-Bus readiness; see above.
 
 mkdir -p $MNT/etc/NetworkManager/conf.d
 cat > $MNT/etc/NetworkManager/conf.d/playos.conf <<'EOF'
@@ -407,6 +438,8 @@ id=${PLAYOS_WIFI_SSID}
 type=wifi
 autoconnect=true
 autoconnect-priority=50
+autoconnect-retries=10
+auth-retries=5
 
 [wifi]
 ssid=${PLAYOS_WIFI_SSID}
@@ -420,7 +453,17 @@ psk=${PLAYOS_WIFI_PSK}
 method=auto
 WIFIEOF
     chmod 600 "$MNT/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection"
-    _log_success "WiFi profile baked into disk image"
+
+    # Also bake an iwd PSK profile so iwd handles BSSID selection and
+    # retry natively — more robust than NM's iwd backend after 4-way
+    # handshake timeouts on mesh nodes.
+    mkdir -p "$MNT/var/lib/iwd"
+    cat > "$MNT/var/lib/iwd/${PLAYOS_WIFI_SSID}.psk" <<IWDEOF
+[Security]
+Passphrase=${PLAYOS_WIFI_PSK}
+IWDEOF
+    chmod 600 "$MNT/var/lib/iwd/${PLAYOS_WIFI_SSID}.psk"
+    _log_success "WiFi profile and iwd PSK profile baked into disk image"
 fi
 
 # SSH debug access
@@ -435,6 +478,9 @@ touch $MNT/etc/playos/firstboot
 
 # ── Hostname ─────────────────────────────────────────────────────────────────
 echo "playos" > $MNT/etc/hostname
+
+# ── OpenRC boot logging → /var/log/rc.log (post-mortem evidence for boot stalls)
+echo 'rc_logger="YES"' >> $MNT/etc/rc.conf
 
 # ── Timezone ─────────────────────────────────────────────────────────────────
 ln -sf /usr/share/zoneinfo/UTC $MNT/etc/localtime
@@ -458,12 +504,16 @@ chmod 600 $MNT/root/.ssh/authorized_keys
 # ── Kernel cmdline (applied by bootloader) ───────────────────────────────────
 mkdir -p $MNT/etc/kernel
 cat > $MNT/etc/kernel/cmdline <<'EOF'
-console=tty0 console=ttyS0 amdgpu.sg_display=0 loglevel=7
+console=tty0 console=ttyS0 amdgpu.sg_display=0 loglevel=7 cfg80211.ieee80211_regdom=GR
 EOF
 
 # ── Data partition directories ────────────────────────────────────────────────
 _log_step "Creating /data directory structure"
 mkdir -p $MNT/data/games $MNT/data/saves $MNT/data/config
+
+# foot terminal in the Library — fullscreen readable terminal on all
+# displays (debug console without a VT).
+ln -sf /usr/bin/foot $MNT/data/games/foot
 
 # ── fstab ────────────────────────────────────────────────────────────────────
 # In nspawn mode (DISK_MNT pre-set), UUIDs come from the host via env vars.

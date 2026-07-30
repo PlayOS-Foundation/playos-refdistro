@@ -28,6 +28,7 @@ pacman -Sy --noconfirm --disable-download-timeout \
     meson \
     pkgconf \
     mkinitcpio \
+    mtools \
     wayland-protocols \
     libxkbcommon \
     libinput \

@@ -21,7 +21,10 @@ profile_playos() {
     # on ROG Ally (Phoenix APU / RDNA 3) — harmless on other GPUs.
     # PXE-specific params (ip=dhcp, alpine_repo, modloop, apkovl) belong
     # in the PXE server boot config, not the ISO — the ISO must boot from USB.
-    kernel_cmdline="console=tty0 amdgpu.sg_display=0 loglevel=7 softlevel=playos-visual"
+    # cfg80211.ieee80211_regdom=GR: default world regdomain (00) disables
+    # EU channels 12/13 and most 5GHz — APs on those channels are invisible
+    # to scans. GR is the reference-device country.
+    kernel_cmdline="console=tty0 amdgpu.sg_display=0 loglevel=7 cfg80211.ieee80211_regdom=GR softlevel=playos-visual"
     syslinux_serial="0 115200"
 
     # xtables-addons-stable doesn't exist in Alpine 3.24 (only -lts is built).
@@ -41,6 +44,8 @@ profile_playos() {
         e2fsprogs-extra
         eudev
         eudev-openrc
+        foot
+        font-dejavu
         gptfdisk
         iwd
         iwd-openrc
@@ -50,6 +55,7 @@ profile_playos() {
         libxkbcommon
         linux-firmware-amdgpu
         linux-firmware-nvidia
+        linux-firmware-rtl_nic
         linux-firmware-intel
         linux-firmware-ath10k
         linux-firmware-ath11k

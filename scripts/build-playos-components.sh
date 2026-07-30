@@ -111,6 +111,7 @@ if command -v apk >/dev/null 2>&1; then
     ln -sf /etc/init.d/playos-compositor /etc/runlevels/playos-visual/playos-compositor 2>/dev/null || true
     install -m 0755 "$ROOT/alpine/init.d/playos-async-trigger" /etc/init.d/playos-async-trigger
     ln -sf /etc/init.d/playos-async-trigger /etc/runlevels/playos-visual/playos-async-trigger 2>/dev/null || true
+    # playos-usb-gadget removed — g_serial kernel module unavailable
 else
     _log_info "Skipping OpenRC init (Arch uses systemd units)"
 fi

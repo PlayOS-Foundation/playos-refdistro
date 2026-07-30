@@ -40,6 +40,8 @@ e2fsprogs-extra
 efibootmgr
 eudev
 eudev-openrc
+foot
+font-dejavu
 glfw
 gptfdisk
 iwd
@@ -55,6 +57,7 @@ linux-firmware-brcm
 linux-firmware-intel
 linux-firmware-mediatek
 linux-firmware-nvidia
+linux-firmware-rtl_nic
 mesa-dri-gallium
 mesa-egl
 mesa-gbm
@@ -112,10 +115,11 @@ rc_add playos-compositor playos-visual
 # Gate: activates playos-async after compositor signals readiness.
 rc_add playos-async-trigger playos-visual
 
-# WiFi backend — iwd for NetworkManager (iwd is lighter and doesn't
-# need a separate OpenRC wpa_supplicant service).
-# These run in playos-async, started only after compositor signals
-# /run/playos-visual-ready, so they don't compete with first frame.
+# WiFi backend — iwd for NetworkManager (wifi.backend=iwd).
+# The PlayOS networkmanager init script (alpine/init.d/networkmanager)
+# replaces the Alpine-packaged one with iwd D-Bus readiness polling
+# (see docs/boot-analysis-rog-ally-2026-07-30.md §7.3).  iwd must run
+# before NM, enforced by the init script's depend() block.
 rc_add networkmanager playos-async
 rc_add iwd playos-async
 
@@ -177,6 +181,8 @@ id=${PLAYOS_WIFI_SSID}
 type=wifi
 autoconnect=true
 autoconnect-priority=50
+autoconnect-retries=10
+auth-retries=5
 
 [wifi]
 ssid=${PLAYOS_WIFI_SSID}
@@ -191,6 +197,17 @@ method=auto
 WIFIEOF
     chown root:root "$tmp/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection"
     chmod 0600 "$tmp/etc/NetworkManager/system-connections/01-wifi-auto.nmconnection"
+
+    # Also bake an iwd PSK profile so iwd handles BSSID selection and
+    # retry natively — more robust than NM's iwd backend after 4-way
+    # handshake timeouts on mesh nodes.
+    mkdir -p "$tmp/var/lib/iwd"
+    cat > "$tmp/var/lib/iwd/${PLAYOS_WIFI_SSID}.psk" <<IWDEOF
+[Security]
+Passphrase=${PLAYOS_WIFI_PSK}
+IWDEOF
+    chmod 0600 "$tmp/var/lib/iwd/${PLAYOS_WIFI_SSID}.psk"
+    echo "==> Baked iwd PSK profile for $PLAYOS_WIFI_SSID"
 fi
 
 # Include the compositor init script and binaries in the overlay.
@@ -205,6 +222,15 @@ if [ -f /etc/init.d/playos-async-trigger ]; then
     cp /etc/init.d/playos-async-trigger "$tmp/etc/init.d/playos-async-trigger"
     chmod 0755 "$tmp/etc/init.d/playos-async-trigger"
 fi
+# Include the PlayOS networkmanager init script that replaces the Alpine-
+# packaged one with iwd D-Bus readiness polling.  This must be in the apkovl
+# overlay to supersede the packaged /etc/init.d/networkmanager at boot.
+if [ -f /etc/init.d/networkmanager ]; then
+    mkdir -p "$tmp/etc/init.d"
+    cp /etc/init.d/networkmanager "$tmp/etc/init.d/networkmanager"
+    chmod 0755 "$tmp/etc/init.d/networkmanager"
+fi
+# playos-usb-gadget removed — g_serial kernel module unavailable; ROG Ally USB-C is host-only
 if [ -f /usr/bin/playos-compositor ]; then
     mkdir -p "$tmp/usr/bin"
     cp /usr/bin/playos-compositor "$tmp/usr/bin/playos-compositor"
@@ -224,6 +250,18 @@ if [ -f /usr/bin/playos-shell ]; then
         cp /usr/lib/libglfw.so.3 "$tmp/usr/lib/"
     fi
 fi
+# Bundle device profiles. The compositor init script stages these from
+# /etc/playos/device-profiles/ to /run/playos/profiles/ at boot; without
+# them the live boot warns "Device profile not found" and the compositor
+# input backend and shell run without device configuration.
+# They are installed into the build container rootfs by
+# build-disk-image-alpine.sh (which runs in an earlier phase of the same
+# nspawn rootfs).
+if [ -d /etc/playos/device-profiles ]; then
+    mkdir -p "$tmp/etc/playos"
+    cp -r /etc/playos/device-profiles "$tmp/etc/playos/"
+fi
+
 # Installer is now integrated into playos-shell (dd-based pipeline).
 # The standalone playos-installer-gui and playos-installer shell script have been retired.
 
@@ -239,6 +277,9 @@ if [ -d "$SAMPLES_DIR" ] && [ -f "$SAMPLES_DIR/hello-playos" ]; then
     chmod 0755 "$tmp/playos-samples/build/hello-playos"
     chmod 0755 "$tmp/playos-samples/build/space-invaders"
     chmod 0755 "$tmp/playos-samples/build/input-debug"
+    # foot terminal appears in the shell Library — fullscreen readable
+    # terminal on all displays (debug console without a VT).
+    ln -sf /usr/bin/foot "$tmp/playos-samples/build/foot"
 fi
 
 # The disk image is bundled as a separate file on the ISO (not inside

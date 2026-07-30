@@ -39,6 +39,11 @@ install -m 0644 "$ROOT/alpine/amdgpu-firmware.files"   /etc/mkinitfs/features.d/
 install -m 0644 "$ROOT/alpine/nvidia.modules"          /etc/mkinitfs/features.d/nvidia.modules
 install -m 0644 "$ROOT/alpine/nvidia-firmware.files"   /etc/mkinitfs/features.d/nvidia-firmware.files
 
+# Install PlayOS custom init scripts so genapkovl-playos.sh can bundle them
+# into the apkovl overlay.  These replace or supplement the Alpine-packaged
+# init scripts with PlayOS-specific behaviour.
+install -m 0755 "$ROOT/alpine/init.d/networkmanager"  /etc/init.d/networkmanager
+
 # Apply PlayOS patches to the Alpine aports scripts.
 # This replaces the old fragile sed injections with a version-pinned
 # .patch file.  If the patch doesn't apply cleanly, the build fails

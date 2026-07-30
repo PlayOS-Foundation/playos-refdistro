@@ -14,13 +14,18 @@ UEFI → Alpine kernel and initramfs → APK overlay
 → playos-visual softlevel → dbus → seatd
 → playos-compositor → playos-shell
 → playos-async-trigger (polls for /run/playos-visual-ready)
-→ openrc playos-async → NetworkManager + iwd + sshd
+→ openrc --no-stop playos-async → NetworkManager + iwd + sshd
 ```
 
 NetworkManager, iwd, and sshd are assigned to `playos-async`, not `playos-visual`.
 The compositor writes `/run/playos-visual-ready` after successful startup.
 `playos-async-trigger` polls for this flag (15s timeout) and activates the
-async runlevel. This keeps networking and SSH off the visual critical path.
+async runlevel with `openrc --no-stop`. The `--no-stop` flag is required:
+a plain `openrc <runlevel>` switches runlevels and stops every started
+service not present in the target runlevel, which would kill seatd and the
+compositor (they live in `playos-visual`, not `playos-async`) and drop the
+device to a VT login prompt. This keeps networking and SSH off the visual
+critical path.
 
 ### Installed disk image
 
@@ -28,7 +33,7 @@ async runlevel. This keeps networking and SSH off the visual critical path.
 UEFI → systemd-boot → kernel and initramfs → ext4 root
 → OpenRC default runlevel → dbus → seatd
 → playos-compositor → playos-shell
-→ playos-async-trigger → openrc playos-async → NetworkManager + iwd + sshd
+→ playos-async-trigger → openrc --no-stop playos-async → NetworkManager + iwd + sshd
 → playos-firstboot (one-shot on the first boot)
 ```
 

@@ -152,7 +152,7 @@ if [ "$DISTRO" = "alpine" ]; then
     BOOTLOADER_ID="playos"
     KERNEL_IMAGE="/vmlinuz-stable"
     INITRD_IMAGE="/initramfs-stable"
-    KERNEL_CMDLINE="root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=2 loglevel=7 softlevel=playos-visual"
+    KERNEL_CMDLINE="root=UUID=${ROOT_UUID} rootfstype=ext4 rw console=tty0 console=ttyS0 amdgpu.sg_display=0 rootdelay=2 loglevel=7 cfg80211.ieee80211_regdom=GR softlevel=playos-visual"
     ISO_SCRIPT="build-alpine-iso.sh"
 
 else
@@ -243,6 +243,8 @@ sudo systemd-nspawn \
     --setenv="PLAYOS_KERNEL_VARIANT=${KERNEL_VARIANT}" \
     --setenv="PLAYOS_ARCH=${ARCH}" \
     --setenv="PLAYOS_SSH_PUBKEY=${PLAYOS_SSH_PUBKEY:-}" \
+    --setenv="PLAYOS_WIFI_SSID=${PLAYOS_WIFI_SSID:-}" \
+    --setenv="PLAYOS_WIFI_PSK=${PLAYOS_WIFI_PSK:-}" \
     --setenv="TMPDIR=/var/tmp" \
     --setenv="PLAYOS_LOG_DIR=${NSPAWN_LOG_DIR}" \
     --setenv="PLAYOS_LOG_LEVEL=${PLAYOS_LOG_LEVEL}" \
@@ -288,7 +290,10 @@ done < <(find "$ROOT/out" -maxdepth 1 -type f \( -name '*.iso' -o -name '*.img.z
 PXE_DIR="/var/www/html/playos"
 log_step "Deploying to PXE server: $PXE_DIR"
 
-ISO="$(find "$ROOT/out" -maxdepth 1 -type f -name '*.iso' | head -1)"
+# Pick the NEWEST ISO — out/ may contain both alpine and arch ISOs, and a
+# plain `find | head -1` can grab the wrong one (breaks PXE deploy).
+ISO="$(find "$ROOT/out" -maxdepth 1 -type f -name '*.iso' -printf '%T@ %p\n' \
+    | sort -nr | head -n 1 | cut -d' ' -f2-)"
 if [ -n "$ISO" ] && [ -f "$ISO" ]; then
     MNT="$(mktemp -d)"
     sudo mount -o loop,ro "$ISO" "$MNT"

@@ -1,0 +1,42 @@
+#!/sbin/openrc-run
+# PlayOS NetworkManager — started in playos-async after iwd D-Bus readiness.
+#
+# Replaces the Alpine-packaged networkmanager-openrc init script to add a
+# D-Bus readiness poll for iwd.  Without this, NM starts before iwd has
+# registered its net.connman.iwd D-Bus name, permanently disables WiFi,
+# and requires a manual NM restart to recover.
+#
+# See docs/boot-analysis-rog-ally-2026-07-30.md §7.3.
+
+supervisor=supervise-daemon
+command=/usr/sbin/NetworkManager
+command_args_foreground="-n"
+description="NetworkManager (PlayOS — iwd backend)"
+
+depend() {
+    need dbus
+    after iwd
+    provide net
+}
+
+start_pre() {
+    # iwd is ordered before NM via the 'after iwd' dependency, but its D-Bus
+    # service may not be registered yet when NM probes for it.  Poll until
+    # iwd appears on the system bus, with a 10-second timeout.
+    #
+    # If iwd never appears, we start NM anyway — NM without WiFi is better
+    # than no NM at all, and the race self-heals on a subsequent NM restart.
+    local i
+    for i in $(seq 1 10); do
+        if dbus-send --system --print-reply \
+            --dest=org.freedesktop.DBus \
+            /org/freedesktop/DBus \
+            org.freedesktop.DBus.NameHasOwner \
+            string:'net.connman.iwd' 2>/dev/null | grep -q 'boolean true'; then
+            return 0
+        fi
+        sleep 1
+    done
+    eerror "iwd D-Bus service not ready after 10s — NM will start with WiFi unavailable"
+    return 0
+}

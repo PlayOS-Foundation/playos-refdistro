@@ -55,6 +55,24 @@ APORTS_BRANCH="${APORTS_BRANCH}" PLAYOS_ROOT="${PLAYOS_ROOT:-$ROOT}" \
 # initramfs (otherwise GPU probe fails before the apkovl is extracted).
 apk add --no-cache --no-progress linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel 2>&1 | tail -1
 
+# Build and install the hid-asus-ally out-of-tree kernel module (ROG Ally
+# controller HID driver).  Phase 3 runs in a separate nspawn session from
+# Phase 1, so the module must be rebuilt here.  We copy the .ko directly
+# into the running system's module tree so mkinitfs finds it during the
+# ISO modloop and initramfs build (same approach as build-disk-image-alpine.sh).
+PLAYOS_ROOT="$ROOT" bash "$ROOT/scripts/build-hid-asus-ally.sh"
+HID_KO="/var/tmp/playos-build/hid-asus-ally/hid-asus-ally.ko"
+KERNEL_VER=$(ls /lib/modules/ | head -1)
+if [ -f "$HID_KO" ] && [ -n "$KERNEL_VER" ]; then
+    MOD_DEST="/lib/modules/$KERNEL_VER/kernel/drivers/hid"
+    mkdir -p "$MOD_DEST"
+    cp "$HID_KO" "$MOD_DEST/hid-asus-ally.ko"
+    depmod "$KERNEL_VER"
+    _log_success "hid-asus-ally.ko installed for ISO modloop/initramfs inclusion"
+else
+    _log_warn "hid-asus-ally.ko not found — skipping (non-fatal)"
+fi
+
 # Create a non-root build user for abuild-keygen (Alpine-native requirement).
 if ! id build >/dev/null 2>&1; then
     adduser -D build

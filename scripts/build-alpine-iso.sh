@@ -81,10 +81,9 @@ apk add --upgrade --no-cache linux-stable linux-stable-dev 2>&1 | tail -3 || tru
 # controller HID driver).  Phase 3 runs in a separate nspawn session from
 # Phase 1, so the module must be rebuilt here.
 #
-# Two parallel strategies ensure the module reaches the LiveUSB:
-#  1. Copy the .ko into /lib/modules/ so mkinitfs finds it for the initramfs.
-#  2. Package it as an APK and add it to the ISO package set so mkimage
-#     includes it in the modloop (the primary module source at runtime).
+# The .ko is copied into /lib/modules/ so mkinitfs bundles it into the
+# initramfs.  For the ISO (LiveUSB), the initramfs is the primary delivery
+# path — the modloop does not carry this out-of-tree module.
 PLAYOS_ROOT="$ROOT" bash "$ROOT/scripts/build-hid-asus-ally.sh"
 HID_KO="/var/tmp/playos-build/hid-asus-ally/hid-asus-ally.ko"
 KERNEL_VER=$(ls /lib/modules/ | head -1)
@@ -98,16 +97,10 @@ else
     _log_warn "hid-asus-ally.ko not found — skipping (non-fatal)"
 fi
 
-# Regenerate APKINDEX from the local repo so mkimage can find
-# hid-asus-ally-stable.  build-hid-asus-ally.sh already placed the
-# .apk in $APK_OUT/x86_64/ — rebuild the index with apk index so
-# the C: checksum matches apk-tools 3.0.7 expectations.
-APK_OUT="${PLAYOS_APK_OUT:-/var/tmp/playos-apks}"
-if ls "$APK_OUT/x86_64"/*.apk >/dev/null 2>&1; then
-    export PACKAGER_PRIVKEY="${PACKAGER_PRIVKEY:-/home/build/.abuild/build-6a67c473.rsa}"
-    apk index -o "$APK_OUT/x86_64/APKINDEX.tar.gz" "$APK_OUT/x86_64"/*.apk 2>/dev/null || true
-    _log_success "Indexed local APK repo"
-fi
+# The hid-asus-ally.ko is already copied into /lib/modules/ above for
+# initramfs inclusion.  For the ISO (LiveUSB), the initramfs is sufficient;
+# the local APK repo approach for modloop inclusion is not used here because
+# mkimage's apk index verification requires a properly signed APK.
 
 # Alpine mkimage.sh uses sudo internally; running as root in nspawn so
 # set SUDO to empty (skip sudo) and ensure abuild keys are in place.
@@ -127,12 +120,15 @@ fi
 # the signed APKINDEX.
 rm -rf "$WORK"/*
 
-# mkimage.sh calls apk internally which can trigger non-fatal errors inside
-# nspawn.  The ISO is rebuilt from DESTDIR backup below, so a partial mkimage
-# run is acceptable as long as the DESTDIR staging directory was created.
-sh scripts/mkimage.sh     --tag "$TAG"     --outdir "$OUT"     --workdir "$WORK"     --arch "$ARCH"     --hostkeys     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/main"     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/community"     --repository "$APK_OUT"     --profile playos || true
+# mkimage.sh calls apk internally which can trigger non-fatal warnings inside
+# nspawn (e.g. grub-probe, firmware triggers).  These are harmless — the ISO
+# is rebuilt from DESTDIR backup below.
+if ! sh scripts/mkimage.sh     --tag "$TAG"     --outdir "$OUT"     --workdir "$WORK"     --arch "$ARCH"     --hostkeys     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/main"     --repository "https://dl-cdn.alpinelinux.org/alpine/$TAG/community"     --profile playos; then
+    _log_error "mkimage.sh failed — check output above for details"
+    exit 1
+fi
 
-_log_info "mkimage completed (exit may be non-zero in nspawn — DESTDIR rebuild follows)"
+_log_info "mkimage completed"
 
 # ── Rebuild ISO from the backup DESTDIR (workaround for xorriso corruption
 #     inside nspawn's mkimage.sh) and add the disk image at the same time ──
@@ -141,15 +137,13 @@ DISK_IMAGE=$(find "$ROOT/out" -maxdepth 1 -name 'playos-gpt-*.img.zst' -print 2>
 STAGING="/var/tmp/playos-destdir-backup"
 
 	if [ ! -d "$STAGING" ]; then
-		_log_warn "DESTDIR backup not found at $STAGING — skipping ISO rebuild"
-		_log_info "Compressed disk image is available; ISO is a delivery wrapper"
-		exit 0
+		_log_error "DESTDIR backup not found at $STAGING — mkimage.sh DESTDIR staging failed"
+		exit 1
 	fi
 
 	if [ -z "$ISO" ] || [ ! -f "$ISO" ]; then
-		_log_warn "mkimage.sh did not produce an ISO — skipping ISO rebuild"
-		_log_info "Compressed disk image is available; ISO is a delivery wrapper"
-		exit 0
+		_log_error "mkimage.sh did not produce an ISO"
+		exit 1
 	fi
 
 _log_info "Using backup DESTDIR: $(du -sh "$STAGING" | cut -f1)"

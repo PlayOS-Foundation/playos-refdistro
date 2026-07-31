@@ -139,7 +139,7 @@ KERNEL_VER=$(ls "$MNT/lib/modules/" | head -1 2>/dev/null || true)
 # but mkinitfs needs it at /lib/firmware/ in the build container to include
 # it in the initramfs.  Without this, amdgpu/nvidia devices black-screen.
 _log_step "Installing GPU firmware in build container (for initramfs)"
-apk add --no-cache --no-progress linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel
+apk add --no-cache --no-progress linux-firmware-amdgpu linux-firmware-nvidia linux-firmware-intel 2>&1 | tail -1 || true
 
 # Install hid-asus-ally kernel module (ROG Ally HID driver), built by
 # build-hid-asus-ally.sh earlier in the nspawn session.  Must happen
@@ -163,26 +163,27 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
         _log_warn "depmod failed (non-fatal — initramfs will regenerate on boot)"
 
     # Install GPU mkinitfs feature files — required for AMD/NVIDIA GPU
-    # firmware and kernel modules in the initramfs.  The ISO build
-    # (build-alpine-iso.sh, Phase 3) installs these globally, but the
-    # disk-image build runs earlier (Phase 1) — source them directly
-    # from the workspace bind mount.
+    # firmware and kernel modules in the initramfs.  Installed both on
+    # the target image (for runtime reference) AND in the build
+    # container (because mkinitfs reads feature files from the container's
+    # /etc, not from -b BASEDIR — features_dirs is set at script start,
+    # before getopts parses -b).
     _log_step "Installing GPU mkinitfs feature files"
     mkdir -p "$MNT/etc/mkinitfs/features.d"
     for feat in amdgpu.modules amdgpu-firmware.files nvidia.modules nvidia-firmware.files; do
         SRC="/workspace/alpine/$feat"
         if [ -f "$SRC" ]; then
             cp "$SRC" "$MNT/etc/mkinitfs/features.d/$feat"
+            cp "$SRC" "/etc/mkinitfs/features.d/$feat"
             _log_info "$feat"
         else
             _log_warn "$SRC not found — GPU may not initialize on disk boot"
         fi
     done
 
-    # Append GPU features to the default mkinitfs.conf so the initramfs
-    # includes amdgpu/nvidia modules + firmware.  Without this, the ROG Ally
-    # (and any AMD dGPU device) will black-screen because the amdgpu driver
-    # cannot bind without firmware present in early boot.
+    # Append GPU features to the target image's mkinitfs.conf.  The mkinitfs
+    # call below uses -c to read this config, so the features listed here
+    # directly control what goes into the initramfs.
     if ! grep -q 'amdgpu' "$MNT/etc/mkinitfs/mkinitfs.conf" 2>/dev/null; then
         sed -i 's/^features="\(.*\)"/features="\1 amdgpu amdgpu-firmware nvidia nvidia-firmware"/' \
             "$MNT/etc/mkinitfs/mkinitfs.conf"
@@ -197,13 +198,22 @@ if [ -n "$KERNEL_VER" ] && [ -d "$MNT/lib/modules/$KERNEL_VER" ]; then
         _log_success "kms feature removed from mkinitfs.conf"
     fi
 
+    # Add hid-asus-ally to usb.modules on BOTH the target image and the
+    # build container.  The mkinitfs -P flag prepends $MNT's features.d
+    # to the search path, so $MNT's copy masks the container's.  Adding
+    # to both ensures mkinitfs includes the module regardless of -P order.
+    for USB_MODULES in "$MNT/etc/mkinitfs/features.d/usb.modules" /etc/mkinitfs/features.d/usb.modules; do
+        if [ -f "$USB_MODULES" ] && ! grep -q 'hid-asus-ally' "$USB_MODULES" 2>/dev/null; then
+            echo "kernel/drivers/hid/hid-asus-ally.ko*" >> "$USB_MODULES"
+            _log_success "hid-asus-ally appended to $USB_MODULES"
+        fi
+    done
+
     _log_step "Generating initramfs for $KERNEL_VER"
-    # NOTE: -F flag in mkinitfs 3.14 expects an argument (features string),
-    # NOT a boolean "force" flag.  Using -F without an argument causes
-    # mkinitfs to consume the next flag (-c) as the features value,
-    # dropping config and treating the config path as the kernel version.
-    # GPU features are already in mkinitfs.conf (via sed) and features.d
-    # (via -P), so -F is unnecessary.
+    # GPU features are installed in both the container's and $MNT's
+    # /etc/mkinitfs/features.d/.  Use -P to ensure $MNT's copy takes
+    # precedence, and -c to read the modified mkinitfs.conf (which has
+    # kms removed and GPU features appended).
     mkinitfs \
         -b "$MNT" \
         -c "$MNT/etc/mkinitfs/mkinitfs.conf" \

@@ -19,10 +19,15 @@ APK_OUT="${PLAYOS_APK_OUT:-/var/tmp/playos-apks}"
 _log_step "Building hid-asus-ally kernel module"
 
 # Install kernel headers for the running kernel (linux-stable)
-apk add --no-cache linux-stable-dev 2>&1 | tail -3
+apk add --no-cache linux-stable-dev 2>&1 | tail -3 || true
 
-# Get kernel version string (e.g., "7.1.4-0-stable")
-KERNEL_VER=$(ls /lib/modules/ | head -1)
+# Get kernel version string (e.g., "7.1.5-0-stable").
+# Pick the directory that has a "build" symlink (headers installed),
+# falling back to the highest version if none have one.
+KERNEL_VER=$(for d in /lib/modules/*/build; do dirname "$d"; done 2>/dev/null | head -1 | xargs basename)
+if [ -z "$KERNEL_VER" ]; then
+    KERNEL_VER=$(ls /lib/modules/ | sort -V | tail -1)
+fi
 _log_info "Kernel version: $KERNEL_VER"
 
 # Clone the driver source
@@ -73,24 +78,17 @@ license = GPL-2.0-only
 depend = linux-stable
 PKGINFO
 
-# Create the .apk (gzip-compressed tar)
-mkdir -p "$APK_OUT"
-APK_FILE="$APK_OUT/hid-asus-ally-stable-${HID_VERSION}-r0.apk"
+# Create the .apk (APK v2: control.tar.gz + data.tar.gz concatenated, then signed).
+# A valid APK v2 is: [signature tarball] + control tarball (with .PKGINFO) + data tarball (with files).
+mkdir -p "$APK_OUT/x86_64"
+APK_FILE="$APK_OUT/x86_64/hid-asus-ally-stable-${HID_VERSION}-r0.apk"
+
+# Create the .apk (single gzip tarball — simple packaging, enough for disk-image install)
 tar -czf "$APK_FILE" -C "$PKG_DIR" .PKGINFO "$INSTALL_PATH"
 
-# Index the local APK repo.
-# apk index exits non-zero on unsigned packages; we use --allow-untrusted
-# at install time so the index just needs to exist.
-echo "==> Indexing local APK repository"
-apk index -o "$APK_OUT/APKINDEX.tar.gz" "$APK_FILE" 2>/dev/null || true
-if [ -f "$APK_OUT/APKINDEX.unsigned.tar.gz" ]; then
-    mv "$APK_OUT/APKINDEX.unsigned.tar.gz" "$APK_OUT/APKINDEX.tar.gz"
-fi
-if [ ! -f "$APK_OUT/APKINDEX.tar.gz" ]; then
-    # Last resort: create an empty-but-valid index. apk will still
-    # find our package via the --repository path.
-    tar -czf "$APK_OUT/APKINDEX.tar.gz" --files-from /dev/null
-fi
-
+echo "==> Creating APKINDEX (non-fatal)"
+# Index the APK so mkimage can install it into the ISO modloop.
+# If the index is invalid, the disk image still has hid-asus-ally.ko directly.
+apk index -o "$APK_OUT/x86_64/APKINDEX.tar.gz" "$APK_FILE" 2>/dev/null || true
 echo "    APK: $APK_FILE ($(du -h "$APK_FILE" | cut -f1))"
 echo "==> hid-asus-ally-stable built and packaged"

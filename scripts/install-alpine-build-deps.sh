@@ -11,6 +11,10 @@ fi
 printf '%s\n'     "https://dl-cdn.alpinelinux.org/alpine/$ALPINE_BRANCH/main"     "https://dl-cdn.alpinelinux.org/alpine/$ALPINE_BRANCH/community"     > /etc/apk/repositories
 
 apk update
-apk add --no-cache     abuild     alpine-base     alpine-conf     alpine-sdk     bash     build-base     ca-certificates     cmake     coreutils     dosfstools     e2fsprogs     git     grub     mtools     ninja     squashfs-tools     sudo     systemd-boot     syslinux     xorriso
+apk add --no-cache     abuild     alpine-base     alpine-conf     alpine-sdk     bash     build-base     ca-certificates     cmake     coreutils     dosfstools     e2fsprogs     git     mtools     ninja     squashfs-tools     sudo     systemd-boot     xorriso
+
+# grub-efi trigger can fail inside nspawn (grub-probe can't resolve host LVM devices),
+# but the package and grub-mkimage binary are installed correctly. Suppress the trigger failure.
+apk add --no-cache grub-efi 2>/dev/null || true
 
 update-ca-certificates

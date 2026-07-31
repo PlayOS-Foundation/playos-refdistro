@@ -250,6 +250,7 @@ sudo systemd-nspawn \
     --setenv="PLAYOS_LOG_LEVEL=${PLAYOS_LOG_LEVEL}" \
     /bin/sh -c '
         set -e
+        exec 2>&1
 
         echo "==> Compressing disk image"
         IMG=$(ls -1 /workspace/out/playos-gpt-*.img 2>/dev/null | head -1)

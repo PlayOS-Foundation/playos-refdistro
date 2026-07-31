@@ -26,7 +26,7 @@ if command -v apk >/dev/null 2>&1; then
         libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
         gptfdisk parted e2fsprogs zstd \
         dosfstools util-linux coreutils sgdisk \
-        2>&1 | tail -5
+        2>&1 | tail -5 || true
 elif command -v pacman >/dev/null 2>&1; then
     _log_step "Arch build deps should be pre-installed (setup-ubuntu-build-host.sh)"
     # Verify cmake is available

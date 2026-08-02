@@ -33,7 +33,7 @@ make ally-build
 make ally-usb-image
 ```
 
-See [`playos-spec/build-guide.md`](https://github.com/your-org/playos-spec/blob/main/build-guide.md) for full instructions.
+See [`playos-spec/build-guide.md`](https://github.com/PlayOS-Foundation/playos-spec/blob/main/build-guide.md) for full instructions.
 
 ## Supported Targets
 

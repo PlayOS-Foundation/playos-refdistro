@@ -5,10 +5,10 @@ This repository is the **reference distribution** — the Buildroot `br2-externa
 ## Specification Reference
 
 Before touching any file here, read:
-- [`playos-spec/src/build-guide.md`](https://github.com/your-org/playos-spec/blob/main/src/build-guide.md) — Buildroot setup, br2-external layout, full make command reference
-- [`playos-spec/src/kernel-config.md`](https://github.com/your-org/playos-spec/blob/main/src/kernel-config.md) — kernel kconfig reference for AMD and Intel targets
-- [`playos-spec/src/dev-environment.md`](https://github.com/your-org/playos-spec/blob/main/src/dev-environment.md) — QEMU dev workflow, USB boot, env vars
-- [`playos-spec/src/Sprint-0.md`](https://github.com/your-org/playos-spec/blob/main/src/sprints/Sprint-0.md) — Sprint 0 exit criteria (what "bootable" means)
+- [`playos-spec/src/build-guide.md`](https://github.com/PlayOS-Foundation/playos-spec/blob/main/src/build-guide.md) — Buildroot setup, br2-external layout, full make command reference
+- [`playos-spec/src/kernel-config.md`](https://github.com/PlayOS-Foundation/playos-spec/blob/main/src/kernel-config.md) — kernel kconfig reference for AMD and Intel targets
+- [`playos-spec/src/dev-environment.md`](https://github.com/PlayOS-Foundation/playos-spec/blob/main/src/dev-environment.md) — QEMU dev workflow, USB boot, env vars
+- [`playos-spec/src/Sprint-0.md`](https://github.com/PlayOS-Foundation/playos-spec/blob/main/src/sprints/Sprint-0.md) — Sprint 0 exit criteria (what "bootable" means)
 
 ## Repository Layout
 

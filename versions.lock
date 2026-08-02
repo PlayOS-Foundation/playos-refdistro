@@ -1,0 +1,41 @@
+# versions.lock — PlayOS component version pins
+#
+# ALL entries must be full commit SHAs or exact version tags.
+# Never use branch names or 'latest'.
+# Update via: scripts/update-versions.sh --component <name> --commit <sha>
+#
+# ── Buildroot ─────────────────────────────────────────────────────────────
+BUILDROOT_COMMIT=
+BUILDROOT_SOURCE=https://git.buildroot.net/buildroot
+
+# ── Linux kernel ──────────────────────────────────────────────────────────
+LINUX_VERSION=
+LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
+LINUX_SHA256=
+
+# ── PlayOS components ─────────────────────────────────────────────────────
+PLAYOS_SPEC_COMMIT=
+PLAYOS_PLATFORM_API_COMMIT=
+PLAYOS_RUNTIME_COMMIT=
+PLAYOS_COMPOSITOR_COMMIT=
+PLAYOS_SHELL_COMMIT=
+
+# ── Key dependencies ──────────────────────────────────────────────────────
+WLROOTS_COMMIT=
+WLROOTS_SOURCE=https://gitlab.freedesktop.org/wlroots/wlroots
+
+RAYLIB_COMMIT=
+RAYLIB_SOURCE=https://github.com/raysan5/raylib
+
+MESA_VERSION=
+MESA_SOURCE=https://mesa.freedesktop.org/archive/
+
+WAYLAND_VERSION=
+WAYLAND_PROTOCOLS_VERSION=
+LIBDRM_VERSION=
+LIBINPUT_VERSION=
+LIBXKBCOMMON_VERSION=
+
+# ── Toolchain ─────────────────────────────────────────────────────────────
+TOOLCHAIN_MUSL_VERSION=
+GCC_VERSION=

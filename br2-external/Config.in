@@ -1,0 +1,9 @@
+menu "PlayOS packages"
+    source "$BR2_EXTERNAL_PLAYOS_PATH/package/playos-init/Config.in"
+    source "$BR2_EXTERNAL_PLAYOS_PATH/package/playos-platform-api/Config.in"
+    source "$BR2_EXTERNAL_PLAYOS_PATH/package/playos-runtime/Config.in"
+    source "$BR2_EXTERNAL_PLAYOS_PATH/package/playos-compositor/Config.in"
+    source "$BR2_EXTERNAL_PLAYOS_PATH/package/playos-shell/Config.in"
+    source "$BR2_EXTERNAL_PLAYOS_PATH/package/playos-overlay/Config.in"
+    source "$BR2_EXTERNAL_PLAYOS_PATH/package/raylib-playos/Config.in"
+endmenu

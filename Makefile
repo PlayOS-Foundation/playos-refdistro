@@ -146,11 +146,8 @@ ally-usb-image: ally-build ## Produce a USB-bootable disk image for the ROG Ally
 
 .PHONY: ally-flash
 ally-flash: ally-usb-image ## Flash PlayOS to a USB drive (prompts for device)
-	@IMAGE="$(ALLY_OUTPUT)/images/playos-ally-usb.img"; \
-	if [ ! -f "$$IMAGE" ]; then \
-		echo "ERROR: USB image not found at $$IMAGE. Run 'make ally-usb-image' first."; exit 1; \
-	fi; \
-	sudo bash scripts/flash-usb.sh "$$IMAGE"
+	@echo "==> USB image: $(ALLY_OUTPUT)/images/playos-ally-usb.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(ALLY_OUTPUT)/images/playos-ally-usb.img"
 
 # ── Clean targets ────────────────────────────────────────────────────────
 .PHONY: clean

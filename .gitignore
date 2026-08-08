@@ -13,6 +13,11 @@ CMakeCache.txt
 cmake_install.cmake
 # !Makefile — we intentionally track the top-level developer Makefile
 
+# Cloned source dependencies (from make setup)
+src/playos-compositor
+src/playos-init
+src/playos-runtime
+
 # Generated Wayland protocol files
 gen/
 
@@ -24,7 +29,6 @@ gen/
 .DS_Store
 
 # Logs
-*.logbuild_host/
-src/playos-compositor
-output/
+*.log
 build_host/
+output/

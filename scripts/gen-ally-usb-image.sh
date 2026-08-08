@@ -6,6 +6,10 @@
 #
 # Produces: <ally-output-dir>/images/playos-ally-usb.img
 #
+# Boot method: EFI stub (CONFIG_EFI_STUB=y).
+# The kernel bzImage with embedded initramfs is placed as
+# EFI/BOOT/BOOTX64.EFI — no intermediate bootloader.
+#
 # Partition layout (GPT):
 #   1. ESP        256 MiB  FAT32  (EFI System Partition)
 #   2. playos-a   2048 MiB ext2   (System A, immutable)
@@ -21,24 +25,14 @@ if [[ -z "$ALLY_OUTPUT" ]]; then
 fi
 
 IMAGES_DIR="$ALLY_OUTPUT/images"
-HOST_DIR="$ALLY_OUTPUT/host"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BR2_EXTERNAL="$SCRIPT_DIR/../br2-external"
 
 # ── Find boot artifacts ────────────────────────────────────────────
 BZIMAGE=""
-INITRAMFS=""
 
 for candidate in "$IMAGES_DIR/bzImage" "$ALLY_OUTPUT/build/linux-"*/arch/x86/boot/bzImage; do
     if [[ -f "$candidate" ]]; then
         BZIMAGE="$candidate"
-        break
-    fi
-done
-
-for candidate in "$IMAGES_DIR/rootfs.cpio" "$IMAGES_DIR/rootfs.initramfs"; do
-    if [[ -f "$candidate" ]]; then
-        INITRAMFS="$candidate"
         break
     fi
 done
@@ -48,21 +42,19 @@ if [[ -z "$BZIMAGE" ]]; then
     exit 1
 fi
 
-if [[ -z "$INITRAMFS" ]]; then
-    echo "ERROR: initramfs not found. Run 'make ally-build' first." >&2
-    exit 1
+# Verify this is an EFI stub kernel
+if ! grep -aq "EFI.*STUB" "$BZIMAGE" 2>/dev/null && ! file "$BZIMAGE" 2>/dev/null | grep -q "EFI"; then
+    echo "WARNING: Kernel may not be built with CONFIG_EFI_STUB=y." >&2
+    echo "         UEFI direct boot may fail." >&2
 fi
 
-echo "==> Kernel:     $BZIMAGE"
-echo "==> initramfs:  $INITRAMFS"
+echo "==> Kernel (EFI stub): $BZIMAGE"
 
 # ── Calculate image size ───────────────────────────────────────────
 ESP_SIZE_MB=256
 SYSTEM_A_SIZE_MB=2048
 DATA_SIZE_MB=1024
-IMAGE_SIZE_MB=$((ESP_SIZE_MB + SYSTEM_A_SIZE_MB + DATA_SIZE_MB + 1))  # +1 for GPT overhead
-IMAGE_SIZE_SECTORS=$((IMAGE_SIZE_MB * 2048))
-
+IMAGE_SIZE_MB=$((ESP_SIZE_MB + SYSTEM_A_SIZE_MB + DATA_SIZE_MB + 1))
 IMAGE_PATH="$IMAGES_DIR/playos-ally-usb.img"
 echo "==> Creating disk image: ${IMAGE_SIZE_MB} MiB..."
 
@@ -70,7 +62,6 @@ echo "==> Creating disk image: ${IMAGE_SIZE_MB} MiB..."
 dd if=/dev/zero of="$IMAGE_PATH" bs=1M count="$IMAGE_SIZE_MB" status=none 2>/dev/null
 
 # ── Partition with sgdisk (GPT) ─────────────────────────────────────
-# Check for sgdisk
 if command -v sgdisk &>/dev/null; then
     sgdisk --zap-all "$IMAGE_PATH"
     sgdisk -n 1:2048:+${ESP_SIZE_MB}M      -t 1:EF00 -c 1:"ESP"        "$IMAGE_PATH"
@@ -78,19 +69,12 @@ if command -v sgdisk &>/dev/null; then
     sgdisk -n 3:0:+${DATA_SIZE_MB}M         -t 3:8300 -c 3:"playos-data" "$IMAGE_PATH"
 else
     echo "WARNING: sgdisk not found. Falling back to sfdisk."
-    # sfdisk fallback
     ESP_START=2048
-    ESP_END=$((ESP_START + ESP_SIZE_MB * 2048 - 1))
-    SYSTEM_START=$((ESP_END + 1))
-    SYSTEM_END=$((SYSTEM_START + SYSTEM_A_SIZE_MB * 2048 - 1))
-    DATA_START=$((SYSTEM_END + 1))
-    DATA_END=$((DATA_START + DATA_SIZE_MB * 2048 - 1))
-
     sfdisk "$IMAGE_PATH" <<EOF
 label: gpt
 start=$ESP_START, size=$((ESP_SIZE_MB * 2048)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="ESP"
-start=$SYSTEM_START, size=$((SYSTEM_A_SIZE_MB * 2048)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="playos-a"
-start=$DATA_START, size=$((DATA_SIZE_MB * 2048)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="playos-data"
+start=$((ESP_START + ESP_SIZE_MB * 2048)), size=$((SYSTEM_A_SIZE_MB * 2048)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="playos-a"
+start=$((ESP_START + (ESP_SIZE_MB + SYSTEM_A_SIZE_MB) * 2048)), size=$((DATA_SIZE_MB * 2048)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="playos-data"
 EOF
 fi
 
@@ -107,7 +91,7 @@ trap cleanup_loop EXIT
 
 LOOP_DEV=$(sudo losetup --partscan --find --show "$IMAGE_PATH")
 echo "==> Loop device: $LOOP_DEV"
-sleep 1  # Wait for partition detection
+sleep 1
 
 ESP_PART="${LOOP_DEV}p1"
 SYSTEM_PART="${LOOP_DEV}p2"
@@ -125,52 +109,16 @@ echo "==> System A formatted (ext2)"
 sudo mkfs.ext4 -q -F -L "playos-data" "$DATA_PART" 2>/dev/null
 echo "==> Data formatted (ext4)"
 
-# ── Mount and populate ESP ─────────────────────────────────────────
+# ── Mount and populate ESP (EFI stub boot — no GRUB) ──────────────
 ESP_MOUNT="$(mktemp -d)"
 sudo mount "$ESP_PART" "$ESP_MOUNT"
 
 # Create ESP directory structure
 sudo mkdir -p "$ESP_MOUNT/EFI/BOOT"
-sudo mkdir -p "$ESP_MOUNT/boot"
 
-# Copy kernel and initramfs
-sudo cp "$BZIMAGE" "$ESP_MOUNT/boot/bzImage"
-sudo cp "$INITRAMFS" "$ESP_MOUNT/boot/initramfs.cpio"
-echo "==> Kernel and initramfs copied to ESP."
-
-# Copy GRUB config
-sudo cp "$BR2_EXTERNAL/board/ally/grub.cfg" "$ESP_MOUNT/boot/grub/grub.cfg" 2>/dev/null || \
-    sudo mkdir -p "$ESP_MOUNT/boot/grub" && \
-    sudo cp "$BR2_EXTERNAL/board/ally/grub.cfg" "$ESP_MOUNT/boot/grub/grub.cfg"
-
-# Install GRUB EFI bootloader
-if command -v grub-install &>/dev/null; then
-    sudo grub-install \
-        --target=x86_64-efi \
-        --efi-directory="$ESP_MOUNT" \
-        --boot-directory="$ESP_MOUNT/boot" \
-        --removable \
-        --recheck \
-        "$LOOP_DEV" 2>/dev/null || \
-        echo "WARNING: grub-install failed. The image may need manual GRUB setup."
-else
-    echo "WARNING: grub-install not found. GRUB EFI bootloader not installed."
-    echo "         For UEFI boot, copy BOOTX64.EFI to EFI/BOOT/ manually."
-fi
-
-# Use host GRUB from Buildroot if available
-if [[ -d "$HOST_DIR" ]]; then
-    HOST_GRUB="$HOST_DIR/sbin/grub-install"
-    if [[ -x "$HOST_GRUB" ]]; then
-        echo "==> Using Buildroot host grub-install..."
-        sudo "$HOST_GRUB" \
-            --target=x86_64-efi \
-            --efi-directory="$ESP_MOUNT" \
-            --boot-directory="$ESP_MOUNT/boot" \
-            --removable \
-            "$LOOP_DEV" 2>/dev/null || true
-    fi
-fi
+# Place kernel as EFI/BOOT/BOOTX64.EFI (EFI stub — UEFI boots it directly)
+sudo cp "$BZIMAGE" "$ESP_MOUNT/EFI/BOOT/BOOTX64.EFI"
+echo "==> Kernel installed as EFI/BOOT/BOOTX64.EFI (EFI stub, no GRUB)"
 
 sudo umount "$ESP_MOUNT"
 rmdir "$ESP_MOUNT"
@@ -186,6 +134,8 @@ echo "  ╚═══════════════════════
 echo ""
 echo "  Image: $IMAGE_PATH"
 echo "  Size:  $(du -h "$IMAGE_PATH" | cut -f1)"
+echo ""
+echo "  Boot:  EFI stub — UEFI boots EFI/BOOT/BOOTX64.EFI directly"
 echo ""
 echo "  To flash to USB:  make ally-flash"
 echo "  Or manually:      sudo dd if=$IMAGE_PATH of=/dev/sdX bs=4M status=progress conv=fsync"

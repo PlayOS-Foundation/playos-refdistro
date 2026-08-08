@@ -41,10 +41,9 @@ BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay"
 BR2_TARGET_ROOTFS_EXT2=y
 BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
 
-# ── Bootloader (UEFI) ─────────────────────────────────────────────
-BR2_TARGET_GRUB2=y
-BR2_TARGET_GRUB2_X86_64_EFI=y
-BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat part_gpt normal configfile echo test"
+# ── Bootloader (UEFI direct EFI stub, no GRUB) ───────────────────
+# Kernel is built with CONFIG_EFI_STUB=y and placed directly as
+# EFI/BOOT/BOOTX64.EFI on the ESP. No intermediate bootloader needed.
 
 # ── Packages — Base system ────────────────────────────────────────
 BR2_PACKAGE_BUSYBOX=y
@@ -81,4 +80,3 @@ BR2_PACKAGE_EVTEST=y
 BR2_PACKAGE_HOST_DOSFSTOOLS=y
 BR2_PACKAGE_HOST_GENIMAGE=y
 BR2_PACKAGE_HOST_MTOOLS=y
-BR2_PACKAGE_HOST_GRUB2=y

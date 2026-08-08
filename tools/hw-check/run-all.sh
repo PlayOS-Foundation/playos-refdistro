@@ -13,6 +13,9 @@ set -e
 HW_LOG="/run/playos/hw-check.log"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Ensure log directory exists
+mkdir -p /run/playos
+
 # Clear previous log
 : > "$HW_LOG"
 

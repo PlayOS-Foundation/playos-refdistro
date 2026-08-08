@@ -48,9 +48,9 @@ target_include_directories(playos-init PRIVATE include ipc)
 
 # ── Compositor placeholder ─────────────────────────────────────────
 
-add_executable(playos-compositor tests/playos-compositor-placeholder.c)
-target_compile_options(playos-compositor PRIVATE -Wall -Wextra)
-target_link_options(playos-compositor PRIVATE -static)
+add_executable(playos-compositor-placeholder tests/playos-compositor-placeholder.c)
+target_compile_options(playos-compositor-placeholder PRIVATE -Wall -Wextra)
+target_link_options(playos-compositor-placeholder PRIVATE -static)
 
 # ── Game stub (for lifecycle testing) ──────────────────────────────
 
@@ -89,7 +89,7 @@ target_link_options(playos-init PRIVATE
 # ── Install ─────────────────────────────────────────────────────────
 
 install(TARGETS playos-init RUNTIME DESTINATION /)
-install(TARGETS playos-compositor RUNTIME DESTINATION /usr/bin)
+install(TARGETS playos-compositor-placeholder RUNTIME DESTINATION /usr/bin)
 install(TARGETS playos-game-stub RUNTIME DESTINATION /usr/bin)
 install(TARGETS ipc-test-client RUNTIME DESTINATION /usr/bin)
 

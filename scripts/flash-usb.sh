@@ -30,12 +30,18 @@ fi
 echo "==> Scanning for removable USB storage devices..."
 echo ""
 
-# Collect removable block devices (lsblk RM=1 means removable)
+# Collect removable USB block devices using lsblk key=value pairs
+# (avoids column-splitting bugs from model names with spaces like "SanDisk 3.2Gen1")
 DEVICES=()
 while IFS= read -r line; do
     DEVICES+=("$line")
-done < <(lsblk -d -o NAME,SIZE,MODEL,TRAN,RM -n 2>/dev/null | \
-    awk '$4 == "usb" || $5 == "1" {printf "%-10s %-10s %-20s\n", $1, $2, $3}')
+done < <(lsblk -d -P -o NAME,SIZE,MODEL,TRAN,RM -n 2>/dev/null | \
+    while IFS= read -r entry; do
+        eval "$entry"
+        if [[ "$TRAN" == "usb" || "$RM" == "1" ]]; then
+            printf "%-10s %-10s %s\n" "$NAME" "$SIZE" "$MODEL"
+        fi
+    done)
 
 if [[ ${#DEVICES[@]} -eq 0 ]]; then
     echo "No removable USB storage devices detected."
@@ -62,7 +68,7 @@ if ! [[ "$SELECTION" =~ ^[0-9]+$ ]] || \
 fi
 
 SELECTED_LINE="${DEVICES[$((SELECTION - 1))]}"
-DEV_NAME=$(echo "$SELECTED_LINE" | awk '{print $1}')
+DEV_NAME="${SELECTED_LINE%% *}"   # first field (padded with space)
 DEV_PATH="/dev/$DEV_NAME"
 
 if [[ ! -b "$DEV_PATH" ]]; then

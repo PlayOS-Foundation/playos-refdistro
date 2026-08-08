@@ -3,7 +3,7 @@
 ################################################################################
 
 PLAYOS_RUNTIME_VERSION = 0.1.0
-PLAYOS_RUNTIME_SITE = $(BR2_EXTERNAL_PlayOS_PATH)/../src/playos-runtime
+PLAYOS_RUNTIME_SITE = $(TOPDIR)/../src/playos-runtime
 PLAYOS_RUNTIME_SITE_METHOD = local
 PLAYOS_RUNTIME_INSTALL_STAGING = YES
 

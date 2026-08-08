@@ -20,6 +20,12 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 # Source shared logging (if present)
 -include $(SCRIPTS_DIR)/lib/playos_log.mk
 
+# ── Version pins (from versions.lock) ────────────────────────────────────
+VERSIONS_LOCK := $(CURDIR)/versions.lock
+PLAYOS_INIT_COMMIT := $(shell grep -s '^PLAYOS_INIT_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
+PLAYOS_COMPOSITOR_COMMIT := $(shell grep -s '^PLAYOS_COMPOSITOR_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
+PLAYOS_RUNTIME_COMMIT := $(shell grep -s '^PLAYOS_RUNTIME_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
+
 # ── Default target ───────────────────────────────────────────────────────
 .DEFAULT_GOAL := help
 
@@ -42,10 +48,26 @@ setup: ## Clone Buildroot, apply br2-external, check dependencies
 	@if [ ! -d "$(CURDIR)/src/playos-init" ]; then \
 		echo "  -> playos-init..."; \
 		git clone https://github.com/PlayOS-Foundation/playos-init.git "$(CURDIR)/src/playos-init"; \
+		if [ -n "$(PLAYOS_INIT_COMMIT)" ]; then \
+			cd "$(CURDIR)/src/playos-init" && \
+			git fetch origin && git checkout "$(PLAYOS_INIT_COMMIT)"; \
+		fi; \
 	fi
 	@if [ ! -d "$(CURDIR)/src/playos-compositor" ]; then \
 		echo "  -> playos-compositor..."; \
 		git clone https://github.com/PlayOS-Foundation/playos-compositor.git "$(CURDIR)/src/playos-compositor"; \
+		if [ -n "$(PLAYOS_COMPOSITOR_COMMIT)" ]; then \
+			cd "$(CURDIR)/src/playos-compositor" && \
+			git fetch origin && git checkout "$(PLAYOS_COMPOSITOR_COMMIT)"; \
+		fi; \
+	fi
+	@if [ ! -d "$(CURDIR)/src/playos-runtime" ]; then \
+		echo "  -> playos-runtime..."; \
+		git clone https://github.com/PlayOS-Foundation/playos-runtime.git "$(CURDIR)/src/playos-runtime"; \
+		if [ -n "$(PLAYOS_RUNTIME_COMMIT)" ]; then \
+			cd "$(CURDIR)/src/playos-runtime" && \
+			git fetch origin && git checkout "$(PLAYOS_RUNTIME_COMMIT)"; \
+		fi; \
 	fi
 	@echo "==> Applying br2-external..."
 	@$(MAKE) -C "$(BUILDROOT_DIR)" BR2_EXTERNAL="$(BR2_EXTERNAL)" help > /dev/null 2>&1 || \

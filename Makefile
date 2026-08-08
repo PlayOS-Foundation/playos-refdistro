@@ -38,6 +38,15 @@ setup: ## Clone Buildroot, apply br2-external, check dependencies
 		echo "==> Cloning Buildroot..."; \
 		git clone --depth 1 https://git.buildroot.net/buildroot "$(BUILDROOT_DIR)"; \
 	fi
+	@echo "==> Cloning source repositories..."
+	@if [ ! -d "$(CURDIR)/src/playos-init" ]; then \
+		echo "  -> playos-init..."; \
+		git clone https://github.com/PlayOS-Foundation/playos-init.git "$(CURDIR)/src/playos-init"; \
+	fi
+	@if [ ! -d "$(CURDIR)/src/playos-compositor" ]; then \
+		echo "  -> playos-compositor..."; \
+		git clone https://github.com/PlayOS-Foundation/playos-compositor.git "$(CURDIR)/src/playos-compositor"; \
+	fi
 	@echo "==> Applying br2-external..."
 	@$(MAKE) -C "$(BUILDROOT_DIR)" BR2_EXTERNAL="$(BR2_EXTERNAL)" help > /dev/null 2>&1 || \
 		(echo "ERROR: Buildroot setup failed. Run 'make distclean' and retry." && exit 1)

@@ -1,6 +1,6 @@
 # AGENTS.md — playos-refdistro
 
-> **Implementation status:** 🟢 Sprint 0 Complete — All 10 Sprint 0 tasks done. Build infrastructure fully set up: `br2-external/` skeleton with 5 package stubs, QEMU x86_64 defconfig, BusyBox initramfs `/init` script, UEFI boot checker, developer `Makefile`, `versions.lock` with real SHAs, CI pipeline (`.github/workflows/qemu-build.yml`), `setup-ubuntu.sh`, and `playos_log.sh` logging framework. Ready for Sprint 1 (playos-init).
+> **Implementation status:** 🟢 Sprints 0-4 Integrated — Build infrastructure complete, `playos-init` packaged, `playos-compositor` packaged (Sprint 4 DRM/KMS), `playos-platform-api` packaged, wlroots 0.20 package, Ally and QEMU defconfigs, IPC sources live under `src/playos-init/ipc/`. Ready for Sprint 5 (Raylib + playos-shell).
 
 This repository is the **reference distribution** — the Buildroot `br2-external` tree that assembles all PlayOS components into a bootable, immutable system image for the ASUS ROG Ally (and QEMU for development). This is where the OS image is built; no C code lives here.
 
@@ -29,17 +29,16 @@ br2-external/
 │   │   ├── playos-init.mk
 │   │   └── Config.in
 │   ├── playos-compositor/
-│   │   ├── playos-compositor.mk
+│   │   ├── playos-compositor.mk   ← v0.4.0 (Sprint 4 DRM/KMS)
 │   │   └── Config.in
-│   ├── playos-shell/
+│   ├── playos-shell/              ← Sprint 5 (not yet packaged)
 │   │   ├── playos-shell.mk
 │   │   └── Config.in
 │   ├── playos-platform-api/
 │   │   ├── playos-platform-api.mk
 │   │   └── Config.in
 │   └── wlroots/
-│       ├── wlroots.mk
-│       └── Config.in
+│       ├── wlroots.mk             ← wlroots 0.20
 ├── board/
 │   ├── common/
 │   │   ├── rootfs-overlay/     ← Files overlaid onto the root filesystem
@@ -64,6 +63,10 @@ br2-external/
 | `br2-external/configs/playos_qemu_x86_64_defconfig` | QEMU build — use this for all dev work |
 | `br2-external/configs/playos_ally_defconfig` | ROG Ally production build |
 | `br2-external/board/common/rootfs-overlay/` | Files dropped verbatim onto the root fs |
+
+### IPC Sources
+
+IPC C sources (`ipc_client.c`, `ipc_server.c`, `lifecycle_fd.c`) live at `src/playos-init/ipc/` — they are part of the `playos-init` build, not a standalone runtime library.
 
 ## Make Targets
 
@@ -93,11 +96,12 @@ make distclean      # Remove everything including dl/
 # Component               Git SHA (40 chars)        Tag / branch hint
 BUILDROOT_SHA=            <sha>                     # buildroot-YYYY.MM
 LINUX_SHA=                <sha>                     # linux-6.x.y
-WLROOTS_SHA=              <sha>                     # v0.x.y
+WLROOTS_SHA=              <sha>                     # wlroots-0.20
 PLAYOS_INIT_SHA=          <sha>                     # from playos-init main
-PLAYOS_COMPOSITOR_SHA=    <sha>                     # from playos-compositor main
-PLAYOS_SHELL_SHA=         <sha>                     # from playos-shell main
+PLAYOS_COMPOSITOR_SHA=    <sha>                     # from playos-compositor main (Sprint 4: 13fb7d4...)
 PLAYOS_PLATFORM_API_SHA=  <sha>                     # from playos-platform-api main
+# PLAYOS_SHELL_SHA=       <sha>                     # Sprint 5 — not yet locked
+```
 ```
 
 All SHAs must be filled before tagging a release. CI will fail on empty values.

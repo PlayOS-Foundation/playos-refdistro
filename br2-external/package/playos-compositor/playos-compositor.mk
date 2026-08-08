@@ -1,11 +1,11 @@
 ################################################################################
-# playos-compositor — wlroots-based Wayland compositor (Sprint 2)
+# playos-compositor — wlroots-based Wayland compositor (Sprint 4)
 ################################################################################
 
-PLAYOS_COMPOSITOR_VERSION = 0.2.0
+PLAYOS_COMPOSITOR_VERSION = 0.4.0
 PLAYOS_COMPOSITOR_SITE = $(BR2_EXTERNAL_PlayOS_PATH)/../src/playos-compositor
 PLAYOS_COMPOSITOR_SITE_METHOD = local
-PLAYOS_COMPOSITOR_DEPENDENCIES = wlroots wayland wayland-protocols libxkbcommon pixman
+PLAYOS_COMPOSITOR_DEPENDENCIES = wlroots wayland wayland-protocols libxkbcommon pixman libdrm mesa3d
 PLAYOS_COMPOSITOR_INSTALL_STAGING = NO
 
 # Generated protocol source from playos-runtime is needed

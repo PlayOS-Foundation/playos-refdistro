@@ -146,30 +146,11 @@ ally-usb-image: ally-build ## Produce a USB-bootable disk image for the ROG Ally
 
 .PHONY: ally-flash
 ally-flash: ally-usb-image ## Flash PlayOS to a USB drive (prompts for device)
-	@echo "==> Available block devices:"
-	@lsblk -d -o NAME,SIZE,MODEL,TYPE | grep -E 'disk|NAME'
-	@echo ""
-	@read -p "Enter target USB device (e.g. sdb): " USB_DEV; \
-	if [ -z "$$USB_DEV" ]; then \
-		echo "ERROR: No device specified."; exit 1; \
-	fi; \
-	USB_PATH="/dev/$$USB_DEV"; \
-	if [ ! -b "$$USB_PATH" ]; then \
-		echo "ERROR: $$USB_PATH is not a block device."; exit 1; \
-	fi; \
-	echo ""; \
-	echo "WARNING: This will ERASE ALL DATA on $$USB_PATH!"; \
-	read -p "Are you sure? Type YES to confirm: " CONFIRM; \
-	if [ "$$CONFIRM" != "YES" ]; then \
-		echo "Aborted."; exit 1; \
-	fi; \
-	echo "==> Writing image to $$USB_PATH..."; \
-	IMAGE="$(ALLY_OUTPUT)/images/playos-ally-usb.img"; \
+	@IMAGE="$(ALLY_OUTPUT)/images/playos-ally-usb.img"; \
 	if [ ! -f "$$IMAGE" ]; then \
 		echo "ERROR: USB image not found at $$IMAGE. Run 'make ally-usb-image' first."; exit 1; \
 	fi; \
-	sudo dd if="$$IMAGE" of="$$USB_PATH" bs=4M status=progress conv=fsync; \
-	echo "==> Flash complete. Safe to remove $$USB_PATH."
+	sudo bash scripts/flash-usb.sh "$$IMAGE"
 
 # ── Clean targets ────────────────────────────────────────────────────────
 .PHONY: clean

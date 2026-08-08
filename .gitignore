@@ -24,4 +24,6 @@ gen/
 .DS_Store
 
 # Logs
-*.log
+*.logbuild_host/
+src/playos-compositor
+output/

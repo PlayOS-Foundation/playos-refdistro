@@ -51,6 +51,12 @@ BR2_PACKAGE_BUSYBOX=y
 BR2_PACKAGE_BUSYBOX_CONFIG="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/busybox.config"
 BR2_PACKAGE_EUDEV=y
 
+# ── Packages — Graphics stack ────────────────────────────────────
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_SOFTPIPE=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_OPENGL_ES=y
+
 # ── Packages — PlayOS components ──────────────────────────────────
 BR2_PACKAGE_PLAYOS_INIT=y
 BR2_PACKAGE_PLAYOS_PLATFORM_API=y

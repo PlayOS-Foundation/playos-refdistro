@@ -15,11 +15,5 @@ PLAYOS_COMPOSITOR_CONF_OPTS = \
 	-DCMAKE_C_EXTENSIONS=OFF \
 	-DBUILD_TESTS=OFF
 
-# Install the compositor binary and test client
-define PLAYOS_COMPOSITOR_INSTALL_EXTRA
-	$(INSTALL) -D -m 0755 $(@D)/playos-test-client $(TARGET_DIR)/usr/bin/playos-test-client
-endef
-PLAYOS_COMPOSITOR_POST_INSTALL_TARGET_HOOKS += PLAYOS_COMPOSITOR_INSTALL_EXTRA
-
 $(eval $(cmake-package))
 

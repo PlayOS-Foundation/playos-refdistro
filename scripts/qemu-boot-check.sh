@@ -19,6 +19,7 @@ TIMEOUT="${1:-30}"
 QEMU_OUTPUT="${QEMU_OUTPUT:-$SCRIPT_DIR/../output/qemu}"
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS="${OVMF_VARS:-/usr/share/OVMF/OVMF_VARS_4M.fd}"
+DATA_DISK="${DATA_DISK:-$SCRIPT_DIR/../output/qemu/images/data.img}"
 
 playos_log_step "PlayOS QEMU Boot Check"
 
@@ -71,6 +72,16 @@ fi
 
 playos_log_info "boot" "Using OVMF: $OVMF_CODE"
 
+# ── Create data disk if missing ────────────────────────────────────
+if [[ ! -f "$DATA_DISK" ]]; then
+    playos_log_info "data" "Creating data disk image: $DATA_DISK"
+    mkdir -p "$(dirname "$DATA_DISK")"
+    # Create a 256MB qcow2 image with ext4 and label "playos-data"
+    dd if=/dev/zero of="$DATA_DISK" bs=1M count=256 status=none 2>/dev/null
+    /sbin/mkfs.ext4 -q -F -L "playos-data" "$DATA_DISK" 2>/dev/null
+    playos_log_ok "data" "Data disk created (256MB, ext4, label=playos-data)"
+fi
+
 # ── Create temp OVMF vars ──────────────────────────────────────────
 OVMF_VARS_TMP="$(mktemp)"
 if [[ -f "$OVMF_VARS" ]]; then
@@ -94,6 +105,8 @@ timeout "$TIMEOUT" qemu-system-x86_64 \
     -drive if=pflash,format=raw,file="$OVMF_VARS_TMP" \
     -kernel "$BZIMAGE" \
     -initrd "$INITRAMFS" \
+    -drive if=none,id=data,format=raw,file="$DATA_DISK" \
+    -device virtio-blk-pci,drive=data \
     -append "console=ttyS0,115200n8 earlyprintk=serial,ttyS0,115200n8 quiet" \
     -serial stdio \
     -display none \
@@ -110,8 +123,12 @@ set -e
 # ── Verify boot output ─────────────────────────────────────────────
 playos_log_step "Boot Log Analysis"
 
-if grep -q "PlayOS.*Sprint 0" "$BOOT_LOG" 2>/dev/null; then
-    playos_log_ok "verify" "Boot banner detected — PlayOS reached init!"
+if grep -q "PlayOS.*Sprint 1" "$BOOT_LOG" 2>/dev/null; then
+    playos_log_ok "verify" "Boot banner detected — playos-init reached PID 1!"
+elif grep -q "playos-init starting as PID 1" "$BOOT_LOG" 2>/dev/null; then
+    playos_log_ok "verify" "playos-init started as PID 1!"
+elif grep -q "PlayOS.*Sprint 0" "$BOOT_LOG" 2>/dev/null; then
+    playos_log_ok "verify" "Sprint 0 boot banner detected (fallback BusyBox init)!"
 elif grep -q "BusyBox" "$BOOT_LOG" 2>/dev/null; then
     playos_log_ok "verify" "BusyBox shell reached!"
 elif grep -q "Kernel panic" "$BOOT_LOG" 2>/dev/null; then

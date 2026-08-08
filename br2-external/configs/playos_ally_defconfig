@@ -1,0 +1,84 @@
+# PlayOS ROG Ally x86_64 Production Configuration
+#
+# This is the production target for ASUS ROG Ally (2023) hardware.
+# Development QEMU configuration is in playos_qemu_x86_64_defconfig.
+#
+# Generated: Sprint 3 — ROG Ally Hardware Bring-Up
+
+# ── Architecture ──────────────────────────────────────────────────
+BR2_x86_64=y
+BR2_x86_64_haswell=y
+
+# ── System ────────────────────────────────────────────────────────
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
+BR2_ROOTFS_DEVICE_TABLE=""
+BR2_ROOTFS_POST_BUILD_SCRIPT=""
+BR2_TARGET_GENERIC_HOSTNAME="playos-ally"
+BR2_TARGET_GENERIC_ISSUE="PlayOS (ROG Ally)"
+BR2_TARGET_GENERIC_GETTY_PORT="tty1"
+BR2_TARGET_GENERIC_GETTY_BAUDRATE_115200=y
+
+# ── Kernel ────────────────────────────────────────────────────────
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.12"
+BR2_LINUX_KERNEL_USE_CUSTOM_CONFIG=y
+BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/linux.config"
+BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_PlayOS_PATH)/board/patches"
+BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
+
+# ── Toolchain ─────────────────────────────────────────────────────
+BR2_TOOLCHAIN_BUILDROOT_MUSL=y
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+BR2_KERNEL_HEADERS_6_12=y
+
+# ── Initramfs ─────────────────────────────────────────────────────
+BR2_TARGET_ROOTFS_INITRAMFS=y
+BR2_TARGET_ROOTFS_INITRAMFS_CUSTOM=y
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay"
+
+# ── Filesystem images ─────────────────────────────────────────────
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
+
+# ── Bootloader (UEFI) ─────────────────────────────────────────────
+BR2_TARGET_GRUB2=y
+BR2_TARGET_GRUB2_X86_64_EFI=y
+BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat part_gpt normal configfile echo test"
+
+# ── Packages — Base system ────────────────────────────────────────
+BR2_PACKAGE_BUSYBOX=y
+BR2_PACKAGE_BUSYBOX_CONFIG="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/busybox.config"
+BR2_PACKAGE_EUDEV=y
+
+# ── Packages — Firmware ───────────────────────────────────────────
+BR2_PACKAGE_LINUX_FIRMWARE=y
+BR2_PACKAGE_LINUX_FIRMWARE_AMDGPU=y
+BR2_PACKAGE_LINUX_FIRMWARE_AMD_UCODE=y
+
+# ── Packages — Graphics stack ────────────────────────────────────
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_RADEONSI=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_OPENGL_ES=y
+BR2_PACKAGE_MESA3D_VULKAN_DRIVER_AMD=y
+
+# ── Packages — PlayOS components ──────────────────────────────────
+BR2_PACKAGE_PLAYOS_INIT=y
+BR2_PACKAGE_PLAYOS_PLATFORM_API=y
+BR2_PACKAGE_PLAYOS_RUNTIME=y
+BR2_PACKAGE_PLAYOS_COMPOSITOR=y
+BR2_PACKAGE_PLAYOS_SHELL=y
+
+# ── Packages — Audio tools (for hw-check) ─────────────────────────
+BR2_PACKAGE_ALSA_UTILS=y
+BR2_PACKAGE_ALSA_UTILS_APLAY=y
+
+# ── Packages — Hardware utilities ─────────────────────────────────
+BR2_PACKAGE_EVTEST=y
+
+# ── Host utilities ────────────────────────────────────────────────
+BR2_PACKAGE_HOST_DOSFSTOOLS=y
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_PACKAGE_HOST_MTOOLS=y
+BR2_PACKAGE_HOST_GRUB2=y

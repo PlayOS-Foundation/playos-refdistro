@@ -64,6 +64,12 @@ int playos_ipc_client_recv(int fd, struct playos_ipc_message *out, size_t max)
         return total;
     }
 
+    if (playos_ipc_frame_validate(frame) != 0) {
+        free(frame);
+        errno = EBADMSG;
+        return -1;
+    }
+
     if (playos_ipc_message_parse(frame->body, frame->length, out) != 0) {
         free(frame);
         return -1;

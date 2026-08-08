@@ -15,6 +15,46 @@
 #include "playos-init/init.h"
 #include "playos-init/mount.h"
 
+/* ── GPT helpers ─────────────────────────────────────────────────── */
+
+/** Decode little-endian uint32 from raw bytes. */
+static inline uint32_t le32_dec(const unsigned char *p)
+{
+    return ((uint32_t)p[0])
+         | ((uint32_t)p[1] << 8)
+         | ((uint32_t)p[2] << 16)
+         | ((uint32_t)p[3] << 24);
+}
+
+/** Decode little-endian uint64 from raw bytes. */
+static inline uint64_t le64_dec(const unsigned char *p)
+{
+    return ((uint64_t)p[0])
+         | ((uint64_t)p[1] << 8)
+         | ((uint64_t)p[2] << 16)
+         | ((uint64_t)p[3] << 24)
+         | ((uint64_t)p[4] << 32)
+         | ((uint64_t)p[5] << 40)
+         | ((uint64_t)p[6] << 48)
+         | ((uint64_t)p[7] << 56);
+}
+
+/*
+ * PlayOS data partition type GUID in GPT mixed-endian binary form.
+ *
+ * UUID: 4B9A8721-1AB3-40E2-9F0C-8B3D4E5F6071
+ *   data1 (LE): 0x4B9A8721  →  21 87 9A 4B
+ *   data2 (LE): 0x1AB3      →  B3 1A
+ *   data3 (LE): 0x40E2      →  E2 40
+ *   data4 (BE): 9F0C-8B3D-4E5F6071  →  9F 0C 8B 3D 4E 5F 60 71
+ */
+static const unsigned char PLAYOS_DATA_TYPE_GUID[16] = {
+    0x21, 0x87, 0x9A, 0x4B,
+    0xB3, 0x1A,
+    0xE2, 0x40,
+    0x9F, 0x0C, 0x8B, 0x3D, 0x4E, 0x5F, 0x60, 0x71
+};
+
 /* ── External logging ────────────────────────────────────────────── */
 
 void playos_log_write(struct playos_init_state *s, const char *tag,
@@ -182,8 +222,94 @@ static int find_data_partition(char *device_path, size_t path_size)
         }
     }
 
-    /* Strategy 4: GPT partition type GUID (placeholder) */
-    /* TODO: iterate /dev/disk/by-partuuid/ for the PlayOS data GUID */
+    /* Strategy 4: GPT partition type GUID */
+    {
+        FILE *gpt_parts = fopen("/proc/partitions", "r");
+        if (gpt_parts) {
+            char gpt_line[256];
+            fgets(gpt_line, sizeof(gpt_line), gpt_parts); /* skip hdr */
+            fgets(gpt_line, sizeof(gpt_line), gpt_parts); /* skip hdr */
+            while (fgets(gpt_line, sizeof(gpt_line), gpt_parts)) {
+                char gpt_name[64] = {0};
+                if (sscanf(gpt_line, "%*d %*d %*d %63s", gpt_name) != 1)
+                    continue;
+
+                char gpt_dev[128];
+                snprintf(gpt_dev, sizeof(gpt_dev), "/dev/%s", gpt_name);
+
+                int gfd = open(gpt_dev, O_RDONLY);
+                if (gfd < 0) continue;
+
+                /* Read GPT header at LBA 1 (byte 512) */
+                unsigned char hdr[512];
+                if (lseek(gfd, 512, SEEK_SET) != 512
+                    || read(gfd, hdr, 512) != 512) {
+                    close(gfd);
+                    continue;
+                }
+
+                /* Validate GPT signature "EFI PART" */
+                if (memcmp(hdr, "EFI PART", 8) != 0) {
+                    close(gfd);
+                    continue;
+                }
+
+                uint64_t entry_lba  = le64_dec(hdr + 72);
+                uint32_t entry_cnt  = le32_dec(hdr + 80);
+                uint32_t entry_sz   = le32_dec(hdr + 84);
+
+                if (entry_cnt == 0 || entry_sz < 128
+                    || entry_cnt > 256) {
+                    close(gfd);
+                    continue;
+                }
+
+                size_t  arr_sz = (size_t)entry_cnt * entry_sz;
+                off_t   arr_of = (off_t)entry_lba * 512;
+                unsigned char *entries = (unsigned char *)malloc(arr_sz);
+                if (!entries) { close(gfd); continue; }
+
+                if (lseek(gfd, arr_of, SEEK_SET) != arr_of
+                    || read(gfd, entries, arr_sz) != (ssize_t)arr_sz) {
+                    free(entries);
+                    close(gfd);
+                    continue;
+                }
+                close(gfd);
+
+                int part_num = -1;
+                for (uint32_t i = 0; i < entry_cnt; i++) {
+                    unsigned char *e = entries + (size_t)i * entry_sz;
+                    if (memcmp(e, PLAYOS_DATA_TYPE_GUID, 16) == 0) {
+                        part_num = (int)(i + 1); /* 1-based */
+                        break;
+                    }
+                }
+                free(entries);
+
+                if (part_num > 0) {
+                    /* Build partition device path.
+                     * NVMe (/dev/nvme0n1p1) and MMC (/dev/mmcblk0p1)
+                     * use 'p' separator.  SCSI/SATA/VirtIO use simple
+                     * suffix: /dev/sda1, /dev/vda1. */
+                    if (strncmp(gpt_name, "nvme", 4) == 0
+                        || strstr(gpt_name, "mmcblk")) {
+                        snprintf(device_path, path_size,
+                                 "/dev/%sp%d", gpt_name, part_num);
+                    } else {
+                        snprintf(device_path, path_size,
+                                 "/dev/%s%d", gpt_name, part_num);
+                    }
+                    fclose(gpt_parts);
+                    dprintf(STDERR_FILENO,
+                            "playos-init: data partition by GPT GUID:"
+                            " %s\n", device_path);
+                    return 0;
+                }
+            }
+            fclose(gpt_parts);
+        }
+    }
 
     /* Strategy 5: Kernel command line */
     FILE *cmdline = fopen("/proc/cmdline", "r");

@@ -1,0 +1,8 @@
+config BR2_PACKAGE_PLAYOS_SHELL
+	bool "playos-shell"
+	help
+	  Controller-first, fullscreen Raylib shell application.
+	  Home screen, game library, settings, and system overlay trigger.
+	  Always alive as a trusted Wayland client.
+
+	  https://github.com/PlayOS-Foundation/playos-shell

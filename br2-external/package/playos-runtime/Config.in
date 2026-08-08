@@ -1,0 +1,8 @@
+config BR2_PACKAGE_PLAYOS_RUNTIME
+	bool "playos-runtime"
+	help
+	  Internal runtime IPC layer — Unix domain socket protocol
+	  and Wayland protocol XML connecting playos-init,
+	  playos-compositor, playos-shell, and playos-overlay.
+
+	  https://github.com/PlayOS-Foundation/playos-runtime

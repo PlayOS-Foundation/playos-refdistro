@@ -1,0 +1,8 @@
+config BR2_PACKAGE_PLAYOS_INIT
+	bool "playos-init"
+	help
+	  PlayOS init system — PID 1 supervisor.
+	  Handles boot sequence, process supervision, game launch/kill,
+	  and storage management.
+
+	  https://github.com/PlayOS-Foundation/playos-refdistro

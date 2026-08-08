@@ -1,0 +1,8 @@
+config BR2_PACKAGE_PLAYOS_COMPOSITOR
+	bool "playos-compositor"
+	help
+	  wlroots-based Wayland compositor. Permanently owns DRM/KMS,
+	  manages all surfaces (shell, game, overlay), enforces the
+	  first-frame rule, and intercepts the system button.
+
+	  https://github.com/PlayOS-Foundation/playos-compositor

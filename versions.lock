@@ -5,20 +5,22 @@
 # Update via: scripts/update-versions.sh --component <name> --commit <sha>
 #
 # ── Buildroot ─────────────────────────────────────────────────────────────
+# Pinned to a known-good Buildroot LTS release. Update when upgrading Buildroot.
 BUILDROOT_COMMIT=
 BUILDROOT_SOURCE=https://git.buildroot.net/buildroot
 
 # ── Linux kernel ──────────────────────────────────────────────────────────
+# Pinned kernel version for reproducibility.
 LINUX_VERSION=
 LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=
-PLAYOS_PLATFORM_API_COMMIT=
-PLAYOS_RUNTIME_COMMIT=
-PLAYOS_COMPOSITOR_COMMIT=
-PLAYOS_SHELL_COMMIT=
+PLAYOS_SPEC_COMMIT=e529e1062ad049663de372ebb136ea2d356e07d3
+PLAYOS_PLATFORM_API_COMMIT=7c686e9b6ab3b67e298f0cd9cf12d10a0077f6c8
+PLAYOS_RUNTIME_COMMIT=74182c080f48634eac9d28360b50f70b71b6d5a4
+PLAYOS_COMPOSITOR_COMMIT=ef010830c1b3447389c9c4e8e11585930cb50f82
+PLAYOS_SHELL_COMMIT=e03cbc94e104fcc0b381a2575d1b7e07a6b31f17
 
 # ── Key dependencies ──────────────────────────────────────────────────────
 WLROOTS_COMMIT=

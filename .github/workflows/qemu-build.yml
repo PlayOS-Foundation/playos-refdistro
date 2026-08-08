@@ -1,0 +1,47 @@
+name: PlayOS QEMU Build and Boot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'br2-external/**'
+      - 'versions.lock'
+      - 'Makefile'
+      - 'scripts/**'
+      - '.github/workflows/qemu-build.yml'
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-boot:
+    name: Build and boot-check PlayOS (QEMU)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup host environment
+        run: |
+          bash scripts/setup-ubuntu.sh
+
+      - name: Setup Buildroot
+        run: |
+          make setup
+
+      - name: Build QEMU image
+        run: |
+          make qemu-build
+
+      - name: Boot-check in QEMU
+        run: |
+          bash scripts/qemu-boot-check.sh --timeout 60
+
+      - name: Upload boot log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-boot-log
+          path: /tmp/playos-boot-*.log
+          retention-days: 7

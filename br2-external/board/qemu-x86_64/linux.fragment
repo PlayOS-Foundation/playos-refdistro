@@ -1,0 +1,40 @@
+# Linux kernel config fragment for QEMU x86_64
+#
+# These options are applied on top of the arch default config (x86_64_defconfig)
+# to enable features required by PlayOS and the QEMU/OVMF boot path.
+
+# Disable -Werror (avoid build failures from minor warnings)
+# CONFIG_WERROR is not set
+
+# EFI stub support (boot directly from UEFI firmware)
+CONFIG_EFI=y
+CONFIG_EFI_STUB=y
+CONFIG_FB_EFI=y
+
+# Required filesystem support
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_PROC_FS=y
+CONFIG_SYSFS=y
+CONFIG_TMPFS=y
+
+# Virtio devices (QEMU)
+CONFIG_VIRTIO=y
+CONFIG_VIRTIO_PCI=y
+CONFIG_VIRTIO_BLK=y
+CONFIG_VIRTIO_NET=y
+CONFIG_VIRTIO_CONSOLE=y
+
+# Serial console
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y
+
+# initramfs support
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_RD_GZIP=y
+CONFIG_RD_BZIP2=y
+CONFIG_RD_LZMA=y
+CONFIG_RD_XZ=y
+CONFIG_RD_LZO=y
+CONFIG_RD_LZ4=y
+CONFIG_RD_ZSTD=y

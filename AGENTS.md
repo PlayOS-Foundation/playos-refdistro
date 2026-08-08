@@ -1,5 +1,7 @@
 # AGENTS.md — playos-refdistro
 
+> **Implementation status:** 🟢 Sprint 0 Complete — All 10 Sprint 0 tasks done. Build infrastructure fully set up: `br2-external/` skeleton with 5 package stubs, QEMU x86_64 defconfig, BusyBox initramfs `/init` script, UEFI boot checker, developer `Makefile`, `versions.lock` with real SHAs, CI pipeline (`.github/workflows/qemu-build.yml`), `setup-ubuntu.sh`, and `playos_log.sh` logging framework. Ready for Sprint 1 (playos-init).
+
 This repository is the **reference distribution** — the Buildroot `br2-external` tree that assembles all PlayOS components into a bootable, immutable system image for the ASUS ROG Ally (and QEMU for development). This is where the OS image is built; no C code lives here.
 
 ## Specification Reference

@@ -1,16 +1,17 @@
 # Build outputs
 build/
+output/
+buildroot/
 *.o
 *.a
 *.so
 *.so.*
 
-# CMake
+# CMake (generated files in subdirectories)
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
-*.cmake
+# !Makefile — we intentionally track the top-level developer Makefile
 
 # Generated Wayland protocol files
 gen/

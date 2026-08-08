@@ -1,0 +1,34 @@
+From: PlayOS <playos@localhost>
+Subject: Fix C23 bool/false/true keyword conflicts with GCC 13+
+
+GCC 13+ defaults to -std=gnu23 where 'bool', 'true', and 'false' are
+built-in keywords. Guard kernel definitions so they are skipped
+under C23 or later.
+
+--- a/include/linux/stddef.h	2026-08-08 12:48:43.852022622 +0000
++++ b/include/linux/stddef.h	2026-08-08 12:48:49.003101198 +0000
+@@ -7,10 +7,12 @@
+ #undef NULL
+ #define NULL ((void *)0)
+ 
++#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L
+ enum {
+ 	false	= 0,
+ 	true	= 1
+ };
++#endif
+ 
+ #undef offsetof
+ #define offsetof(TYPE, MEMBER)	__builtin_offsetof(TYPE, MEMBER)
+--- a/include/linux/types.h	2026-08-08 12:48:43.854022653 +0000
++++ b/include/linux/types.h	2026-08-08 12:48:54.200180475 +0000
+@@ -32,7 +32,9 @@
+ typedef __kernel_clockid_t	clockid_t;
+ typedef __kernel_mqd_t		mqd_t;
+ 
++#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L
+ typedef _Bool			bool;
++#endif
+ 
+ typedef __kernel_uid32_t	uid_t;
+ typedef __kernel_gid32_t	gid_t;

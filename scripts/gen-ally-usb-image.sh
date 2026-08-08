@@ -53,8 +53,8 @@ echo "==> Kernel (EFI stub): $BZIMAGE"
 # ── Calculate image size ───────────────────────────────────────────
 ESP_SIZE_MB=256
 SYSTEM_A_SIZE_MB=2048
-DATA_SIZE_MB=1024
-IMAGE_SIZE_MB=$((ESP_SIZE_MB + SYSTEM_A_SIZE_MB + DATA_SIZE_MB + 1))
+# Data partition fills remaining space (GPT metadata needs ~2 MiB overhead)
+IMAGE_SIZE_MB=$((ESP_SIZE_MB + SYSTEM_A_SIZE_MB + 1024 + 2))
 IMAGE_PATH="$IMAGES_DIR/playos-ally-usb.img"
 echo "==> Creating disk image: ${IMAGE_SIZE_MB} MiB..."
 
@@ -66,7 +66,7 @@ if command -v sgdisk &>/dev/null; then
     sgdisk --zap-all "$IMAGE_PATH"
     sgdisk -n 1:2048:+${ESP_SIZE_MB}M      -t 1:EF00 -c 1:"ESP"        "$IMAGE_PATH"
     sgdisk -n 2:0:+${SYSTEM_A_SIZE_MB}M     -t 2:8300 -c 2:"playos-a"   "$IMAGE_PATH"
-    sgdisk -n 3:0:+${DATA_SIZE_MB}M         -t 3:8300 -c 3:"playos-data" "$IMAGE_PATH"
+    sgdisk -n 3:0:0                         -t 3:8300 -c 3:"playos-data" "$IMAGE_PATH"
 else
     echo "WARNING: sgdisk not found. Falling back to sfdisk."
     ESP_START=2048
@@ -74,7 +74,7 @@ else
 label: gpt
 start=$ESP_START, size=$((ESP_SIZE_MB * 2048)), type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="ESP"
 start=$((ESP_START + ESP_SIZE_MB * 2048)), size=$((SYSTEM_A_SIZE_MB * 2048)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="playos-a"
-start=$((ESP_START + (ESP_SIZE_MB + SYSTEM_A_SIZE_MB) * 2048)), size=$((DATA_SIZE_MB * 2048)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="playos-data"
+start=$((ESP_START + (ESP_SIZE_MB + SYSTEM_A_SIZE_MB) * 2048)), type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="playos-data"
 EOF
 fi
 

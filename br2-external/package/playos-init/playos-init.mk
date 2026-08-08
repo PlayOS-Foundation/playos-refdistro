@@ -5,7 +5,7 @@
 # Built with Buildroot's cmake-package infrastructure.
 ################################################################################
 
-PLAYOS_INIT_VERSION = 0.3.0
+PLAYOS_INIT_VERSION = 0.4.0
 PLAYOS_INIT_SITE = $(BR2_EXTERNAL_PlayOS_PATH)/../src/playos-init
 PLAYOS_INIT_SITE_METHOD = local
 PLAYOS_INIT_INSTALL_STAGING = NO

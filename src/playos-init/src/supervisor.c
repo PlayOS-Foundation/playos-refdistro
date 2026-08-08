@@ -135,11 +135,24 @@ int playos_supervisor_spawn_compositor(struct playos_init_state *s)
     s->compositor_pid = pid;
     s->compositor_state = COMPOSITOR_STARTING;
 
-    playos_log_write(s, "sup", "compositor spawned: PID %d", pid);
+    playos_log_write(s, "sup", "compositor spawned: PID %d, waiting for readiness", pid);
 
-    /* Give it a moment to start */
-    usleep(100000); /* 100ms */
-    s->compositor_state = COMPOSITOR_RUNNING;
+    /* Poll for readiness file: /run/playos/compositor-ready */
+    int attempts = 0;
+    const int max_attempts = 50; /* 5 seconds total */
+    while (attempts < max_attempts) {
+        usleep(100000); /* 100ms */
+        if (access("/run/playos/compositor-ready", R_OK) == 0) {
+            s->compositor_state = COMPOSITOR_RUNNING;
+            playos_log_write(s, "sup", "compositor ready (PID %d)", pid);
+            return 0;
+        }
+        attempts++;
+    }
+
+    playos_log_write(s, "sup", "WARN: compositor readiness timeout after %d ms",
+                     max_attempts * 100);
+    s->compositor_state = COMPOSITOR_RUNNING; /* Proceed anyway */
 
     return 0;
 }

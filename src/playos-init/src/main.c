@@ -101,8 +101,8 @@ int main(void)
     /* Stage 5: System ready */
     playos_boot_stage_write(BOOT_STAGE_READY);
     playos_log_write(s, "init", "system ready — entering supervision loop");
-    dprintf(STDERR_FILENO, "\n  PlayOS Sprint 1 — playos-init is PID 1\n");
-    dprintf(STDERR_FILENO, "  System ready.\n\n");
+    dprintf(STDERR_FILENO, "\n  PlayOS Sprint 2 — playos-compositor on wlroots\n");
+    dprintf(STDERR_FILENO, "  System ready. Wayland socket: playos-0\n\n");
 
     /* Main supervision loop */
     for (;;) {
@@ -110,16 +110,37 @@ int main(void)
 
         if (first_loop) {
             first_loop = 0;
-            /* Auto-run integration tests if test client is present (QEMU/dev only) */
-            if (access("/usr/bin/ipc-test-client", X_OK) == 0) {
-                pid_t test_pid = fork();
-                if (test_pid == 0) {
-                    /* Child: run test suite */
-                    dprintf(STDERR_FILENO, "\n=== Sprint 1 Integration Tests ===\n");
-                    execl("/usr/bin/ipc-test-client", "ipc-test-client", "--verbose", NULL);
-                    _exit(127);
-                } else if (test_pid > 0) {
-                    playos_log_write(s, "test", "spawned test runner PID %d", test_pid);
+
+            /* Sprint 2: Wait for compositor readiness before running tests */
+            if (s->compositor_state != COMPOSITOR_RUNNING) {
+                dprintf(STDERR_FILENO, "playos-init: waiting for compositor...\n");
+                /* Compositor not ready yet, skip tests this round */
+            } else {
+                /* Auto-run IPC integration tests (Sprint 1) */
+                if (access("/usr/bin/ipc-test-client", X_OK) == 0) {
+                    pid_t test_pid = fork();
+                    if (test_pid == 0) {
+                        dprintf(STDERR_FILENO, "\n=== Sprint 1 Integration Tests ===\n");
+                        execl("/usr/bin/ipc-test-client", "ipc-test-client", "--verbose", NULL);
+                        _exit(127);
+                    } else if (test_pid > 0) {
+                        playos_log_write(s, "test", "spawned IPC test runner PID %d", test_pid);
+                    }
+                }
+
+                /* Sprint 2: Launch Wayland test client */
+                if (access("/usr/bin/playos-test-client", X_OK) == 0) {
+                    pid_t wl_test_pid = fork();
+                    if (wl_test_pid == 0) {
+                        setenv("WAYLAND_DISPLAY", "playos-0", 1);
+                        dprintf(STDERR_FILENO, "\n=== Sprint 2 Wayland Test ===\n");
+                        execl("/usr/bin/playos-test-client",
+                              "playos-test-client", NULL);
+                        _exit(127);
+                    } else if (wl_test_pid > 0) {
+                        playos_log_write(s, "test",
+                                         "spawned Wayland test client PID %d", wl_test_pid);
+                    }
                 }
             }
         }

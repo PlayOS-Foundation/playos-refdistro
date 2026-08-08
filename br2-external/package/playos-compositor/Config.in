@@ -1,5 +1,10 @@
 config BR2_PACKAGE_PLAYOS_COMPOSITOR
 	bool "playos-compositor"
+	select BR2_PACKAGE_WLROOTS
+	select BR2_PACKAGE_WAYLAND
+	select BR2_PACKAGE_WAYLAND_PROTOCOLS
+	select BR2_PACKAGE_LIBXKBCOMMON
+	select BR2_PACKAGE_PIXMAN
 	help
 	  wlroots-based Wayland compositor. Permanently owns DRM/KMS,
 	  manages all surfaces (shell, game, overlay), enforces the

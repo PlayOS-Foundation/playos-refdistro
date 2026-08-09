@@ -93,6 +93,14 @@ int playos_mount_virtual(void)
         return -1;
     }
 
+    /* /dev/shm — POSIX shared memory, needed by wlroots shm_open() */
+    mkdir("/dev/shm", 0755);
+    if (mount("tmpfs", "/dev/shm", "tmpfs", 0, "mode=1777") != 0) {
+        dprintf(STDERR_FILENO, "playos-init: mount /dev/shm failed: %s\n",
+                strerror(errno));
+        return -1;
+    }
+
     return 0;
 }
 

@@ -96,6 +96,10 @@ int main(void)
     playos_boot_stage_write(BOOT_STAGE_COMPOSITOR);
     if (playos_supervisor_spawn_compositor(s) != 0) {
         playos_log_write(s, "init", "WARN: compositor spawn failed");
+    } else {
+        /* Compositor is running — launch visual test client */
+        usleep(500000); /* 500ms grace period for compositor to fully init */
+        playos_supervisor_spawn_test_client(s);
     }
 
     /* Stage 5: System ready */

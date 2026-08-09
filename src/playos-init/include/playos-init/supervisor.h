@@ -31,6 +31,9 @@ void playos_supervisor_reap_children(struct playos_init_state *state);
 /* Register SIGCHLD handler */
 int playos_supervisor_init_signal_handler(void);
 
+/* Launch the hardware-accelerated test client for visual diagnostics */
+void playos_supervisor_spawn_test_client(struct playos_init_state *state);
+
 /* Enter recovery mode */
 void playos_enter_recovery(struct playos_init_state *state, const char *reason);
 

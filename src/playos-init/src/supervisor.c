@@ -32,6 +32,7 @@ void playos_log_fatal(struct playos_init_state *s, const char *tag,
 
 static void compositor_restart(struct playos_init_state *s);
 static int compositor_should_restart(struct playos_init_state *s);
+static void spawn_test_client(struct playos_init_state *s);
 
 /* ── SIGCHLD handler ─────────────────────────────────────────────── */
 
@@ -215,6 +216,43 @@ static void compositor_restart(struct playos_init_state *s)
 
     /* Clear restart counter state for the spawn */
     playos_supervisor_spawn_compositor(s);
+}
+
+/* ── Test client auto-launch ─────────────────────────────────────── */
+
+static void spawn_test_client(struct playos_init_state *s)
+{
+    const char *path = "/usr/bin/playos-test-client";
+
+    playos_log_write(s, "sup", "spawning test client: %s", path);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        playos_log_write(s, "sup", "test-client fork failed: %s",
+                         strerror(errno));
+        return;
+    }
+
+    if (pid == 0) {
+        /* Child: same Wayland env as compositor */
+        setenv("XDG_RUNTIME_DIR", "/run/playos", 1);
+        setenv("WAYLAND_DISPLAY", "wayland-0", 1);
+
+        execl(path, path, NULL);
+
+        dprintf(STDERR_FILENO,
+                "playos-init: test-client exec failed: %s\n",
+                strerror(errno));
+        _exit(127);
+    }
+
+    /* Parent: track as child, not supervised like compositor */
+    playos_log_write(s, "sup", "test client launched (PID %d)", pid);
+}
+
+void playos_supervisor_spawn_test_client(struct playos_init_state *s)
+{
+    spawn_test_client(s);
 }
 
 /* ── Game supervision ────────────────────────────────────────────── */

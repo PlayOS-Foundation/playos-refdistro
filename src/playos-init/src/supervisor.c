@@ -14,6 +14,7 @@
 #include <time.h>
 #include <sys/wait.h>
 #include <sys/reboot.h>
+#include <fcntl.h>
 
 #include "playos-init/init.h"
 #include "playos-init/supervisor.h"
@@ -33,6 +34,23 @@ void playos_log_fatal(struct playos_init_state *s, const char *tag,
 static void compositor_restart(struct playos_init_state *s);
 static int compositor_should_restart(struct playos_init_state *s);
 static void spawn_test_client(struct playos_init_state *s);
+
+/* ── Persistent child logging ────────────────────────────────────── */
+
+/* Redirect the current (child) process's stdout/stderr to a log file
+ * on the persistent /data partition. /data/log is created by
+ * playos_data_create_dirs() before Stage 4. On failure, output keeps
+ * going to the console as before. */
+static void child_log_redirect(const char *path)
+{
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0)
+        return;
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    if (fd > STDERR_FILENO)
+        close(fd);
+}
 
 /* ── SIGCHLD handler ─────────────────────────────────────────────── */
 
@@ -121,6 +139,10 @@ int playos_supervisor_spawn_compositor(struct playos_init_state *s)
         setenv("XDG_RUNTIME_DIR", "/run/playos", 1);
         setenv("WAYLAND_DISPLAY", "wayland-0", 1);
         setenv("PLAYOS_BACKEND", "drm", 1);
+
+        /* Persist stderr (trace markers, wlr_log) to /data for
+         * on-device debugging */
+        child_log_redirect("/data/log/compositor-stderr.log");
 
         /* Child: exec compositor */
         /* For Sprint 1, if the binary doesn't exist, exec a placeholder */
@@ -238,6 +260,9 @@ static void spawn_test_client(struct playos_init_state *s)
         /* Child: same Wayland env as compositor */
         setenv("XDG_RUNTIME_DIR", "/run/playos", 1);
         setenv("WAYLAND_DISPLAY", "wayland-0", 1);
+
+        /* Persist client stderr (EGL/Wayland errors, fps) to /data */
+        child_log_redirect("/data/log/test-client.log");
 
         execl(path, path, NULL);
 

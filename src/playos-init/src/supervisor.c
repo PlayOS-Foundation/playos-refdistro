@@ -120,6 +120,7 @@ int playos_supervisor_spawn_compositor(struct playos_init_state *s)
         /* Child: set up Wayland/DRM environment before exec */
         setenv("XDG_RUNTIME_DIR", "/run/playos", 1);
         setenv("WAYLAND_DISPLAY", "wayland-0", 1);
+        setenv("PLAYOS_BACKEND", "drm", 1);
 
         /* Child: exec compositor */
         /* For Sprint 1, if the binary doesn't exist, exec a placeholder */

@@ -16,6 +16,7 @@ cmake_install.cmake
 # Cloned source dependencies (from make setup)
 src/playos-compositor
 src/playos-init
+src/playos-platform-api
 src/playos-runtime
 
 # Generated Wayland protocol files

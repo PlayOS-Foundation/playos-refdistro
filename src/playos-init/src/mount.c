@@ -156,8 +156,44 @@ static int read_ext4_label(const char *device, char *label, size_t label_size)
     return 0;
 }
 
+/* Check whether a partition's parent disk is removable (e.g. USB stick).
+ * /dev/sda3 -> sda, /dev/nvme0n1p3 -> nvme0n1, /dev/mmcblk0p3 -> mmcblk0 */
+static int device_is_removable(const char *dev_path)
+{
+    const char *base = strrchr(dev_path, '/');
+    base = base ? base + 1 : dev_path;
+
+    char disk[64];
+    snprintf(disk, sizeof(disk), "%s", base);
+    size_t len = strlen(disk);
+
+    /* nvme/mmc style: strip trailing "pN"; sd/vd style: strip digits */
+    while (len > 0 && disk[len - 1] >= '0' && disk[len - 1] <= '9')
+        disk[--len] = '\0';
+    if (len > 0 && disk[len - 1] == 'p' &&
+        (strstr(disk, "nvme") || strstr(disk, "mmcblk")))
+        disk[--len] = '\0';
+    if (len == 0)
+        return 0;
+
+    char sys_path[128];
+    snprintf(sys_path, sizeof(sys_path), "/sys/block/%s/removable", disk);
+    FILE *f = fopen(sys_path, "r");
+    if (!f)
+        return 0;
+    int c = fgetc(f);
+    fclose(f);
+    return c == '1';
+}
+
 static int find_data_partition(char *device_path, size_t path_size)
 {
+    /* When several playos-data partitions exist (e.g. a USB stick and an
+     * internal install), prefer the one on removable media — that is the
+     * device we booted from. A non-removable match is kept as fallback. */
+    char fallback_path[128] = {0};
+    int have_fallback = 0;
+
     /* Try up to 10 times with increasing delays (100ms → 1000ms)
      * because block device detection may be asynchronous even with
      * built-in virtio-blk. Total max wait: ~5s. */
@@ -172,10 +208,16 @@ static int find_data_partition(char *device_path, size_t path_size)
             ssize_t len = readlink(label_path, device_path, path_size - 1);
             if (len > 0) {
                 device_path[len] = '\0';
-                dprintf(STDERR_FILENO,
-                        "playos-init: data partition by label: %s\n",
-                        device_path);
-                return 0;
+                if (device_is_removable(device_path)) {
+                    dprintf(STDERR_FILENO,
+                            "playos-init: data partition by label (removable): %s\n",
+                            device_path);
+                    return 0;
+                }
+                if (!have_fallback) {
+                    snprintf(fallback_path, sizeof(fallback_path), "%s", device_path);
+                    have_fallback = 1;
+                }
             }
         }
 
@@ -190,11 +232,17 @@ static int find_data_partition(char *device_path, size_t path_size)
             char label[32] = {0};
             if (read_ext4_label(*c, label, sizeof(label)) == 0) {
                 if (strcmp(label, "playos-data") == 0) {
-                    snprintf(device_path, path_size, "%s", *c);
-                    dprintf(STDERR_FILENO,
-                            "playos-init: data partition by scan: %s\n",
-                            device_path);
-                    return 0;
+                    if (device_is_removable(*c)) {
+                        snprintf(device_path, path_size, "%s", *c);
+                        dprintf(STDERR_FILENO,
+                                "playos-init: data partition by scan (removable): %s\n",
+                                device_path);
+                        return 0;
+                    }
+                    if (!have_fallback) {
+                        snprintf(fallback_path, sizeof(fallback_path), "%s", *c);
+                        have_fallback = 1;
+                    }
                 }
             }
         }
@@ -216,18 +264,34 @@ static int find_data_partition(char *device_path, size_t path_size)
                     char label[32] = {0};
                     if (read_ext4_label(dev_path, label, sizeof(label)) == 0) {
                         if (strcmp(label, "playos-data") == 0) {
-                            snprintf(device_path, path_size, "%s", dev_path);
-                            fclose(parts);
-                            dprintf(STDERR_FILENO,
-                                    "playos-init: data partition by proc scan: %s\n",
-                                    device_path);
-                            return 0;
+                            if (device_is_removable(dev_path)) {
+                                snprintf(device_path, path_size, "%s", dev_path);
+                                fclose(parts);
+                                dprintf(STDERR_FILENO,
+                                        "playos-init: data partition by proc scan (removable): %s\n",
+                                        device_path);
+                                return 0;
+                            }
+                            if (!have_fallback) {
+                                snprintf(fallback_path, sizeof(fallback_path),
+                                         "%s", dev_path);
+                                have_fallback = 1;
+                            }
                         }
                     }
                 }
             }
             fclose(parts);
         }
+    }
+
+    /* No removable playos-data found — accept an internal one */
+    if (have_fallback) {
+        snprintf(device_path, path_size, "%s", fallback_path);
+        dprintf(STDERR_FILENO,
+                "playos-init: data partition (internal fallback): %s\n",
+                device_path);
+        return 0;
     }
 
     /* Strategy 4: GPT partition type GUID */

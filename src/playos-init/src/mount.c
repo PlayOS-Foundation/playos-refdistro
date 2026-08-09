@@ -11,6 +11,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "playos-init/init.h"
 #include "playos-init/mount.h"
@@ -190,7 +191,8 @@ static int find_data_partition(char *device_path, size_t path_size)
 {
     /* When several playos-data partitions exist (e.g. a USB stick and an
      * internal install), prefer the one on removable media — that is the
-     * device we booted from. A non-removable match is kept as fallback. */
+     * device we booted from. Otherwise the LAST match wins: USB storage
+     * enumerates after built-in NVMe, so the stick tends to come last. */
     char fallback_path[128] = {0};
     int have_fallback = 0;
 
@@ -214,10 +216,9 @@ static int find_data_partition(char *device_path, size_t path_size)
                             device_path);
                     return 0;
                 }
-                if (!have_fallback) {
-                    snprintf(fallback_path, sizeof(fallback_path), "%s", device_path);
-                    have_fallback = 1;
-                }
+                /* remember last non-removable match as fallback */
+                snprintf(fallback_path, sizeof(fallback_path), "%s", device_path);
+                have_fallback = 1;
             }
         }
 
@@ -239,10 +240,9 @@ static int find_data_partition(char *device_path, size_t path_size)
                                 device_path);
                         return 0;
                     }
-                    if (!have_fallback) {
-                        snprintf(fallback_path, sizeof(fallback_path), "%s", *c);
-                        have_fallback = 1;
-                    }
+                    /* remember last non-removable match as fallback */
+                    snprintf(fallback_path, sizeof(fallback_path), "%s", *c);
+                    have_fallback = 1;
                 }
             }
         }
@@ -272,11 +272,10 @@ static int find_data_partition(char *device_path, size_t path_size)
                                         device_path);
                                 return 0;
                             }
-                            if (!have_fallback) {
-                                snprintf(fallback_path, sizeof(fallback_path),
-                                         "%s", dev_path);
-                                have_fallback = 1;
-                            }
+                            /* remember last non-removable match as fallback */
+                            snprintf(fallback_path, sizeof(fallback_path),
+                                     "%s", dev_path);
+                            have_fallback = 1;
                         }
                     }
                 }
@@ -285,11 +284,11 @@ static int find_data_partition(char *device_path, size_t path_size)
         }
     }
 
-    /* No removable playos-data found — accept an internal one */
+    /* No removable playos-data found — accept the last one seen */
     if (have_fallback) {
         snprintf(device_path, path_size, "%s", fallback_path);
         dprintf(STDERR_FILENO,
-                "playos-init: data partition (internal fallback): %s\n",
+                "playos-init: data partition (last-found fallback): %s\n",
                 device_path);
         return 0;
     }
@@ -412,6 +411,70 @@ static int find_data_partition(char *device_path, size_t path_size)
     return -1;
 }
 
+/* ── Boot marker (diagnostic) ────────────────────────────────────── */
+
+/* Write playos-boot.txt to EVERY playos-data partition found, naming
+ * the device init actually mounted as /data. Makes it possible to tell
+ * from any stick after the fact whether init ran and which device it
+ * chose as the data partition. */
+static void write_data_markers(const char *chosen_dev)
+{
+    FILE *parts = fopen("/proc/partitions", "r");
+    if (!parts)
+        return;
+
+    char line[256];
+    fgets(line, sizeof(line), parts); /* header */
+    fgets(line, sizeof(line), parts); /* blank  */
+
+    while (fgets(line, sizeof(line), parts)) {
+        char name[64] = {0};
+        if (sscanf(line, "%*d %*d %*d %63s", name) != 1)
+            continue;
+
+        char dev[128];
+        snprintf(dev, sizeof(dev), "/dev/%s", name);
+        if (access(dev, F_OK) != 0)
+            continue;
+
+        char label[32] = {0};
+        if (read_ext4_label(dev, label, sizeof(label)) != 0 ||
+            strcmp(label, "playos-data") != 0)
+            continue;
+
+        /* The chosen device is already mounted at /data; mount the
+         * others briefly to drop the marker. */
+        const char *target = "/data";
+        int mounted_here   = 0;
+        if (strcmp(dev, chosen_dev) != 0) {
+            target = "/tmp/dmark";
+            mkdir(target, 0755);
+            if (mount(dev, target, "ext4", 0, NULL) != 0)
+                continue;
+            mounted_here = 1;
+        }
+
+        char mpath[160];
+        snprintf(mpath, sizeof(mpath), "%s/playos-boot.txt", target);
+        int fd = open(mpath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd >= 0) {
+            dprintf(fd,
+                    "playos-init boot marker\n"
+                    "this_device=%s\n"
+                    "chosen_data=%s\n"
+                    "unix_time=%ld\n",
+                    dev, chosen_dev, (long)time(NULL));
+            close(fd);
+            sync();
+        }
+
+        if (mounted_here)
+            umount(target);
+    }
+
+    fclose(parts);
+}
+
 int playos_mount_data(struct playos_init_state *state)
 {
     (void)state;
@@ -442,6 +505,11 @@ int playos_mount_data(struct playos_init_state *state)
     }
 
     dprintf(STDERR_FILENO, "playos-init: /data mounted from %s\n", device_path);
+
+    /* Drop a marker on every playos-data partition so the choice is
+     * visible from any of them after the fact */
+    write_data_markers(device_path);
+
     return 0;
 }
 

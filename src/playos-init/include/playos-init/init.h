@@ -15,6 +15,9 @@
 #define PLAYOS_COMPOSITOR_MAX_RESTARTS  3
 #define PLAYOS_COMPOSITOR_WINDOW_S      60
 #define PLAYOS_COMPOSITOR_RESTART_DELAY_MS 500
+#define PLAYOS_SHELL_MAX_RESTARTS       5
+#define PLAYOS_SHELL_WINDOW_S           30
+#define PLAYOS_SHELL_RESTART_DELAY_MS   250
 #define PLAYOS_GAME_EXIT_TIMEOUT_MS     2000
 #define PLAYOS_LOG_RING_SIZE            (64 * 1024)
 
@@ -72,6 +75,10 @@ struct playos_init_state {
     pid_t                     compositor_pid;
     enum playos_compositor_state compositor_state;
     struct playos_restart_info compositor_restarts;
+
+	/* Shell supervision */
+	pid_t                     shell_pid;
+	struct playos_restart_info shell_restarts;
 
     /* Game supervision */
     pid_t               game_pid;

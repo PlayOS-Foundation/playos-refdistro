@@ -33,6 +33,7 @@ void playos_log_fatal(struct playos_init_state *s, const char *tag,
 
 static void compositor_restart(struct playos_init_state *s);
 static int compositor_should_restart(struct playos_init_state *s);
+static void spawn_shell(struct playos_init_state *s);
 static void spawn_test_client(struct playos_init_state *s);
 
 /* ── Persistent child logging ────────────────────────────────────── */
@@ -113,6 +114,17 @@ void playos_supervisor_reap_children(struct playos_init_state *s)
                 signal_num = WTERMSIG(wstatus);
 
             playos_supervisor_game_exited(s, exit_code, signal_num);
+        } else if (pid == s->shell_pid) {
+            /* Shell exited */
+            int exit_code = -1;
+            int signal_num = 0;
+
+            if (WIFEXITED(wstatus))
+                exit_code = WEXITSTATUS(wstatus);
+            if (WIFSIGNALED(wstatus))
+                signal_num = WTERMSIG(wstatus);
+
+            playos_supervisor_shell_exited(s, exit_code, signal_num);
         } else {
             /* Unknown child — log and move on */
             playos_log_write(s, "sup", "reaped unknown child PID %d", pid);
@@ -241,7 +253,103 @@ static void compositor_restart(struct playos_init_state *s)
     playos_supervisor_spawn_compositor(s);
 }
 
+/* ── Shell restart policy ──────────────────────────────────────────── */
+
+static int shell_should_restart(struct playos_init_state *s)
+{
+    time_t now = time(NULL);
+    struct playos_restart_info *r = &s->shell_restarts;
+
+    /* Reset window if expired */
+    if (now - r->window_start > PLAYOS_SHELL_WINDOW_S) {
+        r->count = 0;
+        r->window_start = now;
+    }
+
+    r->count++;
+    return (r->count <= PLAYOS_SHELL_MAX_RESTARTS);
+}
+
+static void shell_restart(struct playos_init_state *s)
+{
+    playos_log_write(s, "sup",
+                     "restarting shell in %d ms (attempt %d)",
+                     PLAYOS_SHELL_RESTART_DELAY_MS,
+                     s->shell_restarts.count);
+
+    usleep(PLAYOS_SHELL_RESTART_DELAY_MS * 1000);
+
+    spawn_shell(s);
+}
+
+void playos_supervisor_shell_exited(struct playos_init_state *s,
+                                     int exit_code, int signal_num)
+{
+    s->shell_restarts.last_exit_code = exit_code;
+    s->shell_restarts.last_signal = signal_num;
+
+    playos_log_write(s, "sup",
+                     "shell PID %d exited: code=%d signal=%d",
+                     s->shell_pid, exit_code, signal_num);
+
+    s->shell_pid = 0;
+
+    /* Check restart policy */
+    if (shell_should_restart(s)) {
+        shell_restart(s);
+    } else {
+        playos_log_write(s, "sup",
+                         "shell restart limit exceeded (%d restarts in %ds) — "
+                         "leaving compositor running without shell",
+                         PLAYOS_SHELL_MAX_RESTARTS,
+                         PLAYOS_SHELL_WINDOW_S);
+        /* Do NOT enter recovery — the system can still run without the shell.
+         * Games can still be launched via IPC, overlay remains available. */
+    }
+}
+
 /* ── Test client auto-launch ─────────────────────────────────────── */
+/* ── Shell auto-launch (Sprint 5) ─────────────────────────────────── */
+
+static void spawn_shell(struct playos_init_state *s)
+{
+	const char *path = "/usr/bin/playos-shell";
+
+	playos_log_write(s, "sup", "spawning shell: %s", path);
+
+	pid_t pid = fork();
+	if (pid < 0) {
+		playos_log_write(s, "sup", "shell fork failed: %s",
+		                 strerror(errno));
+		return;
+	}
+
+	if (pid == 0) {
+		/* Child: same Wayland env as compositor */
+		setenv("XDG_RUNTIME_DIR", "/run/playos", 1);
+		setenv("WAYLAND_DISPLAY", "wayland-0", 1);
+
+		/* Persist shell stderr (EGL/Wayland errors, fps) to /data */
+		child_log_redirect("/data/log/shell-stderr.log");
+
+		execl(path, path, NULL);
+
+		dprintf(STDERR_FILENO,
+		        "playos-init: shell exec failed: %s\n",
+		        strerror(errno));
+		_exit(127);
+	}
+
+	/* Parent: track as child */
+	s->shell_pid = pid;
+	playos_log_write(s, "sup", "shell launched (PID %d)", pid);
+}
+
+void playos_supervisor_spawn_shell(struct playos_init_state *s)
+{
+	spawn_shell(s);
+}
+
 
 static void spawn_test_client(struct playos_init_state *s)
 {

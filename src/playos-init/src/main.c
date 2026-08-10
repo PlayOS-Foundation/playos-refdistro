@@ -44,7 +44,7 @@ static void print_banner(void)
     dprintf(STDERR_FILENO,
         "\n"
         "  ╔══════════════════════════════════════════════════╗\n"
-        "  ║              PlayOS — Sprint 1                   ║\n"
+        "  ║              PlayOS — Sprint 5                   ║\n"
         "  ║      playos-init PID 1 Boot Supervisor           ║\n"
         "  ╚══════════════════════════════════════════════════╝\n"
         "\n");
@@ -99,13 +99,13 @@ int main(void)
     } else {
         /* Compositor is running — launch visual test client */
         usleep(500000); /* 500ms grace period for compositor to fully init */
-        playos_supervisor_spawn_test_client(s);
+        playos_supervisor_spawn_shell(s);
     }
 
     /* Stage 5: System ready */
     playos_boot_stage_write(BOOT_STAGE_READY);
     playos_log_write(s, "init", "system ready — entering supervision loop");
-    dprintf(STDERR_FILENO, "\n  PlayOS Sprint 4 — playos-compositor on wlroots DRM/KMS\n");
+    dprintf(STDERR_FILENO, "\n  PlayOS Sprint 5 — playos-shell on wlroots DRM/KMS\n");
     dprintf(STDERR_FILENO, "  System ready.\n\n");
 
     /* Main supervision loop */

@@ -34,6 +34,13 @@ int playos_supervisor_init_signal_handler(void);
 /* Launch the hardware-accelerated test client for visual diagnostics */
 void playos_supervisor_spawn_test_client(struct playos_init_state *state);
 
+/* Launch the PlayOS shell as a Wayland client (Sprint 5) */
+void playos_supervisor_spawn_shell(struct playos_init_state *state);
+
+/* Handle shell exit. Restarts if within limits. */
+void playos_supervisor_shell_exited(struct playos_init_state *state,
+                                     int exit_code, int signal);
+
 /* Enter recovery mode */
 void playos_enter_recovery(struct playos_init_state *state, const char *reason);
 

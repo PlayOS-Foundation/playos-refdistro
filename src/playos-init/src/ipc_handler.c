@@ -324,6 +324,13 @@ static int handle_message(struct playos_init_state *s, int client_fd,
         return 0;
     }
 
+    /* ── ShellReady (Sprint 5) ────────────────────────────────── */
+    if (strcmp(msg.type, PLAYOS_IPC_TYPE_SHELL_READY) == 0) {
+        playos_log_write(s, "ipc", "shell ready notification received");
+        playos_ipc_message_free(&msg);
+        return 0;
+    }
+
     /* ── Unknown type ────────────────────────────────────────── */
     playos_log_write(s, "ipc", "unknown message type: %s", msg.type);
     playos_ipc_message_free(&msg);

@@ -17,11 +17,11 @@ LINUX_SHA256=
 
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=e529e1062ad049663de372ebb136ea2d356e07d3
-PLAYOS_PLATFORM_API_COMMIT=d7a0050cde6fd80be9e06841cba761ea34f9680d
-PLAYOS_RUNTIME_COMMIT=4bfde10d06fc4a08bc311a4bbc06ec1a82c5d494
-PLAYOS_INIT_COMMIT=39d992a8c5e83fb1f32178ed68c6d38cce468fc2  # sprint-4: XDG_RUNTIME_DIR fix
-PLAYOS_COMPOSITOR_COMMIT=c38df0f5e14720491bc23125202a1919e65f55b6  # sprint-4: EGL diagnostic fix
-PLAYOS_SHELL_COMMIT=e03cbc94e104fcc0b381a2575d1b7e07a6b31f17
+PLAYOS_PLATFORM_API_COMMIT=d2be91cf3e80320201f3f761928edeb65bb7f2d7  # sprint-5: storage, logging, system API
+PLAYOS_RUNTIME_COMMIT=e7d94d2f20f2850738348b3e3c09a370c8d298cd  # sprint-5: trusted_control IPC client
+PLAYOS_INIT_COMMIT=b7800393c9466609facf2c5c57dacbe3c9bb0c30  # sprint-5: supervisor updates (in monorepo)
+PLAYOS_COMPOSITOR_COMMIT=f946922c9e358f3b5eb98b85ac1bf4b3cea3f513  # sprint-4: EGL/GLES fixes
+PLAYOS_SHELL_COMMIT=b7800393c9466609facf2c5c57dacbe3c9bb0c30  # sprint-5: new shell (in monorepo)
 
 # ── Key dependencies ──────────────────────────────────────────────────────
 WLROOTS_COMMIT=

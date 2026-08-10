@@ -28,6 +28,10 @@
 #include "playos/playos_system.h"
 #include "playos/playos_storage.h"
 #include "playos/playos_logging.h"
+#include "playos/playos_lifecycle.h"
+#ifdef PLAYOS_TRUSTED_IPC
+#include "playos-runtime/trusted_control.h"
+#endif
 
 /* ── Global (for signal handler) ─────────────────────────────────────── */
 static struct playos_shell *g_shell = NULL;
@@ -232,6 +236,22 @@ handle_signal(int sig)
         g_shell->running = false;
 }
 
+/* ── Frame callback (Wayland vsync) ──────────────────────────────────── */
+
+static void
+frame_callback_done(void *data, struct wl_callback *cb, uint32_t time)
+{
+    struct playos_shell *s = data;
+    (void)time;
+    wl_callback_destroy(cb);
+    s->frame_callback = NULL;
+    s->frame_pending = false;
+}
+
+static const struct wl_callback_listener frame_listener = {
+    .done = frame_callback_done,
+};
+
 /* ── Screen navigation helpers ───────────────────────────────────────── */
 
 static void
@@ -315,6 +335,21 @@ int main(int argc, char *argv[])
     if (s->playos_manager) {
         playos_manager_v1_register_shell(s->playos_manager);
         PLAYOS_LOG_I("shell", "registered as trusted shell");
+
+        /* Notify init that the shell is ready (Sprint 5) */
+#ifdef PLAYOS_TRUSTED_IPC
+        {
+            int cfd = playos_trusted_connect();
+            if (cfd >= 0) {
+                /* Send a simple ready notification via QueryStatus —
+                 * the connection itself signals shell readiness to init */
+                char status_buf[256];
+                playos_trusted_query_status(cfd, status_buf, sizeof(status_buf));
+                playos_trusted_disconnect(cfd);
+                PLAYOS_LOG_I("shell", "shell ready notification sent");
+            }
+        }
+#endif
     } else {
         PLAYOS_LOG_W("shell", "playos_manager_v1 not available — "
                      "running without trusted status");
@@ -334,16 +369,48 @@ int main(int argc, char *argv[])
     struct timespec last_fps_time = s->start_time;
 
     while (s->running) {
+        /* ── Frame callback vsync (Sprint 5) ──
+         * Request a callback, commit to trigger delivery, then block
+         * in wl_display_dispatch until the compositor signals readiness. */
+        s->frame_callback = wl_surface_frame(s->surface);
+        wl_callback_add_listener(s->frame_callback, &frame_listener, s);
+        s->frame_pending = true;
+        wl_surface_commit(s->surface);
+
+        while (s->running && s->frame_pending) {
+            if (wl_display_dispatch(s->display) < 0)
+                break;
+        }
+
+        if (!s->running) break;
+
         struct timespec frame_start;
         clock_gettime(CLOCK_MONOTONIC, &frame_start);
-
-        /* Wayland events */
-        wl_display_dispatch_pending(s->display);
-        wl_display_flush(s->display);
 
         /* Input */
         if (s->evdev_fd >= 0)
             shell_input_poll(s);
+
+        /* Lifecycle events from playos-init */
+        {
+            PlayOSLifecycleEvent ev;
+            int ret = playos_lifecycle_poll(&ev);
+            if (ret == 1) {
+                if (ev == PLAYOS_LIFECYCLE_TERMINATE) {
+                    PLAYOS_LOG_I("shell", "lifecycle: terminate received");
+                    s->running = false;
+                    break;
+                } else if (ev == PLAYOS_LIFECYCLE_BACKGROUND ||
+                           ev == PLAYOS_LIFECYCLE_SUSPEND) {
+                    PLAYOS_LOG_I("shell", "lifecycle: suspend/background (%d)", ev);
+                    s->is_suspended = true;
+                } else if (ev == PLAYOS_LIFECYCLE_FOREGROUND ||
+                           ev == PLAYOS_LIFECYCLE_RESUME) {
+                    PLAYOS_LOG_I("shell", "lifecycle: resume/foreground (%d)", ev);
+                    s->is_suspended = false;
+                }
+            }
+        }
 
         /* Update current screen */
         switch (s->current_screen) {

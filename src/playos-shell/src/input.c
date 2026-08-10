@@ -40,46 +40,6 @@
     (((array)[(unsigned long)(bit) / BITS_PER_LONG] >> \
       ((unsigned long)(bit) % BITS_PER_LONG)) & 1)
 
-/* ── Xbox controller evdev mapping ───────────────────────────────────── */
-
-/* Xbox One / Series X|S controller input.h key code → playos_button_mask_t */
-static playos_button_mask_t
-evdev_key_to_button(unsigned int code)
-{
-    switch (code) {
-    case BTN_SOUTH:   return PLAYOS_BUTTON_SOUTH;       /* A */
-    case BTN_EAST:    return PLAYOS_BUTTON_EAST;        /* B */
-    case BTN_WEST:    return PLAYOS_BUTTON_WEST;        /* X */
-    case BTN_NORTH:   return PLAYOS_BUTTON_NORTH;       /* Y */
-    case BTN_START:   return PLAYOS_BUTTON_START;
-    case BTN_SELECT:  return PLAYOS_BUTTON_SELECT;
-    case BTN_MODE:    return PLAYOS_BUTTON_SYSTEM;      /* Xbox/Guide */
-    case BTN_THUMBL:  return PLAYOS_BUTTON_L3;
-    case BTN_THUMBR:  return PLAYOS_BUTTON_R3;
-    case BTN_TL:      return PLAYOS_BUTTON_L1;
-    case BTN_TR:      return PLAYOS_BUTTON_R1;
-    default:          return 0;
-    }
-}
-
-/* D-pad uses ABS_HAT0X/ABS_HAT0Y on Xbox controllers */
-static playos_button_mask_t
-evdev_abs_to_dpad(unsigned int code, int value)
-{
-    switch (code) {
-    case ABS_HAT0X:
-        if (value < 0)  return PLAYOS_BUTTON_DPAD_LEFT;
-        if (value > 0)  return PLAYOS_BUTTON_DPAD_RIGHT;
-        return 0;
-    case ABS_HAT0Y:
-        if (value < 0)  return PLAYOS_BUTTON_DPAD_UP;
-        if (value > 0)  return PLAYOS_BUTTON_DPAD_DOWN;
-        return 0;
-    default:
-        return 0;
-    }
-}
-
 /* ── Finding the gamepad ─────────────────────────────────────────────── */
 
 /* Quick check: does this event device have the gamepad axes + buttons?
@@ -187,78 +147,40 @@ void shell_input_poll(struct playos_shell *s)
     /* Save previous state for edge detection */
     s->controller_prev = s->controller;
 
+    /* Get standard controller state from Platform API (Sprint 5).
+     * This provides all buttons (except SYSTEM/QUICK_MENU which are
+     * stripped by the API) and all axes with proper dead-zone / range
+     * normalization, rather than using ROG Ally-specific raw evdev codes. */
+    playos_input_get_controller_state(&s->controller);
+
+    /* Read raw evdev ONLY for reserved buttons the Platform API strips.
+     * The shell is trusted and needs SYSTEM (Xbox/Guide) and QUICK_MENU
+     * (Ally Armoury Crate / CC button) for overlay and home functionality. */
     struct input_event ev;
     ssize_t n;
 
     while ((n = read(s->evdev_fd, &ev, sizeof(ev))) == sizeof(ev)) {
         switch (ev.type) {
-        case EV_KEY: {
-            playos_button_mask_t btn = evdev_key_to_button(ev.code);
-            if (btn) {
+        case EV_KEY:
+            /* Xbox/Guide button → PLAYOS_BUTTON_SYSTEM */
+            if (ev.code == BTN_MODE) {
                 if (ev.value)
-                    s->controller.buttons |= btn;
+                    s->controller.buttons |= PLAYOS_BUTTON_SYSTEM;
                 else
-                    s->controller.buttons &= ~btn;
+                    s->controller.buttons &= ~PLAYOS_BUTTON_SYSTEM;
             }
-            /* Ally quick-menu button: EV_KEY, code 0x15d (BTN_EXTRA or similar).
-             * On Ally, the left-side "CC" button sends KEY_PROG1 (148) or
-             * KEY_LEFTMETA on some kernels. We check specifically. */
-            if (ev.code == KEY_PROG1 || ev.code == KEY_PROG2 ||
-                ev.code == KEY_LEFTMETA || ev.code == KEY_RIGHTMETA) {
+            /* Ally quick-menu (Armoury Crate) and other reserved key paths */
+            else if (ev.code == KEY_PROG1 || ev.code == KEY_PROG2 ||
+                     ev.code == KEY_LEFTMETA || ev.code == KEY_RIGHTMETA ||
+                     ev.code == BTN_TRIGGER_HAPPY1) {
                 if (ev.value)
                     s->controller.buttons |= PLAYOS_BUTTON_QUICK_MENU;
                 else
                     s->controller.buttons &= ~PLAYOS_BUTTON_QUICK_MENU;
             }
             break;
-        }
-        case EV_ABS: {
-            /* D-pad */
-            if (ev.code == ABS_HAT0X || ev.code == ABS_HAT0Y) {
-                playos_button_mask_t dpad_btn = evdev_abs_to_dpad(ev.code, ev.value);
-                /* Clear the dpad bits for this axis */
-                if (ev.code == ABS_HAT0X) {
-                    s->controller.buttons &= ~(PLAYOS_BUTTON_DPAD_LEFT |
-                                               PLAYOS_BUTTON_DPAD_RIGHT);
-                } else {
-                    s->controller.buttons &= ~(PLAYOS_BUTTON_DPAD_UP |
-                                               PLAYOS_BUTTON_DPAD_DOWN);
-                }
-                if (ev.value != 0 && dpad_btn)
-                    s->controller.buttons |= dpad_btn;
-            }
-
-            /* Analog sticks and triggers */
-            switch (ev.code) {
-            case ABS_X:
-                s->controller.axes[PLAYOS_AXIS_LEFT_X] =
-                    ev.value / 32767.0f;
-                break;
-            case ABS_Y:
-                s->controller.axes[PLAYOS_AXIS_LEFT_Y] =
-                    ev.value / 32767.0f;
-                break;
-            case ABS_RX:
-                s->controller.axes[PLAYOS_AXIS_RIGHT_X] =
-                    ev.value / 32767.0f;
-                break;
-            case ABS_RY:
-                s->controller.axes[PLAYOS_AXIS_RIGHT_Y] =
-                    ev.value / 32767.0f;
-                break;
-            case ABS_Z:  /* Left trigger on Xbox */
-                s->controller.axes[PLAYOS_AXIS_LEFT_TRIGGER] =
-                    ev.value / 1023.0f;
-                break;
-            case ABS_RZ: /* Right trigger on Xbox */
-                s->controller.axes[PLAYOS_AXIS_RIGHT_TRIGGER] =
-                    ev.value / 1023.0f;
-                break;
-            }
-            break;
-        }
         case EV_SYN:
-            goto done; /* Process one frame's worth of events */
+            goto done; /* Process one frame's worth of reserved-button events */
         }
     }
 done:

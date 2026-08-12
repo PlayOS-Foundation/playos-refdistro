@@ -369,21 +369,6 @@ int main(int argc, char *argv[])
     struct timespec last_fps_time = s->start_time;
 
     while (s->running) {
-        /* ── Frame callback vsync (Sprint 5) ──
-         * Request a callback, commit to trigger delivery, then block
-         * in wl_display_dispatch until the compositor signals readiness. */
-        s->frame_callback = wl_surface_frame(s->surface);
-        wl_callback_add_listener(s->frame_callback, &frame_listener, s);
-        s->frame_pending = true;
-        wl_surface_commit(s->surface);
-
-        while (s->running && s->frame_pending) {
-            if (wl_display_dispatch(s->display) < 0)
-                break;
-        }
-
-        if (!s->running) break;
-
         struct timespec frame_start;
         clock_gettime(CLOCK_MONOTONIC, &frame_start);
 
@@ -428,9 +413,30 @@ int main(int argc, char *argv[])
             case SCREEN_SETTINGS:    screen_settings_draw(s);    break;
             }
 
+            /* ── Frame callback vsync (Sprint 5) ──
+             * Register the callback BEFORE presenting. eglSwapBuffers
+             * attaches the freshly rendered buffer and commits the
+             * surface — that commit is what moves the callback to
+             * "current" and lets the compositor render the frame and
+             * deliver frame_done. Committing without a buffer (as the
+             * previous code did via an explicit wl_surface_commit) left
+             * the surface 0x0/invisible, so the compositor never emitted
+             * frame_done and the shell deadlocked on its first frame. */
+            s->frame_callback = wl_surface_frame(s->surface);
+            wl_callback_add_listener(s->frame_callback, &frame_listener, s);
+            s->frame_pending = true;
+
             eglSwapBuffers(s->egl_display, s->egl_surface);
             frame_count++;
+
+            /* Block until the compositor delivers the frame callback */
+            while (s->running && s->frame_pending) {
+                if (wl_display_dispatch(s->display) < 0)
+                    break;
+            }
         }
+
+        if (!s->running) break;
 
         /* ── Timing ── */
         struct timespec frame_end;

@@ -22,6 +22,7 @@ static int   g_screen_w = 1920;
 static int   g_screen_h = 1080;
 static GLuint g_shader_program = 0;
 static GLint  g_u_color_loc = -1;
+static GLint  g_a_pos_loc = -1;
 
 /* ── Shader sources ────────────────────────────────────────────────────── */
 
@@ -220,6 +221,11 @@ init_shaders(void)
     }
 
     g_u_color_loc = glGetUniformLocation(g_shader_program, "u_color");
+    g_a_pos_loc = glGetAttribLocation(g_shader_program, "a_pos");
+
+    PLAYOS_LOG_I("shell", "render: shader ready program=%u u_color=%d a_pos=%d",
+                 g_shader_program, g_u_color_loc, g_a_pos_loc);
+
     glDeleteShader(vs);
     glDeleteShader(fs);
     return 0;
@@ -247,9 +253,17 @@ render_init(int screen_width, int screen_height)
 void
 render_begin_frame(float r, float g, float b, float a)
 {
+    static int first_frame = 1;
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(g_shader_program);
+
+    if (first_frame) {
+        first_frame = 0;
+        GLenum err = glGetError();
+        PLAYOS_LOG_I("shell", "render: first frame — shader=%u a_pos=%d u_color=%d gl_err=0x%x",
+                     g_shader_program, g_a_pos_loc, g_u_color_loc, err);
+    }
 }
 
 void
@@ -278,7 +292,7 @@ render_draw_rect(float x, float y, float w, float h,
         nx2, ny2, 0.0f,
     };
 
-    GLint pos_loc = glGetAttribLocation(g_shader_program, "a_pos");
+    GLint pos_loc = g_a_pos_loc;
     glEnableVertexAttribArray((GLuint)pos_loc);
     glVertexAttribPointer((GLuint)pos_loc, 3, GL_FLOAT, GL_FALSE, 0, vertices);
 

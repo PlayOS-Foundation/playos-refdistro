@@ -65,12 +65,12 @@ Raylib integration is deferred to a future sprint. When integrated, it will use 
 ## Frame Callback Vsync (Sprint 5)
 
 The main loop uses `wl_surface_frame` + `wl_display_dispatch` for presentation pacing:
-1. Request a frame callback via `wl_surface_frame(surface)`.
-2. Commit the surface to trigger callback delivery.
-3. Block in `wl_display_dispatch()` until the compositor signals readiness (callback fires, sets `frame_pending = false`).
-4. Render → `eglSwapBuffers` → next callback requested.
+1. Render the current screen (GLES2 draw calls).
+2. Request a frame callback via `wl_surface_frame(surface)`.
+3. Present via `eglSwapBuffers()` — this attaches the rendered buffer and commits the surface.
+4. Block in `wl_display_dispatch()` until the compositor delivers the callback (fires → sets `frame_pending = false`).
 
-This is the standard Wayland vsync pattern — no busy-waiting, no `usleep` heuristics.
+The callback must be registered **before** `eglSwapBuffers` (the commit). A commit with no attached buffer leaves the surface 0x0/invisible, so the compositor never emits `frame_done` and the loop deadlocks on its first frame. This is the standard Wayland vsync pattern — no busy-waiting, no `usleep` heuristics.
 
 ## Input (Sprint 5 — Direct Evdev)
 

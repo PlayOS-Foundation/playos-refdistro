@@ -27,7 +27,7 @@ PLAYOS_SHELL_COMMIT=f4e285b46323f0066cb46586ddcbf66392fc9ff3  # sprint-5: direct
 WLROOTS_COMMIT=
 WLROOTS_SOURCE=https://gitlab.freedesktop.org/wlroots/wlroots
 
-RAYLIB_COMMIT=
+RAYLIB_COMMIT=dbc56a87da87d973a9c5baa4e7438a9d20121d28  # 6.0 tag
 RAYLIB_SOURCE=https://github.com/raysan5/raylib
 
 MESA_VERSION=

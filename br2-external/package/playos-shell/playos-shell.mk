@@ -1,8 +1,10 @@
 ################################################################################
-# playos-shell — Sprint 5
+# playos-shell — Sprint 5.5
 #
 # Controller-first PlayOS shell running as a Wayland client against
-# playos-compositor. Uses EGL/GLES2 for rendering.
+# playos-compositor. Renders through vendored Raylib 6.0 (PLATFORM_PLAYOS
+# backend in external/raylib/src/platforms/rcore_playos.c), which drives
+# EGL/GLES2 via a fullscreen xdg_toplevel + wl_egl_window.
 ################################################################################
 
 PLAYOS_SHELL_VERSION = 0.1.0
@@ -13,7 +15,7 @@ PLAYOS_SHELL_INSTALL_STAGING = NO
 
 PLAYOS_SHELL_CONF_OPTS = \
 	-DCMAKE_C_STANDARD=99 \
-	-DPLAYOS_SHELL_USE_RAYLIB=OFF \
+	-DPLAYOS_SHELL_USE_RAYLIB=ON \
 	-DPLAYOS_RUNTIME_DIR=$(STAGING_DIR)/usr
 
 $(eval $(cmake-package))

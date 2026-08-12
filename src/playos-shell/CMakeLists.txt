@@ -74,21 +74,46 @@ add_custom_command(
     COMMENT "Generating xdg-shell client protocol"
 )
 
-# ── Optional: Raylib static library ────────────────────────────────────
-set(PLAYOS_SHELL_USE_RAYLIB OFF CACHE BOOL
-    "Build with vendored Raylib (requires external/raylib/src/)")
+# Umbrella target so raylib and the shell can depend on the generated protocol
+# bindings being available before their first compile step.
+add_custom_target(playos-protocols
+    DEPENDS
+        ${GEN_DIR}/playos-v1-client-protocol.h
+        ${GEN_DIR}/playos-v1-protocol.c
+        ${GEN_DIR}/xdg-shell-client-protocol.h
+        ${GEN_DIR}/xdg-shell-protocol.c)
 
-if(PLAYOS_SHELL_USE_RAYLIB)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/raylib/src/rcore.c")
-        add_subdirectory(external/raylib)
-        set(RAYLIB_LIB raylib_playos)
-        set(RAYLIB_DEFINE PLAYOS_SHELL_RAYLIB)
-    else()
-        message(WARNING "Raylib source not found at external/raylib/src/ — "
-                        "falling back to raw EGL/GLES2 renderer")
-        set(PLAYOS_SHELL_USE_RAYLIB OFF)
-    endif()
+# ── Raylib static library (required — the raw GLES2 renderer is retired) ──
+set(PLAYOS_SHELL_USE_RAYLIB ON CACHE BOOL
+    "Build with vendored Raylib 6.0 (custom PlayOS Wayland/EGL backend)")
+
+if(NOT PLAYOS_SHELL_USE_RAYLIB)
+    message(FATAL_ERROR
+        "PLAYOS_SHELL_USE_RAYLIB=OFF is no longer supported — "
+        "the raw EGL/GLES2 renderer was retired in Sprint 5.5")
 endif()
+
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/raylib/src/rcore.c")
+    message(FATAL_ERROR
+        "Raylib source not found at external/raylib/src/ — "
+        "vendor Raylib 6.0 (see versions.lock RAYLIB_COMMIT)")
+endif()
+
+# Select raylib's custom PlayOS platform backend before it configures
+set(PLATFORM "PlayOS" CACHE STRING "raylib platform" FORCE)
+set(OPENGL_VERSION "ES 2.0" CACHE STRING "raylib OpenGL version" FORCE)
+
+add_subdirectory(external/raylib)
+
+# rcore_playos.c is compiled into raylib and owns the Wayland/EGL
+# protocol usage, so the generated protocol bindings belong to raylib.
+target_include_directories(raylib PRIVATE ${GEN_DIR})
+target_sources(raylib PRIVATE
+    ${GEN_DIR}/playos-v1-protocol.c
+    ${GEN_DIR}/xdg-shell-protocol.c)
+add_dependencies(raylib playos-protocols)
+
+set(RAYLIB_LIB raylib)
 
 # ── Shell source files ─────────────────────────────────────────────────
 set(SHELL_SOURCES
@@ -99,13 +124,10 @@ set(SHELL_SOURCES
     src/screen_game_detail.c
     src/screen_settings.c
     src/render_util.c
-    ${GEN_DIR}/playos-v1-client-protocol.h
-    ${GEN_DIR}/playos-v1-protocol.c
-    ${GEN_DIR}/xdg-shell-client-protocol.h
-    ${GEN_DIR}/xdg-shell-protocol.c
 )
 
 add_executable(playos-shell ${SHELL_SOURCES})
+add_dependencies(playos-shell playos-protocols)
 
 target_include_directories(playos-shell PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -140,10 +162,7 @@ target_link_libraries(playos-shell PRIVATE
     m
 )
 
-if(PLAYOS_SHELL_USE_RAYLIB)
-    target_link_libraries(playos-shell PRIVATE ${RAYLIB_LIB})
-    target_compile_definitions(playos-shell PRIVATE ${RAYLIB_DEFINE})
-endif()
+target_link_libraries(playos-shell PRIVATE ${RAYLIB_LIB})
 
 # Conditionally enable trusted IPC
 if(PLAYOS_SHELL_HAS_TRUSTED_IPC)

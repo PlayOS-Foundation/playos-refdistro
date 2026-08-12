@@ -21,7 +21,7 @@ PLAYOS_PLATFORM_API_COMMIT=d2be91cf3e80320201f3f761928edeb65bb7f2d7  # sprint-5:
 PLAYOS_RUNTIME_COMMIT=e7d94d2f20f2850738348b3e3c09a370c8d298cd  # sprint-5: trusted_control IPC client
 PLAYOS_INIT_COMMIT=b7800393c9466609facf2c5c57dacbe3c9bb0c30  # sprint-5: supervisor updates (in monorepo)
 PLAYOS_COMPOSITOR_COMMIT=f946922c9e358f3b5eb98b85ac1bf4b3cea3f513  # sprint-4: EGL/GLES fixes
-PLAYOS_SHELL_COMMIT=f4e285b46323f0066cb46586ddcbf66392fc9ff3  # sprint-5: direct evdev input (standalone repo)
+PLAYOS_SHELL_COMMIT=ea2bd34df6a419b6bcbb3d63e1a6c35af5ea6d90  # sprint-5.5: raylib 6.0 backend (synced in-tree; LOCAL — push pending)
 
 # ── Key dependencies ──────────────────────────────────────────────────────
 WLROOTS_COMMIT=

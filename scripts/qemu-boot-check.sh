@@ -14,8 +14,37 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source shared logging
 . "$SCRIPT_DIR/lib/playos_log.sh"
 
+# ── Argument parsing ───────────────────────────────────────────────
+TIMEOUT=30
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --timeout)
+            TIMEOUT="${2:-30}"
+            shift 2
+            ;;
+        --timeout=*)
+            TIMEOUT="${1#*=}"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [--timeout SECONDS]"
+            echo "Boot the PlayOS QEMU image and verify boot success."
+            exit 0
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            echo "Usage: $0 [--timeout SECONDS]" >&2
+            exit 2
+            ;;
+        *)
+            # Bare positional seconds (legacy form: `$0 45`)
+            TIMEOUT="$1"
+            shift
+            ;;
+    esac
+done
+
 # ── Configuration ──────────────────────────────────────────────────
-TIMEOUT="${1:-30}"
 QEMU_OUTPUT="${QEMU_OUTPUT:-$SCRIPT_DIR/../output/qemu}"
 OVMF_CODE="${OVMF_CODE:-/usr/share/OVMF/OVMF_CODE_4M.fd}"
 OVMF_VARS="${OVMF_VARS:-/usr/share/OVMF/OVMF_VARS_4M.fd}"

@@ -56,42 +56,47 @@ setup: ## Clone Buildroot, apply br2-external, check dependencies
 	@if [ ! -d "$(CURDIR)/src/playos-init" ]; then \
 		echo "  -> playos-init..."; \
 		git clone https://github.com/PlayOS-Foundation/playos-init.git "$(CURDIR)/src/playos-init"; \
-		if [ -n "$(PLAYOS_INIT_COMMIT)" ]; then \
-			cd "$(CURDIR)/src/playos-init" && \
-			git fetch origin && git checkout "$(PLAYOS_INIT_COMMIT)"; \
-		fi; \
+	fi
+	@if [ -n "$(PLAYOS_INIT_COMMIT)" ] && [ -d "$(CURDIR)/src/playos-init/.git" ] && [ ! -L "$(CURDIR)/src/playos-init" ]; then \
+		echo "  -> playos-init: checkout $(PLAYOS_INIT_COMMIT)..."; \
+		git -C "$(CURDIR)/src/playos-init" fetch origin && \
+		git -C "$(CURDIR)/src/playos-init" checkout "$(PLAYOS_INIT_COMMIT)"; \
 	fi
 	@if [ ! -d "$(CURDIR)/src/playos-compositor" ]; then \
 		echo "  -> playos-compositor..."; \
 		git clone https://github.com/PlayOS-Foundation/playos-compositor.git "$(CURDIR)/src/playos-compositor"; \
-		if [ -n "$(PLAYOS_COMPOSITOR_COMMIT)" ]; then \
-			cd "$(CURDIR)/src/playos-compositor" && \
-			git fetch origin && git checkout "$(PLAYOS_COMPOSITOR_COMMIT)"; \
-		fi; \
+	fi
+	@if [ -n "$(PLAYOS_COMPOSITOR_COMMIT)" ] && [ -d "$(CURDIR)/src/playos-compositor/.git" ] && [ ! -L "$(CURDIR)/src/playos-compositor" ]; then \
+		echo "  -> playos-compositor: checkout $(PLAYOS_COMPOSITOR_COMMIT)..."; \
+		git -C "$(CURDIR)/src/playos-compositor" fetch origin && \
+		git -C "$(CURDIR)/src/playos-compositor" checkout "$(PLAYOS_COMPOSITOR_COMMIT)"; \
 	fi
 	@if [ ! -d "$(CURDIR)/src/playos-runtime" ]; then \
 		echo "  -> playos-runtime..."; \
 		git clone https://github.com/PlayOS-Foundation/playos-runtime.git "$(CURDIR)/src/playos-runtime"; \
-		if [ -n "$(PLAYOS_RUNTIME_COMMIT)" ]; then \
-			cd "$(CURDIR)/src/playos-runtime" && \
-			git fetch origin && git checkout "$(PLAYOS_RUNTIME_COMMIT)"; \
-		fi; \
+	fi
+	@if [ -n "$(PLAYOS_RUNTIME_COMMIT)" ] && [ -d "$(CURDIR)/src/playos-runtime/.git" ] && [ ! -L "$(CURDIR)/src/playos-runtime" ]; then \
+		echo "  -> playos-runtime: checkout $(PLAYOS_RUNTIME_COMMIT)..."; \
+		git -C "$(CURDIR)/src/playos-runtime" fetch origin && \
+		git -C "$(CURDIR)/src/playos-runtime" checkout "$(PLAYOS_RUNTIME_COMMIT)"; \
 	fi
 	@if [ ! -d "$(CURDIR)/src/playos-platform-api" ]; then \
 		echo "  -> playos-platform-api..."; \
 		git clone https://github.com/PlayOS-Foundation/playos-platform-api.git "$(CURDIR)/src/playos-platform-api"; \
-		if [ -n "$(PLAYOS_PLATFORM_API_COMMIT)" ]; then \
-			cd "$(CURDIR)/src/playos-platform-api" && \
-			git fetch origin && git checkout "$(PLAYOS_PLATFORM_API_COMMIT)"; \
-		fi; \
+	fi
+	@if [ -n "$(PLAYOS_PLATFORM_API_COMMIT)" ] && [ -d "$(CURDIR)/src/playos-platform-api/.git" ] && [ ! -L "$(CURDIR)/src/playos-platform-api" ]; then \
+		echo "  -> playos-platform-api: checkout $(PLAYOS_PLATFORM_API_COMMIT)..."; \
+		git -C "$(CURDIR)/src/playos-platform-api" fetch origin && \
+		git -C "$(CURDIR)/src/playos-platform-api" checkout "$(PLAYOS_PLATFORM_API_COMMIT)"; \
 	fi
 	@if [ ! -d "$(CURDIR)/src/playos-shell" ]; then \
 		echo "  -> playos-shell..."; \
 		git clone https://github.com/PlayOS-Foundation/playos-shell.git "$(CURDIR)/src/playos-shell"; \
-		if [ -n "$(PLAYOS_SHELL_COMMIT)" ]; then \
-			cd "$(CURDIR)/src/playos-shell" && \
-			git fetch origin && git checkout "$(PLAYOS_SHELL_COMMIT)"; \
-		fi; \
+	fi
+	@if [ -n "$(PLAYOS_SHELL_COMMIT)" ] && [ -d "$(CURDIR)/src/playos-shell/.git" ] && [ ! -L "$(CURDIR)/src/playos-shell" ]; then \
+		echo "  -> playos-shell: checkout $(PLAYOS_SHELL_COMMIT)..."; \
+		git -C "$(CURDIR)/src/playos-shell" fetch origin && \
+		git -C "$(CURDIR)/src/playos-shell" checkout "$(PLAYOS_SHELL_COMMIT)"; \
 	fi
 	@echo "==> Applying br2-external..."
 	@$(MAKE) -C "$(BUILDROOT_DIR)" BR2_EXTERNAL="$(BR2_EXTERNAL)" help > /dev/null 2>&1 || \

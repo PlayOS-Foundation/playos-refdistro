@@ -34,6 +34,7 @@ PLAYOS_COMPOSITOR_COMMIT := $(shell grep -s '^PLAYOS_COMPOSITOR_COMMIT=' $(VERSI
 PLAYOS_RUNTIME_COMMIT := $(shell grep -s '^PLAYOS_RUNTIME_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 PLAYOS_PLATFORM_API_COMMIT := $(shell grep -s '^PLAYOS_PLATFORM_API_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 PLAYOS_SHELL_COMMIT := $(shell grep -s '^PLAYOS_SHELL_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
+PLAYOS_SAMPLES_COMMIT := $(shell grep -s '^PLAYOS_SAMPLES_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 
 # ── Default target ───────────────────────────────────────────────────────
 .DEFAULT_GOAL := help
@@ -114,6 +115,15 @@ setup: verify-pins ## Clone Buildroot, apply br2-external, check dependencies
 		echo "  -> playos-shell: checkout $(PLAYOS_SHELL_COMMIT)..."; \
 		git -C "$(CURDIR)/src/playos-shell" fetch origin && \
 		git -C "$(CURDIR)/src/playos-shell" checkout "$(PLAYOS_SHELL_COMMIT)"; \
+	fi
+	@if [ ! -d "$(CURDIR)/src/playos-samples" ]; then \
+		echo "  -> playos-samples..."; \
+		git clone https://github.com/PlayOS-Foundation/playos-samples.git "$(CURDIR)/src/playos-samples"; \
+	fi
+	@if [ -n "$(PLAYOS_SAMPLES_COMMIT)" ] && [ -d "$(CURDIR)/src/playos-samples/.git" ] && [ ! -L "$(CURDIR)/src/playos-samples" ]; then \
+		echo "  -> playos-samples: checkout $(PLAYOS_SAMPLES_COMMIT)..."; \
+		git -C "$(CURDIR)/src/playos-samples" fetch origin && \
+		git -C "$(CURDIR)/src/playos-samples" checkout "$(PLAYOS_SAMPLES_COMMIT)"; \
 	fi
 	@echo "==> Applying br2-external..."
 	@$(MAKE) -C "$(BUILDROOT_DIR)" BR2_EXTERNAL="$(BR2_EXTERNAL)" help > /dev/null 2>&1 || \

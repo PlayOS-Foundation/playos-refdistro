@@ -23,9 +23,11 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 PLAYOS_SPEC_COMMIT=f03a41070a4ed5a2a4033a237dc8fc8562d57e6f
 PLAYOS_PLATFORM_API_COMMIT=ec26cc359886c83d1a618a05c2ee4d5184ac3c63  # sprint-5.6: evdev diagnostic logging + name-based device matching
 PLAYOS_RUNTIME_COMMIT=e7d94d2e726fd9703e0a7e11272e09991b7fcd8c  # sprint-5: trusted_control IPC client
-PLAYOS_INIT_COMMIT=1951d10265a9e089bab679d1d1aefe808a24774e  # sprint-5.6: extracted to own repo + fixed duplicate test-runner spawn + README
+PLAYOS_INIT_COMMIT=7ccbf799eb1b84f187fbea8e1cc533320271c101  # sprint-6: FactoryReset IPC + storage version marker + /data layout
 PLAYOS_COMPOSITOR_COMMIT=ff9a0d40481a124ad5d8d3a8005a038d43b6085b  # sprint-5: shell IPC integration + playos_manager
-PLAYOS_SHELL_COMMIT=104626206dfd2de59b4c576d3990d43b3b65980b  # sprint-5.5: raylib 6.0 backend + non-blocking render loop (fixes frame-2 deadlock)
+PLAYOS_SHELL_COMMIT=4f8c6a6f8cf7e478e1605ba8f9fc4df330f508f2  # sprint-6: library manifest validation + icon loading + sorting
+PLAYOS_SAMPLES_COMMIT=13bd7efc4a38ab218d1f28dfc45470ebeb7f7014  # sprint-6: three reference sample games (triangle, input-debug, audio-sine)
+PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────
 # NOTE: wlroots, Mesa, wayland, libdrm, libinput, libxkbcommon, gcc, and musl

@@ -1,0 +1,11 @@
+config BR2_PACKAGE_PLAYOS_SAMPLES
+	bool "playos-samples"
+	depends on BR2_PACKAGE_PLAYOS_PLATFORM_API
+	help
+	  Reference sample games installed under /data/games.
+
+	  Cross-compiles the three sample binaries against libplayos and
+	  installs each one's binary, manifest, and icon into the library
+	  layout the shell scans on startup.
+
+	  https://github.com/PlayOS-Foundation/playos-samples

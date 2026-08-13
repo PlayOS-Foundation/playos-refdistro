@@ -18,6 +18,7 @@ src/playos-compositor
 src/playos-init
 src/playos-platform-api
 src/playos-runtime
+src/playos-samples
 src/playos-shell
 
 # Generated Wayland protocol files

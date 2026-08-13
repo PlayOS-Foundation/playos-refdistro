@@ -5,7 +5,9 @@
 # CMakeLists.txt targeting an executable named `game`, so they cannot be
 # pulled in with `add_subdirectory` — a cmake-package would collide on the
 # target name. Instead we build each one directly with the cross toolchain
-# via generic-package, then install it into /data/games/<app-id>/.
+# via generic-package, then install it into the read-only rootfs at
+# /usr/share/playos/games/<app-id>/. On first boot playos-init seeds these
+# into the writable data partition under /data/games/<app-id>/.
 ################################################################################
 
 PLAYOS_SAMPLES_VERSION = 0.1.0
@@ -25,28 +27,30 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	done
 endef
 
-# Install each sample into the on-device library layout under /data/games.
+# Install each sample into the read-only library seed location. playos-init
+# copies these into /data/games/<app-id>/ on the first boot of a fresh data
+# partition, so the shipped titles appear in the on-device library.
 define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/audio-sine/bin/game \
-		$(TARGET_DIR)/data/games/com.playos.sample-audio/bin/game
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio/bin/game
 	$(INSTALL) -D -m 0644 $(@D)/audio-sine/manifest.json \
-		$(TARGET_DIR)/data/games/com.playos.sample-audio/manifest.json
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio/manifest.json
 	$(INSTALL) -D -m 0644 $(@D)/audio-sine/assets/icon.png \
-		$(TARGET_DIR)/data/games/com.playos.sample-audio/assets/icon.png
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio/assets/icon.png
 
 	$(INSTALL) -D -m 0755 $(@D)/input-debug/bin/game \
-		$(TARGET_DIR)/data/games/com.playos.sample-input/bin/game
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-input/bin/game
 	$(INSTALL) -D -m 0644 $(@D)/input-debug/manifest.json \
-		$(TARGET_DIR)/data/games/com.playos.sample-input/manifest.json
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-input/manifest.json
 	$(INSTALL) -D -m 0644 $(@D)/input-debug/assets/icon.png \
-		$(TARGET_DIR)/data/games/com.playos.sample-input/assets/icon.png
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-input/assets/icon.png
 
 	$(INSTALL) -D -m 0755 $(@D)/triangle/bin/game \
-		$(TARGET_DIR)/data/games/com.playos.sample-triangle/bin/game
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-triangle/bin/game
 	$(INSTALL) -D -m 0644 $(@D)/triangle/manifest.json \
-		$(TARGET_DIR)/data/games/com.playos.sample-triangle/manifest.json
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-triangle/manifest.json
 	$(INSTALL) -D -m 0644 $(@D)/triangle/assets/icon.png \
-		$(TARGET_DIR)/data/games/com.playos.sample-triangle/assets/icon.png
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-triangle/assets/icon.png
 endef
 
 $(eval $(generic-package))

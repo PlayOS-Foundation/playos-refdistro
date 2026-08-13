@@ -32,6 +32,7 @@ PLAYOS_INIT_COMMIT := $(shell grep -s '^PLAYOS_INIT_COMMIT=' $(VERSIONS_LOCK) 2>
 PLAYOS_COMPOSITOR_COMMIT := $(shell grep -s '^PLAYOS_COMPOSITOR_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
 PLAYOS_RUNTIME_COMMIT := $(shell grep -s '^PLAYOS_RUNTIME_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
 PLAYOS_PLATFORM_API_COMMIT := $(shell grep -s '^PLAYOS_PLATFORM_API_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
+PLAYOS_SHELL_COMMIT := $(shell grep -s '^PLAYOS_SHELL_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
 
 # ── Default target ───────────────────────────────────────────────────────
 .DEFAULT_GOAL := help
@@ -82,6 +83,14 @@ setup: ## Clone Buildroot, apply br2-external, check dependencies
 		if [ -n "$(PLAYOS_PLATFORM_API_COMMIT)" ]; then \
 			cd "$(CURDIR)/src/playos-platform-api" && \
 			git fetch origin && git checkout "$(PLAYOS_PLATFORM_API_COMMIT)"; \
+		fi; \
+	fi
+	@if [ ! -d "$(CURDIR)/src/playos-shell" ]; then \
+		echo "  -> playos-shell..."; \
+		git clone https://github.com/PlayOS-Foundation/playos-shell.git "$(CURDIR)/src/playos-shell"; \
+		if [ -n "$(PLAYOS_SHELL_COMMIT)" ]; then \
+			cd "$(CURDIR)/src/playos-shell" && \
+			git fetch origin && git checkout "$(PLAYOS_SHELL_COMMIT)"; \
 		fi; \
 	fi
 	@echo "==> Applying br2-external..."

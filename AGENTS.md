@@ -1,6 +1,6 @@
 # AGENTS.md — playos-refdistro
 
-> **Implementation status:** 🟢 Sprints 0-4 Integrated — Build infrastructure complete, `playos-init` packaged, `playos-compositor` packaged (Sprint 4 DRM/KMS), `playos-platform-api` packaged, wlroots 0.20 package, Ally and QEMU defconfigs, IPC sources live under `src/playos-init/ipc/`. Ready for Sprint 5 (Raylib + playos-shell).
+> **Implementation status:** 🟢 Sprints 0-4 Integrated — Build infrastructure complete, `playos-init` packaged, `playos-compositor` packaged (Sprint 4 DRM/KMS), `playos-platform-api` packaged, wlroots 0.20 package, Ally and QEMU defconfigs, IPC sources live in the `playos-init` repo (cloned to `src/playos-init/ipc/` by `make setup`). Ready for Sprint 5 (Raylib + playos-shell).
 
 This repository is the **reference distribution** — the Buildroot `br2-external` tree that assembles all PlayOS components into a bootable, immutable system image for the ASUS ROG Ally (and QEMU for development). This is where the OS image is built; no C code lives here.
 
@@ -66,7 +66,7 @@ br2-external/
 
 ### IPC Sources
 
-IPC C sources (`ipc_client.c`, `ipc_server.c`, `lifecycle_fd.c`) live at `src/playos-init/ipc/` — they are part of the `playos-init` build, not a standalone runtime library.
+IPC C sources (`ipc_client.c`, `ipc_server.c`, `lifecycle_fd.c`) live in the **playos-init repository** and are cloned to `src/playos-init/ipc/` by `make setup` — they are part of the `playos-init` build, not a standalone runtime library, and are not committed in this repository.
 
 ## Make Targets
 

@@ -19,7 +19,7 @@ LINUX_SHA256=
 PLAYOS_SPEC_COMMIT=e529e1062ad049663de372ebb136ea2d356e07d3
 PLAYOS_PLATFORM_API_COMMIT=d2be91cf3e80320201f3f761928edeb65bb7f2d7  # sprint-5: storage, logging, system API
 PLAYOS_RUNTIME_COMMIT=e7d94d2f20f2850738348b3e3c09a370c8d298cd  # sprint-5: trusted_control IPC client
-PLAYOS_INIT_COMMIT=b7800393c9466609facf2c5c57dacbe3c9bb0c30  # sprint-5: supervisor updates (in monorepo)
+PLAYOS_INIT_COMMIT=3a89f09feb0f1eee43ef8bffd906d3f94ec6623c  # sprint-5.6: extracted to own repo
 PLAYOS_COMPOSITOR_COMMIT=f946922c9e358f3b5eb98b85ac1bf4b3cea3f513  # sprint-4: EGL/GLES fixes
 PLAYOS_SHELL_COMMIT=104626206dfd2de59b4c576d3990d43b3b65980b  # sprint-5.5: raylib 6.0 backend + non-blocking render loop (fixes frame-2 deadlock)
 

@@ -28,11 +28,11 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 
 # ── Version pins (from versions.lock) ────────────────────────────────────
 VERSIONS_LOCK := $(CURDIR)/versions.lock
-PLAYOS_INIT_COMMIT := $(shell grep -s '^PLAYOS_INIT_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
-PLAYOS_COMPOSITOR_COMMIT := $(shell grep -s '^PLAYOS_COMPOSITOR_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
-PLAYOS_RUNTIME_COMMIT := $(shell grep -s '^PLAYOS_RUNTIME_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
-PLAYOS_PLATFORM_API_COMMIT := $(shell grep -s '^PLAYOS_PLATFORM_API_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
-PLAYOS_SHELL_COMMIT := $(shell grep -s '^PLAYOS_SHELL_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | xargs)
+PLAYOS_INIT_COMMIT := $(shell grep -s '^PLAYOS_INIT_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
+PLAYOS_COMPOSITOR_COMMIT := $(shell grep -s '^PLAYOS_COMPOSITOR_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
+PLAYOS_RUNTIME_COMMIT := $(shell grep -s '^PLAYOS_RUNTIME_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
+PLAYOS_PLATFORM_API_COMMIT := $(shell grep -s '^PLAYOS_PLATFORM_API_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
+PLAYOS_SHELL_COMMIT := $(shell grep -s '^PLAYOS_SHELL_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 
 # ── Default target ───────────────────────────────────────────────────────
 .DEFAULT_GOAL := help

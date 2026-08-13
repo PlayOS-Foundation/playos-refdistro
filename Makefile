@@ -28,6 +28,7 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 
 # ── Version pins (from versions.lock) ────────────────────────────────────
 VERSIONS_LOCK := $(CURDIR)/versions.lock
+BUILDROOT_COMMIT := $(shell grep -s '^BUILDROOT_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 PLAYOS_INIT_COMMIT := $(shell grep -s '^PLAYOS_INIT_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 PLAYOS_COMPOSITOR_COMMIT := $(shell grep -s '^PLAYOS_COMPOSITOR_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
 PLAYOS_RUNTIME_COMMIT := $(shell grep -s '^PLAYOS_RUNTIME_COMMIT=' $(VERSIONS_LOCK) 2>/dev/null | cut -d= -f2- | sed 's/[[:space:]]*#.*//' | xargs)
@@ -45,12 +46,28 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # ── Setup ────────────────────────────────────────────────────────────────
+.PHONY: verify-pins
+verify-pins: ## Verify versions.lock pins are all set
+	@bash "$(SCRIPTS_DIR)/verify-versions.sh" "$(VERSIONS_LOCK)"
+
 .PHONY: setup
-setup: ## Clone Buildroot, apply br2-external, check dependencies
+setup: verify-pins ## Clone Buildroot, apply br2-external, check dependencies
 	@echo "==> Setting up PlayOS build environment..."
 	@if [ ! -d "$(BUILDROOT_DIR)" ]; then \
-		echo "==> Cloning Buildroot..."; \
-		git clone --depth 1 https://git.buildroot.net/buildroot "$(BUILDROOT_DIR)"; \
+		echo "==> Cloning Buildroot (shallow, 100 commits)..."; \
+		git clone --depth 100 https://git.buildroot.net/buildroot "$(BUILDROOT_DIR)"; \
+	fi
+	@if [ -n "$(BUILDROOT_COMMIT)" ]; then \
+		if ! git -C "$(BUILDROOT_DIR)" cat-file -e "$(BUILDROOT_COMMIT)^{commit}" 2>/dev/null; then \
+			echo "==> Fetching Buildroot history to reach $(BUILDROOT_COMMIT)..."; \
+			if git -C "$(BUILDROOT_DIR)" rev-parse --is-shallow-repository | grep -q true; then \
+				git -C "$(BUILDROOT_DIR)" fetch --unshallow origin; \
+			else \
+				git -C "$(BUILDROOT_DIR)" fetch origin; \
+			fi; \
+		fi; \
+		echo "==> Pinning Buildroot to $(BUILDROOT_COMMIT)..."; \
+		git -C "$(BUILDROOT_DIR)" checkout --detach "$(BUILDROOT_COMMIT)"; \
 	fi
 	@echo "==> Cloning source repositories..."
 	@if [ ! -d "$(CURDIR)/src/playos-init" ]; then \

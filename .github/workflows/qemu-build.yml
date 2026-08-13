@@ -22,6 +22,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify version pins
+        run: |
+          bash scripts/verify-versions.sh versions.lock
+
       - name: Setup host environment
         run: |
           bash scripts/setup-ubuntu.sh

@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=08393a21f48091ccb69ac0ef8138e609569d157e  # docs: provision game exit/crash IPC emission and code hygiene in Sprint 7
+PLAYOS_SPEC_COMMIT=26b6622aa6ac1fc848528e42ca24dd7b0b5c2ef0  # docs: split GameExited into GameExited and GameCrashed events
 PLAYOS_PLATFORM_API_COMMIT=4e39afa5d44c08d0ec869be4c6828e68bcdccc7f  # refactor(lifecycle): read events from inherited pipe instead of IPC socket
 PLAYOS_RUNTIME_COMMIT=e7d94d2e726fd9703e0a7e11272e09991b7fcd8c  # sprint-5: trusted_control IPC client
 PLAYOS_INIT_COMMIT=f61c0c4dfcb6f454a929beaa04a5f41b3cce6c64  # fix: correct playos_shutdown signature; route Shutdown IPC to graceful power-off

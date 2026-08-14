@@ -23,6 +23,13 @@ ALLY_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_defconfig
 ALLY_OUTPUT := $(CURDIR)/output/ally
 SCRIPTS_DIR := $(CURDIR)/scripts
 
+# Local-site packages are rsync'd into the Buildroot output only on the first
+# build; Buildroot does NOT re-sync them when sources under src/ change. We
+# dirclean them before every build so edits to src/<component> are always
+# picked up (see playos-*.mk SITE_METHOD = local).
+PLAYOS_LOCAL_PACKAGES := playos-init playos-runtime playos-compositor playos-shell \
+	playos-platform-api playos-raylib playos-overlay playos-samples
+
 # Source shared logging (if present)
 -include $(SCRIPTS_DIR)/lib/playos_log.mk
 
@@ -151,6 +158,10 @@ qemu-build: ## Full image build for QEMU (requires setup)
 		$(notdir $(QEMU_DEFCONFIG))
 	@$(MAKE) -C "$(BUILDROOT_DIR)" \
 		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(QEMU_OUTPUT)" \
+		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
 		O="$(QEMU_OUTPUT)"
 
 .PHONY: qemu-run
@@ -176,6 +187,10 @@ ally-build: ## Full image build for ROG Ally (requires setup)
 		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
 		O="$(ALLY_OUTPUT)" \
 		$(notdir $(ALLY_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(ALLY_OUTPUT)" \
+		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
 	@$(MAKE) -C "$(BUILDROOT_DIR)" \
 		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
 		O="$(ALLY_OUTPUT)"

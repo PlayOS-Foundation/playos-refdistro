@@ -22,9 +22,9 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=26b6622aa6ac1fc848528e42ca24dd7b0b5c2ef0  # docs: split GameExited into GameExited and GameCrashed events
 PLAYOS_PLATFORM_API_COMMIT=4e39afa5d44c08d0ec869be4c6828e68bcdccc7f  # refactor(lifecycle): read events from inherited pipe instead of IPC socket
-PLAYOS_RUNTIME_COMMIT=e7d94d2e726fd9703e0a7e11272e09991b7fcd8c  # sprint-5: trusted_control IPC client
+PLAYOS_RUNTIME_COMMIT=d0dd25864beb75b3e884d31afdce689b64db415d  # Sprint 7: persistent shell async-event listener (H2)
 PLAYOS_INIT_COMMIT=f61c0c4dfcb6f454a929beaa04a5f41b3cce6c64  # fix: correct playos_shutdown signature; route Shutdown IPC to graceful power-off
-PLAYOS_COMPOSITOR_COMMIT=cd2f9a98f494687d5739124c006f1587acf5adc2  # fix: per-toplevel xdg commit/destroy listeners
+PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
 PLAYOS_SHELL_COMMIT=5473e59a41c31ff7b687e28470a5348c01df528b  # fix: stop pre-opening a second IPC connection that deadlocked the server
 PLAYOS_SAMPLES_COMMIT=4a249ee99ae9e351c5e25e8c888166bd32f69417  # feat: add rotating-squares Raylib sample
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples

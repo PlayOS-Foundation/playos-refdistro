@@ -398,6 +398,15 @@ main(int argc, char *argv[])
 
         EndDrawing();
 
+        /* One-time bootstrap: the Realtek codec powers up with its speaker
+         * volume at minimum and the speaker pin muted. If nothing has set a
+         * sane level yet (e.g. right after boot, before any game adjusts it),
+         * raise it to a default so the first audio sample isn't silent. */
+        if (first_frame && audio_info.master_volume <= 0.01f) {
+            (void)playos_audio_set_master_volume(0.7f);
+            (void)playos_audio_set_muted(0);
+        }
+
         /* Tell the compositor we've rendered our first frame. */
         if (first_frame && overlay) {
             playos_overlay_v1_surface_ready(overlay);

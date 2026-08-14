@@ -1,9 +1,9 @@
 ################################################################################
 # playos-samples — reference sample games (Sprint 6)
 #
-# The samples (audio-sine, controller-visualizer, input-debug, triangle,
-# rotating-squares) each ship their own CMakeLists.txt targeting an executable
-# named `game`, so they
+# The samples (audio-sine, audio-module, controller-visualizer, input-debug,
+# triangle, rotating-squares) each ship their own CMakeLists.txt targeting an
+# executable named `game`, so they
 # cannot be pulled in with `add_subdirectory` — a cmake-package would collide
 # on the target name. Instead we build each one directly with the cross
 # toolchain via generic-package, then install it into the read-only rootfs at
@@ -12,6 +12,9 @@
 #
 # rotating-squares additionally links the shared libraylib (playos-raylib
 # package) to exercise the PLATFORM_PLAYOS Wayland/EGL/GLES2 backend.
+# audio-module is the first sample to ship a runtime resource (its .xm module
+# under resources/), which is installed alongside bin/game and seeded into
+# /data/games/<app-id>/ by playos-init's recursive copy_tree.
 ################################################################################
 
 PLAYOS_SAMPLES_VERSION = 0.1.0
@@ -40,6 +43,10 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	mkdir -p $(@D)/controller-visualizer/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/controller-visualizer/bin/game $(@D)/controller-visualizer/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+	mkdir -p $(@D)/audio-module/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/audio-module/bin/game $(@D)/audio-module/src/main.c \
 		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 endef
 
@@ -81,6 +88,15 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-controller-visualizer/manifest.json
 	$(INSTALL) -D -m 0644 $(@D)/controller-visualizer/assets/icon.png \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-controller-visualizer/assets/icon.png
+
+	$(INSTALL) -D -m 0755 $(@D)/audio-module/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio-module/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/audio-module/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio-module/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/audio-module/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio-module/assets/icon.png
+	$(INSTALL) -D -m 0644 $(@D)/audio-module/resources/mini1111.xm \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio-module/resources/mini1111.xm
 endef
 
 $(eval $(generic-package))

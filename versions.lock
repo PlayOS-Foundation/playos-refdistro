@@ -20,13 +20,13 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=f03a41070a4ed5a2a4033a237dc8fc8562d57e6f
-PLAYOS_PLATFORM_API_COMMIT=ec26cc359886c83d1a618a05c2ee4d5184ac3c63  # sprint-5.6: evdev diagnostic logging + name-based device matching
+PLAYOS_SPEC_COMMIT=08393a21f48091ccb69ac0ef8138e609569d157e  # docs: provision game exit/crash IPC emission and code hygiene in Sprint 7
+PLAYOS_PLATFORM_API_COMMIT=4e39afa5d44c08d0ec869be4c6828e68bcdccc7f  # refactor(lifecycle): read events from inherited pipe instead of IPC socket
 PLAYOS_RUNTIME_COMMIT=e7d94d2e726fd9703e0a7e11272e09991b7fcd8c  # sprint-5: trusted_control IPC client
-PLAYOS_INIT_COMMIT=6ddc789dc34fa1982ac57d656a409006b4a751d5  # sprint-6: FactoryReset IPC + storage marker + /data layout + shipped-game seeding + boot banner + provisioning halt + persistent init.log + real game launch w/ game stderr capture
-PLAYOS_COMPOSITOR_COMMIT=ff9a0d40481a124ad5d8d3a8005a038d43b6085b  # sprint-5: shell IPC integration + playos_manager
-PLAYOS_SHELL_COMMIT=36eaefe944c437ed2f7827c5932b432bb8a4fdd4  # sprint-6: library manifest validation + icon loading + sorting + home footer banner + fast-tap input edge fix
-PLAYOS_SAMPLES_COMMIT=13bd7efc4a38ab218d1f28dfc45470ebeb7f7014  # sprint-6: three reference sample games (triangle, input-debug, audio-sine)
+PLAYOS_INIT_COMMIT=f61c0c4dfcb6f454a929beaa04a5f41b3cce6c64  # fix: correct playos_shutdown signature; route Shutdown IPC to graceful power-off
+PLAYOS_COMPOSITOR_COMMIT=0b7aff8ffd83ede9712f210b30327b1897faa97b  # fix: per-toplevel xdg commit/destroy listeners
+PLAYOS_SHELL_COMMIT=5473e59a41c31ff7b687e28470a5348c01df528b  # fix: stop pre-opening a second IPC connection that deadlocked the server
+PLAYOS_SAMPLES_COMMIT=4a249ee99ae9e351c5e25e8c888166bd32f69417  # feat: add rotating-squares Raylib sample
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────

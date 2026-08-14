@@ -23,10 +23,10 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 PLAYOS_SPEC_COMMIT=15ea4cca1a83c7deb575af565e6ebe9792eac1ab  # docs(sprints): add Sprint 17 — touch input + on-screen keyboard
 PLAYOS_PLATFORM_API_COMMIT=b652af7fa985cae327385958877b2b380c90f1ee  # Sprint 8: ALSA master volume/mute with cached mixer handle
 PLAYOS_RUNTIME_COMMIT=d0dd25864beb75b3e884d31afdce689b64db415d  # Sprint 7: persistent shell async-event listener (H2)
-PLAYOS_INIT_COMMIT=3f328876b32e4f07d90efb4dbc3b00d34b15fd34  # fix(tests): seeded game ID in IPC test fixture
+PLAYOS_INIT_COMMIT=38430c95deb167de03cdc4c8d6521a71e977509e  # fix: gate IPC test client behind PLAYOS_ENABLE_IPC_TESTS; add audio diagnostics
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
 PLAYOS_SHELL_COMMIT=4ad17f662381c8371906d90fa9c82049b8343390  # feat(raylib): add GLES 3.0 support to PlayOS backend
-PLAYOS_SAMPLES_COMMIT=6d9eca237e9788574ec1c7702c1cd3b6f31eee59  # feat(audio-module): port raylib audio_module_playing
+PLAYOS_SAMPLES_COMMIT=cdd3ec4f9fd87531d9993e9949449b9386ba8649  # fix(controller-visualizer): center controller diagram on real surface
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────

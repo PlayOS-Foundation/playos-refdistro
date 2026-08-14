@@ -1,8 +1,8 @@
 # AGENTS.md — playos-refdistro
 
-> **Implementation status:** 🟢 Sprints 0-4 Integrated — Build infrastructure complete, `playos-init` packaged, `playos-compositor` packaged (Sprint 4 DRM/KMS), `playos-platform-api` packaged, wlroots 0.20 package, Ally and QEMU defconfigs, IPC sources live in the `playos-init` repo (cloned to `src/playos-init/ipc/` by `make setup`). Ready for Sprint 5 (Raylib + playos-shell).
+> **Implementation status:** 🟢 Sprints 0-7 Integrated — Build infrastructure complete. Packaged components: `playos-init`, `playos-compositor` (v0.4.0), `playos-platform-api` (0.3.0), `playos-shell` (Sprint 5.5), and the trusted in-game overlay (`playos-overlay`, Sprint 7, built from `src/playos-overlay/`). wlroots 0.20 is versioned by the pinned Buildroot snapshot. Ally and QEMU defconfigs are provided. IPC sources live in the `playos-init` repo (cloned to `src/playos-init/ipc/` by `make setup`).
 
-This repository is the **reference distribution** — the Buildroot `br2-external` tree that assembles all PlayOS components into a bootable, immutable system image for the ASUS ROG Ally (and QEMU for development). This is where the OS image is built; no C code lives here.
+This repository is the **reference distribution** — the Buildroot `br2-external` tree that assembles all PlayOS components into a bootable, immutable system image for the ASUS ROG Ally (and QEMU for development). This is where the OS image is built. With one deliberate exception, no C code lives here: the trusted in-game overlay client (`src/playos-overlay/`) is reference-distro-specific and is built from source in this repo (Sprint 7).
 
 ## Specification Reference
 
@@ -31,7 +31,7 @@ br2-external/
 │   ├── playos-compositor/
 │   │   ├── playos-compositor.mk   ← v0.4.0 (Sprint 4 DRM/KMS)
 │   │   └── Config.in
-│   ├── playos-shell/              ← Sprint 5 (not yet packaged)
+│   ├── playos-shell/              ← Sprint 5.5 (packaged, v0.1.0)
 │   │   ├── playos-shell.mk
 │   │   └── Config.in
 │   ├── playos-platform-api/
@@ -93,15 +93,18 @@ make distclean      # Remove everything including dl/
 ## versions.lock Format
 
 ```
-# Component               Git SHA (40 chars)        Tag / branch hint
-BUILDROOT_SHA=            <sha>                     # buildroot-YYYY.MM
-LINUX_SHA=                <sha>                     # linux-6.x.y
-WLROOTS_SHA=              <sha>                     # wlroots-0.20
-PLAYOS_INIT_SHA=          <sha>                     # from playos-init main
-PLAYOS_COMPOSITOR_SHA=    <sha>                     # from playos-compositor main (Sprint 4: 13fb7d4...)
-PLAYOS_PLATFORM_API_SHA=  <sha>                     # from playos-platform-api main
-# PLAYOS_SHELL_SHA=       <sha>                     # Sprint 5 — not yet locked
-```
+# Component                Version/SHA (full 40-char commit)  Tag / branch hint
+BUILDROOT_COMMIT=          <sha>                     # buildroot-YYYY.MM
+LINUX_VERSION=             <version>                 # linux-6.x.y
+LINUX_SHA256=              <sha256>                  # kernel.org tarball digest
+WLROOTS_COMMIT=            <sha>                     # wlroots-0.20 (informational)
+PLAYOS_SPEC_COMMIT=        <sha>                     # from playos-spec main
+PLAYOS_PLATFORM_API_COMMIT=<sha>                     # from playos-platform-api main
+PLAYOS_RUNTIME_COMMIT=     <sha>                     # from playos-runtime main
+PLAYOS_INIT_COMMIT=        <sha>                     # from playos-init main
+PLAYOS_COMPOSITOR_COMMIT=  <sha>                     # from playos-compositor main
+PLAYOS_SHELL_COMMIT=       <sha>                     # from playos-shell main
+PLAYOS_SAMPLES_COMMIT=     <sha>                     # from playos-samples main
 ```
 
 All SHAs must be filled before tagging a release. CI will fail on empty values.
@@ -119,7 +122,7 @@ All SHAs must be filled before tagging a release. CI will fail on empty values.
 
 ## What NOT to Do
 
-- **Do not add C source code here** — all source lives in the component repos.
+- **Do not add C source code here** — all source lives in the component repos. Exception: `src/playos-overlay/` holds the trusted in-game overlay client source; it is built here because it is specific to the reference distribution, not a standalone component repo (Sprint 7).
 - **Do not commit build output** (`output/`, `dl/` except for the lock file) — `.gitignore` covers this.
 - **Do not hardcode `/dev/dri/card0`** anywhere — GPU discovery is done by `playos-init` via PCI enumeration (ADR-0008).
 - **Do not add BusyBox applets to the production `ally` defconfig** — production image has no shell, no SSH, no debug tools (see `security-model.md`). BusyBox is allowed in the `qemu` defconfig for dev convenience.

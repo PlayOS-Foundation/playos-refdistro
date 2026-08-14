@@ -5,5 +5,6 @@ menu "PlayOS packages"
     source "$BR2_EXTERNAL_PlayOS_PATH/package/playos-compositor/Config.in"
     source "$BR2_EXTERNAL_PlayOS_PATH/package/playos-shell/Config.in"
     source "$BR2_EXTERNAL_PlayOS_PATH/package/playos-raylib/Config.in"
+    source "$BR2_EXTERNAL_PlayOS_PATH/package/playos-overlay/Config.in"
     source "$BR2_EXTERNAL_PlayOS_PATH/package/playos-samples/Config.in"
 endmenu

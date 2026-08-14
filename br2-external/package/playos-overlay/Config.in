@@ -1,0 +1,8 @@
+config BR2_PACKAGE_PLAYOS_OVERLAY
+	bool "playos-overlay"
+	help
+	  Trusted in-game overlay rendered as a Raylib Wayland client.
+	  Pre-spawned and hidden by playos-init; the compositor maps/unmaps
+	  it in response to the reserved SYSTEM button. Shows the active
+	  game, elapsed time, and system status, and offers Resume (A) and
+	  Quit game (B) actions.

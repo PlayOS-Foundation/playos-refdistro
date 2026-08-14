@@ -1,0 +1,11 @@
+config BR2_PACKAGE_PLAYOS_RAYLIB
+	bool "playos-raylib"
+	help
+	  Raylib 6.0 with the custom PlayOS Wayland/EGL/GLES2 backend,
+	  installed as a shared library (libraylib.so.600) plus the
+	  public headers (raylib.h, raymath.h, rlgl.h, rcamera.h).
+
+	  Provides the PLATFORM_PLAYOS raylib backend as a reusable
+	  package so samples and games can render via -lraylib.
+
+	  https://github.com/raysan5/raylib

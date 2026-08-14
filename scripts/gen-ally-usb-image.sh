@@ -58,8 +58,9 @@ IMAGE_SIZE_MB=$((ESP_SIZE_MB + SYSTEM_A_SIZE_MB + 1024 + 2))
 IMAGE_PATH="$IMAGES_DIR/playos-ally-usb.img"
 echo "==> Creating disk image: ${IMAGE_SIZE_MB} MiB..."
 
-# Create empty sparse image
-dd if=/dev/zero of="$IMAGE_PATH" bs=1M count="$IMAGE_SIZE_MB" status=none 2>/dev/null
+# Create empty sparse image (truncate punches holes; only written extents
+# consume real disk, so the 3.5 GiB image needs ~300-500 MiB of actual space).
+truncate -s "${IMAGE_SIZE_MB}M" "$IMAGE_PATH"
 
 # ── Partition with sgdisk (GPT) ─────────────────────────────────────
 if command -v sgdisk &>/dev/null; then

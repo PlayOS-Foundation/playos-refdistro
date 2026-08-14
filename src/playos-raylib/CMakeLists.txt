@@ -14,6 +14,19 @@ find_package(PkgConfig REQUIRED)
 # Wayland scanner (host-wayland provides $(HOST_DIR)/bin/wayland-scanner)
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 
+# libplayos (from playos-platform-api) — rcore_playos.c pulls the controller
+# snapshot from playos_input_get_controller_state() to drive raylib's gamepad
+# subsystem.
+find_library(PLAYOS_LIB playos HINTS ${CMAKE_SYSROOT}/usr/lib)
+if(NOT PLAYOS_LIB)
+    message(FATAL_ERROR "libplayos not found — build playos-platform-api first")
+endif()
+get_filename_component(PLAYOS_LIB_DIR "${PLAYOS_LIB}" DIRECTORY)
+find_path(PLAYOS_INCLUDE_DIR playos/playos_input.h
+    HINTS "${PLAYOS_LIB_DIR}/../include"
+          "${CMAKE_PREFIX_PATH}/include"
+    REQUIRED)
+
 # xdg-shell protocol shipped with wayland-protocols
 pkg_get_variable(WAYLAND_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 set(XDG_SHELL_XML "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml")
@@ -70,3 +83,8 @@ target_sources(raylib PRIVATE
     ${GEN_DIR}/playos-v1-protocol.c
     ${GEN_DIR}/xdg-shell-protocol.c)
 add_dependencies(raylib playos-protocols)
+
+# rcore_playos.c translates the PlayOS controller snapshot into raylib's
+# gamepad subsystem, so it needs the playos headers and libplayos.
+target_include_directories(raylib PRIVATE ${PLAYOS_INCLUDE_DIR})
+target_link_libraries(raylib PRIVATE ${PLAYOS_LIB})

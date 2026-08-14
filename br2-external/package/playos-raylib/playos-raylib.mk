@@ -16,7 +16,7 @@ PLAYOS_RAYLIB_VERSION = 6.0.0
 PLAYOS_RAYLIB_SITE = $(BR2_EXTERNAL_PlayOS_PATH)/../src/playos-raylib
 PLAYOS_RAYLIB_SITE_METHOD = local
 PLAYOS_RAYLIB_INSTALL_STAGING = YES
-PLAYOS_RAYLIB_DEPENDENCIES = wayland wayland-protocols mesa3d
+PLAYOS_RAYLIB_DEPENDENCIES = wayland wayland-protocols mesa3d alsa-lib
 
 # Point the wrapper at the single vendored raylib source (kept in the shell).
 PLAYOS_RAYLIB_CONF_OPTS = \

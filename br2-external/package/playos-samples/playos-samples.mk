@@ -22,12 +22,16 @@ PLAYOS_SAMPLES_DEPENDENCIES = playos-platform-api playos-raylib
 # adds --sysroot=$(STAGING_DIR), so <playos/playos.h> and -lplayos resolve
 # against the staging tree automatically.
 define PLAYOS_SAMPLES_BUILD_CMDS
-	for d in audio-sine input-debug triangle; do \
+	for d in input-debug triangle; do \
 		mkdir -p $(@D)/$$d/bin; \
 		$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 			-o $(@D)/$$d/bin/game $(@D)/$$d/src/main.c \
 			$(TARGET_LDFLAGS) -lplayos || exit 1; \
 	done
+	mkdir -p $(@D)/audio-sine/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/audio-sine/bin/game $(@D)/audio-sine/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 	mkdir -p $(@D)/rotating-squares/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/rotating-squares/bin/game $(@D)/rotating-squares/src/main.c \

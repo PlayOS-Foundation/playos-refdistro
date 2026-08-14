@@ -1,5 +1,6 @@
 config BR2_PACKAGE_PLAYOS_PLATFORM_API
 	bool "playos-platform-api (libplayos)"
+	select BR2_PACKAGE_ALSA_LIB
 	help
 	  Public libplayos C ABI — the only interface games may use.
 	  Provides system, lifecycle, input, display, storage, audio,

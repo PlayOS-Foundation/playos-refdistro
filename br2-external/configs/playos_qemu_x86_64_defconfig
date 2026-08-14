@@ -57,6 +57,9 @@ BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_SOFTPIPE=y
 BR2_PACKAGE_MESA3D_OPENGL_EGL=y
 BR2_PACKAGE_MESA3D_OPENGL_ES=y
 
+# ── Packages — Audio ─────────────────────────────────────────────
+BR2_PACKAGE_ALSA_LIB=y
+
 # ── Packages — PlayOS components ──────────────────────────────────
 BR2_PACKAGE_PLAYOS_INIT=y
 BR2_PACKAGE_PLAYOS_PLATFORM_API=y

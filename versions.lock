@@ -21,12 +21,12 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=26b6622aa6ac1fc848528e42ca24dd7b0b5c2ef0  # docs: split GameExited into GameExited and GameCrashed events
-PLAYOS_PLATFORM_API_COMMIT=9b8cc24577c83d6d3d5beedc3013ea5061967bfd  # fix: revert accidental ABI version bump; refresh AGENTS.md status
+PLAYOS_PLATFORM_API_COMMIT=b652af7fa985cae327385958877b2b380c90f1ee  # Sprint 8: ALSA master volume/mute with cached mixer handle
 PLAYOS_RUNTIME_COMMIT=d0dd25864beb75b3e884d31afdce689b64db415d  # Sprint 7: persistent shell async-event listener (H2)
-PLAYOS_INIT_COMMIT=ec6375a2fbb910734a1b7c1de2929f5cc63c2688  # Sprint 7: foreground/background lifecycle with SIGSTOP/SIGCONT (H3)
+PLAYOS_INIT_COMMIT=3f328876b32e4f07d90efb4dbc3b00d34b15fd34  # fix(tests): seeded game ID in IPC test fixture
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
-PLAYOS_SHELL_COMMIT=68e789e3a4b4a7373fb47bed029cf3e7c40f2bf7  # Sprint 7: register persistent async event listener (H2)
-PLAYOS_SAMPLES_COMMIT=173c7c33a59685ca3c0c8c7b616550ce525e5060  # feat(input-debug): log lifecycle events and ignore build output
+PLAYOS_SHELL_COMMIT=5acf2f308b5abf3092b56696246d9a5b3ee0e801  # Sprint 8: UI sounds + raylib raudio enabled
+PLAYOS_SAMPLES_COMMIT=abc15e10bbe1cfc5ac4fb607e607b18209793030  # Sprint 8: audio-sine continuous 440 Hz stereo sine
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────

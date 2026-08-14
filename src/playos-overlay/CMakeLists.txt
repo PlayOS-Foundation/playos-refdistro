@@ -54,6 +54,14 @@ find_path(PLAYOS_RUNTIME_INCLUDE_DIR playos-runtime/trusted_control.h
     HINTS ${CMAKE_SYSROOT}/usr/include
     REQUIRED)
 
+# ── Public Platform API (libplayos: audio volume/mute control) ──────────
+find_library(PLAYOS_LIB playos
+    HINTS ${CMAKE_SYSROOT}/usr/lib
+    REQUIRED)
+find_path(PLAYOS_INCLUDE_DIR playos/playos.h
+    HINTS ${CMAKE_SYSROOT}/usr/include
+    REQUIRED)
+
 # ── Executable ──────────────────────────────────────────────────────────
 add_executable(playos-overlay
     main.c
@@ -64,6 +72,7 @@ target_include_directories(playos-overlay PRIVATE
     ${GEN_DIR}
     ${RAYLIB_INCLUDE_DIR}
     ${PLAYOS_RUNTIME_INCLUDE_DIR}
+    ${PLAYOS_INCLUDE_DIR}
     ${WAYLAND_CLIENT_INCLUDE_DIRS}
 )
 
@@ -75,6 +84,7 @@ target_link_libraries(playos-overlay PRIVATE
     ${WAYLAND_CLIENT_LIBRARIES}
     ${RAYLIB_LIB}
     ${PLAYOS_TRUSTED_LIB}
+    ${PLAYOS_LIB}
     m
 )
 

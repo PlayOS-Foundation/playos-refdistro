@@ -45,6 +45,7 @@
 
 #include "playos-v1-client-protocol.h"
 #include "playos-runtime/trusted_control.h"
+#include "playos/playos.h"
 
 /* ── Raylib PlayOS backend accessors ─────────────────────────────────────
  * Declared here because the vendored raylib builds the PlayOS backend
@@ -198,10 +199,13 @@ find_gamepad(void)
 }
 
 static void
-poll_input(int fd, int *a_pressed, int *b_pressed)
+poll_input(int fd, int *a_pressed, int *b_pressed,
+           int *vol_up_pressed, int *vol_down_pressed)
 {
     *a_pressed = 0;
     *b_pressed = 0;
+    *vol_up_pressed = 0;
+    *vol_down_pressed = 0;
 
     if (fd < 0)
         return;
@@ -214,6 +218,10 @@ poll_input(int fd, int *a_pressed, int *b_pressed)
             *a_pressed = 1;
         else if (ev.code == BTN_EAST)
             *b_pressed = 1;
+        else if (ev.code == BTN_DPAD_UP)
+            *vol_up_pressed = 1;
+        else if (ev.code == BTN_DPAD_DOWN)
+            *vol_down_pressed = 1;
     }
 }
 
@@ -308,7 +316,28 @@ main(int argc, char *argv[])
     while (!WindowShouldClose()) {
         int a_pressed = 0;
         int b_pressed = 0;
-        poll_input(evdev_fd, &a_pressed, &b_pressed);
+        int vol_up_pressed = 0;
+        int vol_down_pressed = 0;
+        poll_input(evdev_fd, &a_pressed, &b_pressed,
+                   &vol_up_pressed, &vol_down_pressed);
+
+        /* Read the system master volume once per frame for the card and
+         * use it as the baseline for d-pad volume steps. */
+        PlayOSAudioInfo audio_info;
+        (void)playos_audio_get_info(&audio_info);
+
+        if (vol_up_pressed || vol_down_pressed) {
+            float vol = audio_info.master_volume;
+            if (vol_up_pressed)
+                vol += 0.05f;
+            else
+                vol -= 0.05f;
+            if (vol < 0.0f)
+                vol = 0.0f;
+            if (vol > 1.0f)
+                vol = 1.0f;
+            (void)playos_audio_set_master_volume(vol);
+        }
 
         if (a_pressed && overlay) {
             /* Resume: ask the compositor to hide us. */
@@ -357,7 +386,13 @@ main(int argc, char *argv[])
             snprintf(line, sizeof(line), "Battery: 85%%   Thermal: Normal");
             DrawText(line, margin, margin + 120, 20, LIGHTGRAY);
 
-            DrawText("A: Resume    B: Quit game",
+            snprintf(line, sizeof(line), "Volume: %.0f%%%s",
+                     audio_info.master_volume * 100.0f,
+                     audio_info.muted ? "  (muted)" : "");
+            DrawText(line, margin, margin + 148, 20,
+                     audio_info.muted ? ORANGE : LIGHTGRAY);
+
+            DrawText("A: Resume    B: Quit game    D-pad: Volume",
                      margin, h - margin - 30, 20, GRAY);
         }
 

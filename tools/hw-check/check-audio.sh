@@ -56,6 +56,47 @@ else
     log "[SKIP] aplay not available — install alsa-utils for playback testing"
 fi
 
+# CS35L41 amp binding — the internal-speaker amps must bind AND register an
+# interrupt, otherwise the ALC294 exposes no analog PCM and `default` playback
+# silently produces nothing from the Ally speakers.
+if [ -d /sys/bus/acpi/devices/CSC3551:00 ]; then
+    CSC_DRIVER=$(grep -m1 '^DRIVER=' /sys/bus/acpi/devices/CSC3551:00/uevent 2>/dev/null | cut -d= -f2-)
+    log "[INFO] CSC3551:00 ACPI node present (driver: ${CSC_DRIVER:-none})"
+else
+    log "[FAIL] ACPI node CSC3551:00 not found — amps not enumerated"
+fi
+
+CS35L41_I2C_FOUND=0
+for dev in /sys/bus/i2c/devices/*/; do
+    uevent="$dev/uevent"
+    [ -r "$uevent" ] || continue
+    if grep -qi 'cs35l41' "$uevent"; then
+        CS35L41_I2C_FOUND=1
+        DEV=$(basename "$dev")
+        DRV=$(grep -m1 '^DRIVER=' "$uevent" | cut -d= -f2-)
+        if [ -n "$DRV" ]; then
+            log "[OK]  CS35L41 I2C client $DEV bound to $DRV"
+        else
+            log "[FAIL] CS35L41 I2C client $DEV has no driver bound"
+        fi
+    fi
+done
+if [ "$CS35L41_I2C_FOUND" -eq 0 ]; then
+    log "[FAIL] No CS35L41 I2C client found on /sys/bus/i2c/devices"
+fi
+
+# The decisive check: the amp IRQ must be registered. On the Ally the amp IRQ
+# is a GpioInt on the AMD GPIO controller (pinctrl-amd); if that controller is
+# missing, this line is absent and the speakers stay silent.
+if grep -Ei 'cs35l41|CSC3551' /proc/interrupts 2>/dev/null | grep -q .; then
+    log "[OK]  CS35L41 interrupt registered:"
+    grep -Ei 'cs35l41|CSC3551' /proc/interrupts 2>/dev/null | while IFS= read -r line; do
+        log "      $line"
+    done
+else
+    log "[FAIL] No CS35L41 interrupt in /proc/interrupts (amp IRQ not wired)"
+fi
+
 # Short playback test — generate a 440 Hz sine tone if speaker-test is available
 if command -v speaker-test >/dev/null 2>&1; then
     log "[INFO] Running short playback test (440 Hz, 1 second)..."

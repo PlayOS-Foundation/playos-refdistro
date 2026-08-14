@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=b652af7fa985cae327385958877b2b380c90f1ee  # Sprint 8:
 PLAYOS_RUNTIME_COMMIT=d0dd25864beb75b3e884d31afdce689b64db415d  # Sprint 7: persistent shell async-event listener (H2)
 PLAYOS_INIT_COMMIT=3f328876b32e4f07d90efb4dbc3b00d34b15fd34  # fix(tests): seeded game ID in IPC test fixture
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
-PLAYOS_SHELL_COMMIT=517f6ff0607fb5af6057602bbefe3b7799251877  # feat(raylib): feed PlayOS controller input into raylib gamepad subsystem
+PLAYOS_SHELL_COMMIT=4ad17f662381c8371906d90fa9c82049b8343390  # feat(raylib): add GLES 3.0 support to PlayOS backend
 PLAYOS_SAMPLES_COMMIT=6d9eca237e9788574ec1c7702c1cd3b6f31eee59  # feat(audio-module): port raylib audio_module_playing
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

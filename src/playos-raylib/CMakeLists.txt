@@ -71,7 +71,7 @@ if(NOT PLAYOS_RAYLIB_SOURCE_DIR)
 endif()
 
 set(PLATFORM "PlayOS" CACHE STRING "raylib platform" FORCE)
-set(OPENGL_VERSION "ES 2.0" CACHE STRING "raylib OpenGL version" FORCE)
+set(OPENGL_VERSION "ES 3.0" CACHE STRING "raylib OpenGL version" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "Build raylib examples" FORCE)
 
 add_subdirectory(${PLAYOS_RAYLIB_SOURCE_DIR} raylib)

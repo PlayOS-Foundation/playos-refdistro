@@ -56,6 +56,14 @@ extern struct wl_surface *platform_get_wl_surface(void);
 extern void platform_playos_flush(void);
 extern int  platform_playos_preconnect(void);
 
+/* ── Overlay interaction modes (Sprint 9) ──────────────────────────────── */
+
+enum overlay_mode {
+    OVERLAY_MODE_NORMAL,   /* Resume / Quit game / Volume */
+    OVERLAY_MODE_PROFILE,  /* D-pad L/R select performance profile, A applies */
+    OVERLAY_MODE_POWER,    /* Sleep / Restart / Shutdown menu */
+};
+
 /* ── Overlay state ─────────────────────────────────────────────────────── */
 
 struct overlay_state {
@@ -69,6 +77,13 @@ struct overlay_state {
     bool status_valid;
     struct timespec shown_at;
     bool shown_at_valid;
+
+    /* Sprint 9: live power status + profile/power selection. */
+    enum overlay_mode mode;
+    int               profile_index;    /* 0=balanced,1=power_save,2=performance */
+    int               power_cursor;     /* 0=Sleep,1=Restart,2=Shutdown */
+    PlayOSPowerInfo   power_info;
+    bool              power_info_valid;
 };
 
 /* ── playos_overlay_v1 listener ───────────────────────────────────────── */
@@ -200,12 +215,17 @@ find_gamepad(void)
 
 static void
 poll_input(int fd, int *a_pressed, int *b_pressed,
-           int *vol_up_pressed, int *vol_down_pressed)
+           int *vol_up_pressed, int *vol_down_pressed,
+           int *dpad_left_pressed, int *dpad_right_pressed,
+           int *select_pressed)
 {
     *a_pressed = 0;
     *b_pressed = 0;
     *vol_up_pressed = 0;
     *vol_down_pressed = 0;
+    *dpad_left_pressed = 0;
+    *dpad_right_pressed = 0;
+    *select_pressed = 0;
 
     if (fd < 0)
         return;
@@ -222,6 +242,12 @@ poll_input(int fd, int *a_pressed, int *b_pressed,
             *vol_up_pressed = 1;
         else if (ev.code == BTN_DPAD_DOWN)
             *vol_down_pressed = 1;
+        else if (ev.code == BTN_DPAD_LEFT)
+            *dpad_left_pressed = 1;
+        else if (ev.code == BTN_DPAD_RIGHT)
+            *dpad_right_pressed = 1;
+        else if (ev.code == BTN_SELECT)
+            *select_pressed = 1;
     }
 }
 
@@ -253,6 +279,31 @@ extract_game_id(const char *json, char *out, size_t outsz)
     while (*colon && *colon != '"' && (i + 1) < outsz)
         out[i++] = *colon++;
     out[i] = '\0';
+}
+
+/* ── Power / profile presentation helpers (Sprint 9) ───────────────────── */
+
+static const char *
+overlay_profile_name(int profile)
+{
+    switch (profile) {
+    case PLAYOS_PERF_POWER_SAVE:  return "Power Save";
+    case PLAYOS_PERF_PERFORMANCE: return "Performance";
+    case PLAYOS_PERF_BALANCED:
+    default:                      return "Balanced";
+    }
+}
+
+static const char *
+overlay_thermal_name(int state)
+{
+    switch (state) {
+    case PLAYOS_THERMAL_WARM:     return "Warm";
+    case PLAYOS_THERMAL_HOT:      return "Hot";
+    case PLAYOS_THERMAL_CRITICAL: return "Critical";
+    case PLAYOS_THERMAL_NORMAL:
+    default:                      return "Normal";
+    }
 }
 
 /* ── Entry point ───────────────────────────────────────────────────────── */
@@ -312,44 +363,121 @@ main(int argc, char *argv[])
         fprintf(stderr, "overlay: no gamepad found — input disabled\n");
 
     bool first_frame = true;
+    bool audio_defaults_applied = false;
 
     while (!WindowShouldClose()) {
         int a_pressed = 0;
         int b_pressed = 0;
         int vol_up_pressed = 0;
         int vol_down_pressed = 0;
+        int dpad_left_pressed = 0;
+        int dpad_right_pressed = 0;
+        int select_pressed = 0;
         poll_input(evdev_fd, &a_pressed, &b_pressed,
-                   &vol_up_pressed, &vol_down_pressed);
+                   &vol_up_pressed, &vol_down_pressed,
+                   &dpad_left_pressed, &dpad_right_pressed,
+                   &select_pressed);
 
         /* Read the system master volume once per frame for the card and
          * use it as the baseline for d-pad volume steps. */
         PlayOSAudioInfo audio_info;
         (void)playos_audio_get_info(&audio_info);
 
-        if (vol_up_pressed || vol_down_pressed) {
-            float vol = audio_info.master_volume;
-            if (vol_up_pressed)
-                vol += 0.05f;
+        /* Live power/thermal status (Sprint 9). playos_power_get_info()
+         * caches sysfs reads for 1s internally, so per-frame calls are cheap. */
+        if (st.visible) {
+            if (playos_power_get_info(&st.power_info) == 0)
+                st.power_info_valid = true;
+        }
+
+        /* D-pad L/R: select a performance profile (A applies it). */
+        if ((dpad_left_pressed || dpad_right_pressed) &&
+            st.mode != OVERLAY_MODE_POWER) {
+            if (st.mode != OVERLAY_MODE_PROFILE) {
+                st.mode = OVERLAY_MODE_PROFILE;
+                st.profile_index = st.power_info_valid
+                                   ? (int)st.power_info.active_profile
+                                   : PLAYOS_PERF_BALANCED;
+            }
+            if (dpad_left_pressed)
+                st.profile_index--;
             else
-                vol -= 0.05f;
-            if (vol < 0.0f)
-                vol = 0.0f;
-            if (vol > 1.0f)
-                vol = 1.0f;
-            (void)playos_audio_set_master_volume(vol);
+                st.profile_index++;
+            if (st.profile_index < 0)
+                st.profile_index = 2;
+            if (st.profile_index > 2)
+                st.profile_index = 0;
         }
 
-        if (a_pressed && overlay) {
-            /* Resume: ask the compositor to hide us. */
-            playos_overlay_v1_request_dismiss(overlay);
-            platform_playos_flush();
+        /* SELECT toggles the power menu (Sleep / Restart / Shutdown). */
+        if (select_pressed) {
+            if (st.mode == OVERLAY_MODE_POWER)
+                st.mode = OVERLAY_MODE_NORMAL;
+            else if (st.mode == OVERLAY_MODE_NORMAL)
+                st.mode = OVERLAY_MODE_POWER;
         }
 
-        if (b_pressed) {
-            /* Quit active game via playos-init's trusted control socket. */
-            if (playos_trusted_terminate_game(-1) != 0)
-                fprintf(stderr, "overlay: TerminateGame failed\n");
-            platform_playos_flush();
+        if (st.mode == OVERLAY_MODE_POWER) {
+            if (vol_up_pressed) {
+                if (st.power_cursor > 0)
+                    st.power_cursor--;
+            }
+            if (vol_down_pressed) {
+                if (st.power_cursor < 2)
+                    st.power_cursor++;
+            }
+            if (a_pressed) {
+                if (st.power_cursor == 0) {
+                    if (playos_trusted_suspend(-1) != 0)
+                        fprintf(stderr, "overlay: Suspend failed\n");
+                } else if (st.power_cursor == 1) {
+                    if (playos_trusted_reboot(-1) != 0)
+                        fprintf(stderr, "overlay: Reboot failed\n");
+                } else {
+                    if (playos_trusted_shutdown(-1) != 0)
+                        fprintf(stderr, "overlay: Shutdown failed\n");
+                }
+                platform_playos_flush();
+                st.mode = OVERLAY_MODE_NORMAL;
+            }
+            if (b_pressed)
+                st.mode = OVERLAY_MODE_NORMAL;
+        } else if (st.mode == OVERLAY_MODE_PROFILE) {
+            if (a_pressed) {
+                if (playos_trusted_set_perf_profile(-1, st.profile_index) != 0)
+                    fprintf(stderr, "overlay: SetPerfProfile failed\n");
+                platform_playos_flush();
+                st.mode = OVERLAY_MODE_NORMAL;
+            }
+            if (b_pressed)
+                st.mode = OVERLAY_MODE_NORMAL;
+        } else {
+            /* NORMAL: resume, quit game, and volume control. */
+            if (vol_up_pressed || vol_down_pressed) {
+                float vol = audio_info.master_volume;
+                if (vol_up_pressed)
+                    vol += 0.05f;
+                else
+                    vol -= 0.05f;
+                if (vol < 0.0f)
+                    vol = 0.0f;
+                if (vol > 1.0f)
+                    vol = 1.0f;
+                (void)playos_audio_set_master_volume(vol);
+            }
+
+            if (a_pressed && overlay) {
+                /* Resume: ask the compositor to hide us. */
+                playos_overlay_v1_request_dismiss(overlay);
+                platform_playos_flush();
+            }
+
+            if (b_pressed) {
+                /* Quit active game via playos-init's trusted control socket. */
+                if (playos_trusted_terminate_game(-1) != 0)
+                    fprintf(stderr, "overlay: TerminateGame failed\n");
+                platform_playos_flush();
+            }
         }
 
         BeginDrawing();
@@ -383,28 +511,104 @@ main(int argc, char *argv[])
                 DrawText(line, margin, margin + 92, 20, LIGHTGRAY);
             }
 
-            snprintf(line, sizeof(line), "Battery: 85%%   Thermal: Normal");
-            DrawText(line, margin, margin + 120, 20, LIGHTGRAY);
+            /* Live power + thermal status (Sprint 9). */
+            char power_line[256];
+            if (st.power_info_valid) {
+                char batt[64];
+                if (st.power_info.battery_percent >= 0) {
+                    const char *ac = "";
+                    if (st.power_info.power_state == PLAYOS_POWER_STATE_CHARGING)
+                        ac = " (Charging)";
+                    else if (st.power_info.power_state == PLAYOS_POWER_STATE_CHARGED)
+                        ac = " (AC)";
+                    snprintf(batt, sizeof(batt), "Battery: %d%%%s",
+                             st.power_info.battery_percent, ac);
+                } else {
+                    snprintf(batt, sizeof(batt), "Battery: --");
+                }
+                snprintf(power_line, sizeof(power_line), "%s   Thermal: %s",
+                         batt, overlay_thermal_name(st.power_info.thermal_state));
+            } else {
+                snprintf(power_line, sizeof(power_line),
+                         "Battery: --   Thermal: --");
+            }
+            DrawText(power_line, margin, margin + 120, 20, LIGHTGRAY);
+
+            if (st.power_info_valid &&
+                (st.power_info.cpu_temp_c >= 0 || st.power_info.gpu_temp_c >= 0)) {
+                char temp_line[128];
+                if (st.power_info.cpu_temp_c >= 0 && st.power_info.gpu_temp_c >= 0)
+                    snprintf(temp_line, sizeof(temp_line), "CPU: %dC   GPU: %dC",
+                             st.power_info.cpu_temp_c, st.power_info.gpu_temp_c);
+                else if (st.power_info.cpu_temp_c >= 0)
+                    snprintf(temp_line, sizeof(temp_line), "CPU: %dC",
+                             st.power_info.cpu_temp_c);
+                else
+                    snprintf(temp_line, sizeof(temp_line), "GPU: %dC",
+                             st.power_info.gpu_temp_c);
+                DrawText(temp_line, margin, margin + 148, 20, LIGHTGRAY);
+            }
 
             snprintf(line, sizeof(line), "Volume: %.0f%%%s",
                      audio_info.master_volume * 100.0f,
                      audio_info.muted ? "  (muted)" : "");
-            DrawText(line, margin, margin + 148, 20,
+            DrawText(line, margin, margin + 176, 20,
                      audio_info.muted ? ORANGE : LIGHTGRAY);
 
-            DrawText("A: Resume    B: Quit game    D-pad: Volume",
-                     margin, h - margin - 30, 20, GRAY);
+            /* Performance profile selector. */
+            if (st.mode == OVERLAY_MODE_PROFILE) {
+                DrawText("Profile:", margin, margin + 204, 20, RAYWHITE);
+                static const char *profiles[3] = {
+                    "Balanced", "Power Save", "Performance"
+                };
+                for (int i = 0; i < 3; i++) {
+                    char item[64];
+                    snprintf(item, sizeof(item), "%s%s",
+                             (i == st.profile_index) ? "> " : "  ",
+                             profiles[i]);
+                    DrawText(item, margin, margin + 232 + i * 28, 20,
+                             (i == st.profile_index) ? YELLOW : LIGHTGRAY);
+                }
+            }
+
+            /* Power menu (Sleep / Restart / Shutdown). */
+            if (st.mode == OVERLAY_MODE_POWER) {
+                DrawText("Power:", margin, margin + 204, 20, RAYWHITE);
+                static const char *powers[3] = {
+                    "Sleep", "Restart", "Shutdown"
+                };
+                for (int i = 0; i < 3; i++) {
+                    char item[64];
+                    snprintf(item, sizeof(item), "%s%s",
+                             (i == st.power_cursor) ? "> " : "  ",
+                             powers[i]);
+                    DrawText(item, margin, margin + 232 + i * 28, 20,
+                             (i == st.power_cursor) ? YELLOW : LIGHTGRAY);
+                }
+            }
+
+            const char *hint;
+            if (st.mode == OVERLAY_MODE_PROFILE)
+                hint = "A: Apply    B: Back    Left/Right: Change";
+            else if (st.mode == OVERLAY_MODE_POWER)
+                hint = "A: Confirm    B: Back    Up/Down: Select";
+            else
+                hint = "A: Resume    B: Quit game    D-pad: Volume    Select: Power";
+            DrawText(hint, margin, h - margin - 30, 20, GRAY);
         }
 
         EndDrawing();
 
         /* One-time bootstrap: the Realtek codec powers up with its speaker
-         * volume at minimum and the speaker pin muted. If nothing has set a
-         * sane level yet (e.g. right after boot, before any game adjusts it),
-         * raise it to a default so the first audio sample isn't silent. */
-        if (first_frame && audio_info.master_volume <= 0.01f) {
-            (void)playos_audio_set_master_volume(0.7f);
-            (void)playos_audio_set_muted(0);
+         * volume at minimum and the speaker pin muted. The mixer card may not
+         * be registered yet on the first frame (CS35L41 calibration takes a
+         * few seconds), so retry until both operations actually succeed
+         * instead of relying on first-frame timing. */
+        if (!audio_defaults_applied) {
+            if (playos_audio_set_master_volume(0.7f) == 0 &&
+                playos_audio_set_muted(0) == 0) {
+                audio_defaults_applied = true;
+            }
         }
 
         /* Tell the compositor we've rendered our first frame. */

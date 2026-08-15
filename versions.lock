@@ -20,12 +20,12 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=1d081e7e1ec90fb190a7384ae8366f7a5018b365  # docs: reframe tagline — handheld PCs, ROG Ally is first reference device
-PLAYOS_PLATFORM_API_COMMIT=0b31f4e616129066ab43546ece6bb4ec42f61b52  # audio: mute via switch element separate from volume
-PLAYOS_RUNTIME_COMMIT=d0dd25864beb75b3e884d31afdce689b64db415d  # Sprint 7: persistent shell async-event listener (H2)
-PLAYOS_INIT_COMMIT=512ae05105ce5a4d0ab2d4e4097262b2ea784a97  # audio: amp ACPI parent + platform/ACPI namespace diagnostics
+PLAYOS_SPEC_COMMIT=e336055c955b72e80cf5a8f14bb0335769582602  # spec: update Sprint 10-15, init spec, and runtime IPC for power/thermal/audio work
+PLAYOS_PLATFORM_API_COMMIT=5bab2f312f198523ae8754062ba0aca53ff367d4  # platform-api: implement power/thermal sysfs, evdev input map, audio mixer retry, add tests
+PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: extend trusted_control for perf-profile and power requests
+PLAYOS_INIT_COMMIT=63a286ecb26ff98554317467e56fafb78d124b30  # init: add thermal monitoring, EPP profiles, suspend, and perf-profile IPC
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
-PLAYOS_SHELL_COMMIT=4ad17f662381c8371906d90fa9c82049b8343390  # feat(raylib): add GLES 3.0 support to PlayOS backend
+PLAYOS_SHELL_COMMIT=50217dec8e0db535c019b1629e5ff1c37b36a7c4  # shell: fix input rescan lag, reserved-key discovery, audio defaults bootstrap, power status
 PLAYOS_SAMPLES_COMMIT=cdd3ec4f9fd87531d9993e9949449b9386ba8649  # fix(controller-visualizer): center controller diagram on real surface
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

@@ -3,7 +3,7 @@
 #
 # The samples (audio-sine, audio-module, controller-visualizer,
 # rotating-squares, bullet-hell, colors-palette, background-scrolling,
-# bunnymark, spotlight) each ship their own
+# bunnymark, spotlight, fog) each ship their own
 # CMakeLists.txt targeting an
 # executable named `game`, so they
 # cannot be pulled in with `add_subdirectory` — a cmake-package would collide
@@ -63,6 +63,10 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	mkdir -p $(@D)/spotlight/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/spotlight/bin/game $(@D)/spotlight/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+	mkdir -p $(@D)/fog/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/fog/bin/game $(@D)/fog/src/main.c \
 		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 endef
 
@@ -146,6 +150,19 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-spotlight/resources/spotlight.fs
 	$(INSTALL) -D -m 0644 $(@D)/spotlight/resources/raysan.png \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-spotlight/resources/raysan.png
+
+	$(INSTALL) -D -m 0755 $(@D)/fog/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/fog/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/fog/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/assets/icon.png
+	$(INSTALL) -D -m 0644 $(@D)/fog/resources/lighting.vs \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/resources/lighting.vs
+	$(INSTALL) -D -m 0644 $(@D)/fog/resources/fog.fs \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/resources/fog.fs
+	$(INSTALL) -D -m 0644 $(@D)/fog/resources/texel_checker.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/resources/texel_checker.png
 endef
 
 $(eval $(generic-package))

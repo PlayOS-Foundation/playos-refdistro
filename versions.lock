@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=b22bae512b0ab9782027dced8ffdb16b28d27a6c  # spec: add Sprint 9.5 (display brightness control) and refresh input-handling audit
+PLAYOS_SPEC_COMMIT=0297a9257fc955f1467bd46083671d7684ffcb9b  # spec: record in-game mixer-element volume fix in Sprint 8
 PLAYOS_PLATFORM_API_COMMIT=fe6cc7a3f006dccedf7873bb6b72f9a5c9d7aded  # platform-api: prefer Speaker/Master mixer element for master volume
 PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: extend trusted_control for perf-profile and power requests
 PLAYOS_INIT_COMMIT=c2cff604b14fca71978987458846bdd3c0963cc0  # init: add architecture and IPC interaction diagrams to README

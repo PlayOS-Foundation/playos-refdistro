@@ -3,7 +3,7 @@
 #
 # The samples (audio-sine, audio-module, controller-visualizer,
 # rotating-squares, bullet-hell, colors-palette, background-scrolling,
-# bunnymark) each ship their own
+# bunnymark, spotlight) each ship their own
 # CMakeLists.txt targeting an
 # executable named `game`, so they
 # cannot be pulled in with `add_subdirectory` — a cmake-package would collide
@@ -59,6 +59,10 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	mkdir -p $(@D)/bunnymark/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/bunnymark/bin/game $(@D)/bunnymark/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+	mkdir -p $(@D)/spotlight/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/spotlight/bin/game $(@D)/spotlight/src/main.c \
 		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 endef
 
@@ -131,6 +135,17 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-bunnymark/assets/icon.png
 	$(INSTALL) -D -m 0644 $(@D)/bunnymark/resources/raybunny.png \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-bunnymark/resources/raybunny.png
+
+	$(INSTALL) -D -m 0755 $(@D)/spotlight/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-spotlight/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/spotlight/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-spotlight/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/spotlight/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-spotlight/assets/icon.png
+	$(INSTALL) -D -m 0644 $(@D)/spotlight/resources/spotlight.fs \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-spotlight/resources/spotlight.fs
+	$(INSTALL) -D -m 0644 $(@D)/spotlight/resources/raysan.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-spotlight/resources/raysan.png
 endef
 
 $(eval $(generic-package))

@@ -46,6 +46,8 @@ PACKAGES=(
     # Buildroot host dependencies
     libncurses-dev libssl-dev libelf-dev bison flex cpio rsync
     unzip bc file wget
+    # ALSA dev headers (native playos-platform-api build links libasound)
+    libasound2-dev
     # Image and boot tooling
     ovmf qemu-system-x86 qemu-utils dosfstools mtools parted
     # Filesystem and EFI tools

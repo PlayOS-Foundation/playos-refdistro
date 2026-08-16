@@ -26,7 +26,7 @@ PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: exten
 PLAYOS_INIT_COMMIT=c2cff604b14fca71978987458846bdd3c0963cc0  # init: add architecture and IPC interaction diagrams to README
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
 PLAYOS_SHELL_COMMIT=82668f46b55df3dc44b2825c62b8586b79f946e4  # shell: square ~1in library cards + pagination, shoulder-page nav
-PLAYOS_SAMPLES_COMMIT=696cc7c81aec1c1e5ffb12a578abbc0e2ad3648c  # samples: add cel shading shader sample (ES3)
+PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────

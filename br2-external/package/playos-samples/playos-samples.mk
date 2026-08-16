@@ -1,8 +1,8 @@
 ################################################################################
 # playos-samples — reference sample games (Sprint 6)
 #
-# The samples (audio-sine, audio-module, controller-visualizer, input-debug,
-# triangle, rotating-squares, bullet-hell, colors-palette) each ship their own
+# The samples (audio-sine, audio-module, controller-visualizer,
+# rotating-squares, bullet-hell, colors-palette) each ship their own
 # CMakeLists.txt targeting an
 # executable named `game`, so they
 # cannot be pulled in with `add_subdirectory` — a cmake-package would collide
@@ -27,12 +27,6 @@ PLAYOS_SAMPLES_DEPENDENCIES = playos-platform-api playos-raylib
 # adds --sysroot=$(STAGING_DIR), so <playos/playos.h> and -lplayos resolve
 # against the staging tree automatically.
 define PLAYOS_SAMPLES_BUILD_CMDS
-	for d in input-debug triangle; do \
-		mkdir -p $(@D)/$$d/bin; \
-		$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
-			-o $(@D)/$$d/bin/game $(@D)/$$d/src/main.c \
-			$(TARGET_LDFLAGS) -lplayos || exit 1; \
-	done
 	mkdir -p $(@D)/audio-sine/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/audio-sine/bin/game $(@D)/audio-sine/src/main.c \
@@ -69,20 +63,6 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio/manifest.json
 	$(INSTALL) -D -m 0644 $(@D)/audio-sine/assets/icon.png \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio/assets/icon.png
-
-	$(INSTALL) -D -m 0755 $(@D)/input-debug/bin/game \
-		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-input/bin/game
-	$(INSTALL) -D -m 0644 $(@D)/input-debug/manifest.json \
-		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-input/manifest.json
-	$(INSTALL) -D -m 0644 $(@D)/input-debug/assets/icon.png \
-		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-input/assets/icon.png
-
-	$(INSTALL) -D -m 0755 $(@D)/triangle/bin/game \
-		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-triangle/bin/game
-	$(INSTALL) -D -m 0644 $(@D)/triangle/manifest.json \
-		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-triangle/manifest.json
-	$(INSTALL) -D -m 0644 $(@D)/triangle/assets/icon.png \
-		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-triangle/assets/icon.png
 
 	$(INSTALL) -D -m 0755 $(@D)/rotating-squares/bin/game \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-rotating-squares/bin/game

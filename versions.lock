@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=e9b5593bb413ee522d5f829d49f3ad767ff9236b  # spec: Sprint 9.5 display brightness control (live control + sprint doc)
+PLAYOS_SPEC_COMMIT=a677dd9645acb9a8f6f2cb4ff70e4c829aaa737b  # spec: align Sprint 10/11 partition layout to 5-partition installed-disk scheme
 PLAYOS_PLATFORM_API_COMMIT=f56122c9ed2bcec1edfbc34e156dffff2d9508b4  # platform-api: add display brightness get/set (Sprint 9.5)
 PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: extend trusted_control for perf-profile and power requests
 PLAYOS_INIT_COMMIT=c2cff604b14fca71978987458846bdd3c0963cc0  # init: add architecture and IPC interaction diagrams to README

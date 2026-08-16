@@ -23,10 +23,10 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 PLAYOS_SPEC_COMMIT=36707b0908fb262d35eb7c22aeb0399d3120cd9c  # spec: record power-button detection and held-query implementation
 PLAYOS_PLATFORM_API_COMMIT=b4547b697519da66fba903f724c32e5ecaa970dd  # platform-api: add PLAYOS_BUTTON_POWER reserved bit and doc power-button mapping
 PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: extend trusted_control for perf-profile and power requests
-PLAYOS_INIT_COMMIT=85d9f6b3fbc607db0f87c16f3af9ba7224c74bbf  # init: add late audio debug snapshot to capture speaker card
+PLAYOS_INIT_COMMIT=c2cff604b14fca71978987458846bdd3c0963cc0  # init: add architecture and IPC interaction diagrams to README
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
 PLAYOS_SHELL_COMMIT=502f7b495fbd3f37926f0491a88b64ef5fbf685b  # shell: detect ACPI power button and add held-query for Live Input Test
-PLAYOS_SAMPLES_COMMIT=15821d2b5ee7198f67e792ddece7807c70988564  # samples: add bullet-hell and colors-palette, gles2->gles3 manifest bump
+PLAYOS_SAMPLES_COMMIT=c6684bddde3e7686efec702369d7ab8a4dd6d85f  # samples: drop placeholder triangle and input-debug samples
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────
@@ -50,6 +50,18 @@ WAYLAND_PROTOCOLS_VERSION=
 LIBDRM_VERSION=
 LIBINPUT_VERSION=
 LIBXKBCOMMON_VERSION=
+
+# ── Host-native build dependencies ────────────────────────────────────────
+# ONLY for building playos-compositor/playos-shell NATIVELY on the host (fast
+# iteration / nested testing). The shipped image is unaffected — Buildroot
+# supplies its own wlroots/wayland/mesa from BUILDROOT_COMMIT.
+# Built/installed by: playos-refdistro/scripts/build-host-deps.sh
+HOST_WAYLAND_VERSION=1.24.0
+HOST_WAYLAND_PROTOCOLS_VERSION=1.47
+HOST_LIBDRM_VERSION=2.4.134
+HOST_LIBXKBCOMMON_VERSION=1.9.2
+HOST_PIXMAN_VERSION=0.46.4
+HOST_WLROOTS_VERSION=0.20.2
 
 # ── Toolchain ─────────────────────────────────────────────────────────────
 # Toolchain versions are pinned transitively via BUILDROOT_COMMIT (informational):

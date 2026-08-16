@@ -42,7 +42,7 @@ playos_log_ok "setup" "Detected $PRETTY_NAME"
 # ── Required packages ──────────────────────────────────────────────
 PACKAGES=(
     # Core build tools
-    build-essential gcc g++ make cmake ninja-build
+    build-essential gcc g++ make cmake ninja-build meson pkg-config
     # Buildroot host dependencies
     libncurses-dev libssl-dev libelf-dev bison flex cpio rsync
     unzip bc file wget
@@ -56,6 +56,18 @@ PACKAGES=(
     python3 python3-pip
     # Git and versioning
     git curl
+    # Native Wayland/wlroots host-deps build prerequisites (build-host-deps.sh)
+    libexpat1-dev libffi-dev libxml2-dev
+    libpciaccess-dev libudev-dev
+    libxcb1-dev libxcb-composite0-dev libxcb-dri3-dev
+    libxcb-ewmh-dev libxcb-icccm4-dev libxcb-present-dev
+    libxcb-randr0-dev libxcb-render0-dev libxcb-render-util0-dev
+    libxcb-res0-dev libxcb-shape0-dev libxcb-shm0-dev
+    libxcb-sync-dev libxcb-xfixes0-dev libxcb-xinput-dev libxcb-xkb-dev
+    libx11-dev libx11-xcb-dev
+    libinput-dev libseat-dev libvulkan-dev
+    libegl1-mesa-dev libgbm-dev libgles2-mesa-dev
+    libdisplay-info-dev libliftoff-dev hwdata
 )
 
 playos_log_info "setup" "Updating package lists..."
@@ -132,6 +144,14 @@ if [[ -n "$OVMF_CODE" ]]; then
     playos_log_ok "validate" "OVMF firmware: $OVMF_CODE"
 else
     playos_log_warn "validate" "OVMF firmware not found at common paths — may need manual install"
+fi
+
+# ── Native Wayland/wlroots host dependencies ───────────────────────
+playos_log_step "Native Wayland/wlroots host dependencies"
+if [[ -x "$SCRIPT_DIR/build-host-deps.sh" ]]; then
+    "$SCRIPT_DIR/build-host-deps.sh"
+else
+    playos_log_warn "setup" "build-host-deps.sh not found — run manually for native compositor builds"
 fi
 
 # ── Final result ───────────────────────────────────────────────────

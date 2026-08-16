@@ -4,7 +4,7 @@
 # Controller-first PlayOS shell running as a Wayland client against
 # playos-compositor. Renders through vendored Raylib 6.0 (PLATFORM_PLAYOS
 # backend in external/raylib/src/platforms/rcore_playos.c), which drives
-# EGL/GLES2 via a fullscreen xdg_toplevel + wl_egl_window.
+# EGL/GLES3 via a fullscreen xdg_toplevel + wl_egl_window.
 ################################################################################
 
 PLAYOS_SHELL_VERSION = 0.1.0

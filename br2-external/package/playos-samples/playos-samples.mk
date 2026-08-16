@@ -3,7 +3,7 @@
 #
 # The samples (audio-sine, audio-module, controller-visualizer,
 # rotating-squares, bullet-hell, colors-palette, background-scrolling,
-# bunnymark, spotlight, fog) each ship their own
+# bunnymark, spotlight, fog, cel-shading) each ship their own
 # CMakeLists.txt targeting an
 # executable named `game`, so they
 # cannot be pulled in with `add_subdirectory` — a cmake-package would collide
@@ -67,6 +67,10 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	mkdir -p $(@D)/fog/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/fog/bin/game $(@D)/fog/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+	mkdir -p $(@D)/cel-shading/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/cel-shading/bin/game $(@D)/cel-shading/src/main.c \
 		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 endef
 
@@ -163,6 +167,23 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/resources/fog.fs
 	$(INSTALL) -D -m 0644 $(@D)/fog/resources/texel_checker.png \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-fog/resources/texel_checker.png
+
+	$(INSTALL) -D -m 0755 $(@D)/cel-shading/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/cel-shading/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/cel-shading/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/assets/icon.png
+	$(INSTALL) -D -m 0644 $(@D)/cel-shading/resources/old_car_new.glb \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/resources/old_car_new.glb
+	$(INSTALL) -D -m 0644 $(@D)/cel-shading/resources/cel.vs \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/resources/cel.vs
+	$(INSTALL) -D -m 0644 $(@D)/cel-shading/resources/cel.fs \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/resources/cel.fs
+	$(INSTALL) -D -m 0644 $(@D)/cel-shading/resources/outline_hull.vs \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/resources/outline_hull.vs
+	$(INSTALL) -D -m 0644 $(@D)/cel-shading/resources/outline_hull.fs \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/resources/outline_hull.fs
 endef
 
 $(eval $(generic-package))

@@ -26,7 +26,7 @@ PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: exten
 PLAYOS_INIT_COMMIT=c2cff604b14fca71978987458846bdd3c0963cc0  # init: add architecture and IPC interaction diagrams to README
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
 PLAYOS_SHELL_COMMIT=49a2c629e5596c3e68f865d1101d3d94faba5c92  # shell: responsive evdev input + analog Live Input Test (sticks/triggers, hotplug, latency logging, 60 FPS)
-PLAYOS_SAMPLES_COMMIT=d4f471184f9d40ed676e485a43a017a00d11060a  # samples: fix spotlight shader ES compat + diagnostics
+PLAYOS_SAMPLES_COMMIT=20555d2c2d974a8c16ebd7df56d2c98d0d1847de  # samples: spotlight shader -> GLSL ES 1.00 (match ES2 backend)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────

@@ -21,11 +21,11 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=b22bae512b0ab9782027dced8ffdb16b28d27a6c  # spec: add Sprint 9.5 (display brightness control) and refresh input-handling audit
-PLAYOS_PLATFORM_API_COMMIT=0048ac702176d25dafc2d5310c64886072659710  # platform-api: log gamepad fd at discovery
+PLAYOS_PLATFORM_API_COMMIT=fe6cc7a3f006dccedf7873bb6b72f9a5c9d7aded  # platform-api: prefer Speaker/Master mixer element for master volume
 PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: extend trusted_control for perf-profile and power requests
 PLAYOS_INIT_COMMIT=c2cff604b14fca71978987458846bdd3c0963cc0  # init: add architecture and IPC interaction diagrams to README
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
-PLAYOS_SHELL_COMMIT=3cd2c2e9bcc89c2d1e40deeff84cd749e8260454  # shell: GLES3 backend + enable rmodels (3D model API) for 3D shader samples
+PLAYOS_SHELL_COMMIT=1db41e328cb6114a96b49266ef59ef79e960f2f7  # shell: live audio volume in Settings + status-bar font bump
 PLAYOS_SAMPLES_COMMIT=4c19ba6eaf74bf2ffc0c581b2dbf3f0f7ee8d513  # samples: add fog shader sample (ES3) + fix spotlight shader to ES 3.00
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

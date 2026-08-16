@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=f56122c9ed2bcec1edfbc34e156dffff2d9508b4  # platform-
 PLAYOS_RUNTIME_COMMIT=22c7e5b65b54e9390a507dc90082315bf6c4b7a6  # runtime: extend trusted_control for perf-profile and power requests
 PLAYOS_INIT_COMMIT=c2cff604b14fca71978987458846bdd3c0963cc0  # init: add architecture and IPC interaction diagrams to README
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
-PLAYOS_SHELL_COMMIT=43ea000353d4c4667b8e6c363ca23abe168f94f8  # shell: screenshot-on-COMMAND setting + triple home logo size
+PLAYOS_SHELL_COMMIT=94bee9ba75b166251387f3871a1027d818797656  # shell: screenshot-on-COMMAND + tripled PlayOS wordmark (home layout intact)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

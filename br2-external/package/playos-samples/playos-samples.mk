@@ -2,7 +2,8 @@
 # playos-samples — reference sample games (Sprint 6)
 #
 # The samples (audio-sine, audio-module, controller-visualizer, input-debug,
-# triangle, rotating-squares) each ship their own CMakeLists.txt targeting an
+# triangle, rotating-squares, bullet-hell, colors-palette) each ship their own
+# CMakeLists.txt targeting an
 # executable named `game`, so they
 # cannot be pulled in with `add_subdirectory` — a cmake-package would collide
 # on the target name. Instead we build each one directly with the cross
@@ -47,6 +48,14 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	mkdir -p $(@D)/audio-module/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/audio-module/bin/game $(@D)/audio-module/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+	mkdir -p $(@D)/bullet-hell/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/bullet-hell/bin/game $(@D)/bullet-hell/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+	mkdir -p $(@D)/colors-palette/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/colors-palette/bin/game $(@D)/colors-palette/src/main.c \
 		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 endef
 
@@ -97,6 +106,20 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio-module/assets/icon.png
 	$(INSTALL) -D -m 0644 $(@D)/audio-module/resources/mini1111.xm \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-audio-module/resources/mini1111.xm
+
+	$(INSTALL) -D -m 0755 $(@D)/bullet-hell/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-bullet-hell/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/bullet-hell/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-bullet-hell/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/bullet-hell/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-bullet-hell/assets/icon.png
+
+	$(INSTALL) -D -m 0755 $(@D)/colors-palette/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-colors-palette/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/colors-palette/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-colors-palette/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/colors-palette/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-colors-palette/assets/icon.png
 endef
 
 $(eval $(generic-package))

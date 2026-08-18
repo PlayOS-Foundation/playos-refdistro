@@ -13,6 +13,7 @@
 #   make installer-build  Full image build for the installer
 #   make installer-image  Produce one-shot installer USB image (needs ally-build)
 #   make installer-flash  Flash installer image to USB (prompts for device)
+#   make update-bundle    Build a dev-signed update bundle (.playosb)
 #   make clean            Remove build output (preserves dl/ cache)
 #   make distclean        Remove everything including dl/
 #
@@ -246,6 +247,17 @@ installer-image: installer-build ally-build ## Produce one-shot installer USB im
 installer-flash: installer-image ## Flash installer image to USB (prompts for device)
 	@echo "==> Installer image: $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
 	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
+
+# ── Update bundle ─────────────────────────────────────────────────────────
+VERSION ?= 0.2.0
+
+.PHONY: update-bundle
+update-bundle: ## Build a dev-signed update bundle from the ally rootfs.squashfs
+	@echo "==> Building update bundle (version $(VERSION))..."
+	@bash "$(SCRIPTS_DIR)/create-update-bundle.sh" \
+		"$(ALLY_OUTPUT)/images/rootfs.squashfs" \
+		"$(VERSION)" \
+		"$(CURDIR)/output/images/playos-$(VERSION).playosb"
 
 # ── Clean targets ────────────────────────────────────────────────────────
 .PHONY: clean

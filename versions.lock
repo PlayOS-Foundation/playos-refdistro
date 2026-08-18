@@ -20,12 +20,12 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=00b199d2fdd0978a02a80260bc1e00add139a667  # spec: align Sprint 11 + lock update IPC contract
-PLAYOS_PLATFORM_API_COMMIT=f56122c9ed2bcec1edfbc34e156dffff2d9508b4  # platform-api: add display brightness get/set (Sprint 9.5)
-PLAYOS_RUNTIME_COMMIT=1a35885c46293bd2b775025f659c441f73ba2478  # runtime: add trusted factory_reset helper (Sprint 10)
-PLAYOS_INIT_COMMIT=8ba4caa3e85607504d8b17893f8eec525698e769  # init: Sprint 10 installer trigger mode + FactoryReset completion
+PLAYOS_SPEC_COMMIT=16fd8c1d7749b83233ad6fd8ff92fa9a05b3df8d  # spec: Sprint 11 status + ADR-0005 resolved to custom updater
+PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
+PLAYOS_RUNTIME_COMMIT=43caa65fcb7012c4b6190612dca9e3a7ca79e304  # runtime: trusted apply_update + update progress/complete/error events (Sprint 11)
+PLAYOS_INIT_COMMIT=54bada125289c3a95837bd3a3adfb38acdc081d6  # init: Sprint 11 A/B boot slots + dev-signed update bundle + ApplyUpdate IPC
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
-PLAYOS_SHELL_COMMIT=94bee9ba75b166251387f3871a1027d818797656  # shell: screenshot-on-COMMAND + tripled PlayOS wordmark (home layout intact)
+PLAYOS_SHELL_COMMIT=18beb503290568b97c927670c2a6fbef92b9a759  # shell: Sprint 11 software-update UI in Settings
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

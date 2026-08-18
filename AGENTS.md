@@ -1,8 +1,8 @@
 # AGENTS.md — playos-refdistro
 
-> **Implementation status:** 🟢 Sprints 0-7 Integrated — Build infrastructure complete. Packaged components: `playos-init`, `playos-compositor` (v0.4.0), `playos-platform-api` (0.3.0), `playos-shell` (Sprint 5.5), and the trusted in-game overlay (`playos-overlay`, Sprint 7, built from `src/playos-overlay/`). wlroots 0.20 is versioned by the pinned Buildroot snapshot. Ally and QEMU defconfigs are provided. IPC sources live in the `playos-init` repo (cloned to `src/playos-init/ipc/` by `make setup`).
+> **Implementation status:** 🟡 Sprints 0-7 Integrated; Sprint 10 installer wired — Build infrastructure complete. Packaged components: `playos-init`, `playos-compositor` (v0.4.0), `playos-platform-api` (0.3.0), `playos-shell` (Sprint 5.5), the trusted in-game overlay (`playos-overlay`, Sprint 7, built from `src/playos-overlay/`), and the standalone installer (`playos-installer`, Sprint 10, built from `src/playos-installer/`). wlroots 0.20 is versioned by the pinned Buildroot snapshot. Ally, installer, and QEMU defconfigs are provided. IPC sources live in the `playos-init` repo (cloned to `src/playos-init/ipc/` by `make setup`).
 
-This repository is the **reference distribution** — the Buildroot `br2-external` tree that assembles all PlayOS components into a bootable, immutable system image for the ASUS ROG Ally (and QEMU for development). This is where the OS image is built. With one deliberate exception, no C code lives here: the trusted in-game overlay client (`src/playos-overlay/`) is reference-distro-specific and is built from source in this repo (Sprint 7).
+This repository is the **reference distribution** — the Buildroot `br2-external` tree that assembles all PlayOS components into a bootable, immutable system image for the ASUS ROG Ally (and QEMU for development). This is where the OS image is built. With two deliberate exceptions, no C code lives here: the trusted in-game overlay client (`src/playos-overlay/`, Sprint 7) and the standalone installer (`src/playos-installer/`, Sprint 10) are reference-distro-specific and are built from source in this repo.
 
 ## Specification Reference
 
@@ -17,13 +17,18 @@ Before touching any file here, read:
 ```
 Makefile                        ← Developer command surface (make setup / qemu-build / etc.)
 versions.lock                   ← Pinned commit SHAs for all components
+src/
+└── playos-installer/           ← Sprint 10 installer C source (in-repo exception)
+scripts/
+└── gen-installer-usb-image.sh  ← Sprint 10 installer USB image assembly
 br2-external/
 ├── external.desc               ← br2-external name and description
 ├── Config.in                   ← Top-level Kconfig menu
 ├── external.mk                 ← Includes all package .mk files
 ├── configs/
-│   ├── playos_qemu_x86_64_defconfig   ← QEMU dev target
-│   └── playos_ally_defconfig          ← ROG Ally production target
+│   ├── playos_qemu_x86_64_defconfig      ← QEMU dev target
+│   ├── playos_ally_defconfig             ← ROG Ally production target
+│   └── playos_ally_installer_defconfig   ← Sprint 10 installer target
 ├── package/
 │   ├── playos-init/
 │   │   ├── playos-init.mk
@@ -36,6 +41,9 @@ br2-external/
 │   │   └── Config.in
 │   ├── playos-platform-api/
 │   │   ├── playos-platform-api.mk
+│   │   └── Config.in
+│   ├── playos-installer/          ← Sprint 10 (in-repo source, libfdisk + raylib)
+│   │   ├── playos-installer.mk
 │   │   └── Config.in
 │   └── wlroots/
 │       ├── wlroots.mk             ← wlroots 0.20
@@ -78,6 +86,10 @@ make qemu-run       # Boot image in QEMU/OVMF
 make ally-config    # Open menuconfig for ROG Ally target
 make ally-build     # Full image build for ROG Ally
 make ally-flash     # Flash image to USB drive (prompts for device)
+make installer-config   # Open menuconfig for the Sprint 10 installer target
+make installer-build    # Full installer image build
+make installer-image    # Assemble the installer USB image (also builds the normal ally payload)
+make installer-flash    # Flash the installer USB image (prompts for device)
 make clean          # Remove build output (keeps dl/ cache)
 make distclean      # Remove everything including dl/
 ```
@@ -111,18 +123,23 @@ All SHAs must be filled before tagging a release. CI will fail on empty values.
 
 ## Partition Layout (do not change without ADR)
 
-| Partition | Label | Size | Writable |
-|---|---|---|---|
-| EFI System | ESP | 256 MB | No |
-| System A | `playos-a` | 2 GB | No (immutable) |
-| System B | `playos-b` | 2 GB | No (immutable) |
-| Data | `playos-data` | remainder | Yes |
+Installed internal disk (5 partitions, created by the Sprint 10 installer):
+
+| Partition | Label | Size | Filesystem | Writable |
+|---|---|---|---|---|
+| EFI System | `ESP` | 512 MiB | FAT32 | No |
+| System A | `playos-a` | 4 GiB | EROFS/squashfs | No (immutable) |
+| System B | `playos-b` | 4 GiB | EROFS/squashfs | No (immutable, empty until Sprint 11) |
+| Misc | `misc` | 64 MiB | ext4 | A/B slot metadata |
+| Data | `playos-data` | remainder | ext4 | Yes |
+
+Live USB and installer USB keep the compact 3-partition layout (ESP, `playos-a` payload, `playos-data`); the installer USB's `playos-a` additionally carries `/rootfs.squashfs` and `/BOOTX64.EFI` as the install payload.
 
 `/data` is bind-mounted to `/home/playos-game/saves`, `/etc/playos/user/`, and the game library.
 
 ## What NOT to Do
 
-- **Do not add C source code here** — all source lives in the component repos. Exception: `src/playos-overlay/` holds the trusted in-game overlay client source; it is built here because it is specific to the reference distribution, not a standalone component repo (Sprint 7).
+- **Do not add C source code here** — all source lives in the component repos. Exceptions: `src/playos-overlay/` holds the trusted in-game overlay client source (Sprint 7), and `src/playos-installer/` holds the standalone installer source (Sprint 10); both are reference-distro-specific and built here rather than as standalone component repos.
 - **Do not commit build output** (`output/`, `dl/` except for the lock file) — `.gitignore` covers this.
 - **Do not hardcode `/dev/dri/card0`** anywhere — GPU discovery is done by `playos-init` via PCI enumeration (ADR-0008).
 - **Do not add BusyBox applets to the production `ally` defconfig** — production image has no shell, no SSH, no debug tools (see `security-model.md`). BusyBox is allowed in the `qemu` defconfig for dev convenience.

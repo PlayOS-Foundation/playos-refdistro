@@ -1,16 +1,20 @@
 # PlayOS Reference Distribution — Developer Makefile
 #
 # Usage:
-#   make setup          Clone Buildroot, check dependencies
-#   make qemu-config    Open menuconfig for QEMU target
-#   make qemu-build     Full image build for QEMU
-#   make qemu-run       Boot image in QEMU/OVMF
-#   make ally-config    Open menuconfig for ROG Ally target
-#   make ally-build     Full image build for ROG Ally
-#   make ally-usb-image Produce USB-bootable disk image
-#   make ally-flash     Flash image to USB drive (prompts for device)
-#   make clean          Remove build output (preserves dl/ cache)
-#   make distclean      Remove everything including dl/
+#   make setup            Clone Buildroot, check dependencies
+#   make qemu-config      Open menuconfig for QEMU target
+#   make qemu-build       Full image build for QEMU
+#   make qemu-run         Boot image in QEMU/OVMF
+#   make ally-config      Open menuconfig for ROG Ally target
+#   make ally-build       Full image build for ROG Ally
+#   make ally-usb-image   Produce USB-bootable disk image
+#   make ally-flash       Flash image to USB drive (prompts for device)
+#   make installer-config Open menuconfig for the installer target
+#   make installer-build  Full image build for the installer
+#   make installer-image  Produce one-shot installer USB image (needs ally-build)
+#   make installer-flash  Flash installer image to USB (prompts for device)
+#   make clean            Remove build output (preserves dl/ cache)
+#   make distclean        Remove everything including dl/
 #
 # This Makefile wraps Buildroot's build system with PlayOS conventions.
 
@@ -21,6 +25,8 @@ QEMU_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_qemu_x86_64_defconfig
 QEMU_OUTPUT := $(CURDIR)/output/qemu
 ALLY_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_defconfig
 ALLY_OUTPUT := $(CURDIR)/output/ally
+INSTALLER_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_installer_defconfig
+INSTALLER_OUTPUT := $(CURDIR)/output/installer
 SCRIPTS_DIR := $(CURDIR)/scripts
 
 # Local-site packages are rsync'd into the Buildroot output only on the first
@@ -28,7 +34,7 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 # dirclean them before every build so edits to src/<component> are always
 # picked up (see playos-*.mk SITE_METHOD = local).
 PLAYOS_LOCAL_PACKAGES := playos-init playos-runtime playos-compositor playos-shell \
-	playos-platform-api playos-raylib playos-overlay playos-samples
+	playos-platform-api playos-raylib playos-overlay playos-installer playos-samples
 
 # Source shared logging (if present)
 -include $(SCRIPTS_DIR)/lib/playos_log.mk
@@ -205,13 +211,49 @@ ally-flash: ally-usb-image ## Flash PlayOS to a USB drive (prompts for device)
 	@echo "==> USB image: $(ALLY_OUTPUT)/images/playos-ally-usb.img"
 	@echo "==> Run: sudo bash scripts/flash-usb.sh $(ALLY_OUTPUT)/images/playos-ally-usb.img"
 
+# ── Installer targets ─────────────────────────────────────────────────────
+.PHONY: installer-config
+installer-config: ## Open menuconfig for the installer target
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INSTALLER_OUTPUT)" \
+		$(notdir $(INSTALLER_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INSTALLER_OUTPUT)" \
+		menuconfig
+
+.PHONY: installer-build
+installer-build: ## Full image build for the installer (requires setup)
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INSTALLER_OUTPUT)" \
+		$(notdir $(INSTALLER_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INSTALLER_OUTPUT)" \
+		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INSTALLER_OUTPUT)"
+
+.PHONY: installer-image
+installer-image: installer-build ally-build ## Produce one-shot installer USB image
+	@echo "==> Creating installer USB image..."
+	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INSTALLER_OUTPUT)" "$(ALLY_OUTPUT)"
+
+.PHONY: installer-flash
+installer-flash: installer-image ## Flash installer image to USB (prompts for device)
+	@echo "==> Installer image: $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
+
 # ── Clean targets ────────────────────────────────────────────────────────
 .PHONY: clean
 clean: ## Remove build output (preserves dl/ cache)
-	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)"
+	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(INSTALLER_OUTPUT)"
 	@echo "Build output cleaned. dl/ cache preserved."
 
 .PHONY: distclean
 distclean: ## Remove everything including dl/ and buildroot/
-	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(BUILDROOT_DIR)"
+	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(INSTALLER_OUTPUT)" "$(BUILDROOT_DIR)"
 	@echo "Full distclean complete."

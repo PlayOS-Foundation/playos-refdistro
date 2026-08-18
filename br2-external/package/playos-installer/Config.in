@@ -1,0 +1,9 @@
+config BR2_PACKAGE_PLAYOS_INSTALLER
+	bool "playos-installer"
+	help
+	  Trusted one-shot internal-disk installer for PlayOS.
+
+	  Booted by playos-init when the kernel command line carries
+	  playos.mode=install. Repartitions the target NVMe drive with the
+	  PlayOS GPT layout (ESP / playos-a / playos-b / misc / playos-data),
+	  writes the system image and EFI stub, then powers off.

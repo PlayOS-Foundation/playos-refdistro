@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=223d6dee20d0a5480ed252323e85a41ef3acfee9  # spec: Sprint 10 installer + partition docs
+PLAYOS_SPEC_COMMIT=f4d1246ed6aff0d5c570783b680993bced020765  # spec: Sprint 9 + Sprint 10 marked complete
 PLAYOS_PLATFORM_API_COMMIT=f56122c9ed2bcec1edfbc34e156dffff2d9508b4  # platform-api: add display brightness get/set (Sprint 9.5)
 PLAYOS_RUNTIME_COMMIT=1a35885c46293bd2b775025f659c441f73ba2478  # runtime: add trusted factory_reset helper (Sprint 10)
 PLAYOS_INIT_COMMIT=8ba4caa3e85607504d8b17893f8eec525698e769  # init: Sprint 10 installer trigger mode + FactoryReset completion

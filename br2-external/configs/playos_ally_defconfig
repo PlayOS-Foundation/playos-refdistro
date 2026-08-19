@@ -84,6 +84,12 @@ BR2_PACKAGE_ALSA_UTILS_APLAY=y
 # ── Packages — Hardware utilities ─────────────────────────────────
 BR2_PACKAGE_EVTEST=y
 
+# ── Packages — Developer SSH (Sprint 11.6) ─────────────────────────
+BR2_PACKAGE_DROPBEAR=y
+BR2_PACKAGE_DROPBEAR_CLIENT=y
+BR2_PACKAGE_DROPBEAR_DISABLE_REVERSEDNS=y
+BR2_PACKAGE_DHCPCD=y
+
 # ── Host utilities ────────────────────────────────────────────────
 BR2_PACKAGE_HOST_DOSFSTOOLS=y
 BR2_PACKAGE_HOST_GENIMAGE=y

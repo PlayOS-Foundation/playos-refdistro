@@ -1,0 +1,104 @@
+#!/bin/sh
+# PlayOS SSH bring-up (Sprint 11.6)
+#
+# Supervised by playos-init. Runs dropbear in the foreground (-F) so the
+# supervisor can restart it with the standard restart policy. Host keys and
+# authorized_keys live on /data/ssh (persistent across reboots and preserved
+# on the USB log partition), bind-mounted over /root/.ssh.
+
+LOG=/data/log/ssh-bringup.log
+
+log() {
+    echo "playos-ssh-bringup: $*" >> "$LOG" 2>/dev/null
+}
+
+DATA_SSH=/data/ssh
+ROOT_SSH=/root/.ssh
+
+# Installer USB boots may have no /data partition; SSH is a developer
+# convenience on the installed OS only, so exit cleanly in that case.
+if [ ! -d /data ]; then
+    log "no /data partition — SSH unavailable"
+    exit 0
+fi
+
+mkdir -p "$DATA_SSH" 2>/dev/null || {
+    log "failed to create $DATA_SSH — SSH unavailable"
+    exit 0
+}
+mkdir -p "$ROOT_SSH" 2>/dev/null
+
+# Expose /data/ssh as /root/.ssh so authorized_keys persists on the USB.
+# The rootfs is a read-only squashfs, so dropbear's default /etc/dropbear
+# host-key location is not usable; explicit -r flags are passed below.
+mount -o bind "$DATA_SSH" "$ROOT_SSH" 2>/dev/null || \
+    log "bind mount $DATA_SSH -> $ROOT_SSH failed (continuing)"
+
+# Generate persistent host keys on /data so the server fingerprint is stable
+# across reboots.
+if [ ! -s "$DATA_SSH/dropbear_rsa_host_key" ]; then
+    dropbearkey -t rsa -f "$DATA_SSH/dropbear_rsa_host_key" >> "$LOG" 2>&1 || \
+        log "RSA host key generation failed"
+fi
+if [ ! -s "$DATA_SSH/dropbear_ed25519_host_key" ]; then
+    dropbearkey -t ed25519 -f "$DATA_SSH/dropbear_ed25519_host_key" >> "$LOG" 2>&1 || \
+        log "ed25519 host key generation failed"
+fi
+
+# Bring up wired Ethernet (USB-C dock/dongle) and obtain an IPv4 address.
+# udhcpc (busybox) is used for DHCP: it is battle-tested with QEMU's slirp
+# DHCP server, whereas dhcpcd's default sample config rejects slirp's offer
+# (missing Server Identifier / DUID handling). QEMU slirp hostfwd and PlayOS
+# wired-SSH are IPv4-only, so we only wait for an IPv4 lease.
+ip link set lo up 2>/dev/null || true
+
+WIRED=""
+for iface in /sys/class/net/eth* /sys/class/net/en*; do
+    [ -e "$iface" ] || continue
+    WIRED="$(basename "$iface")"
+    ip link set "$WIRED" up 2>/dev/null || true
+    break
+done
+
+# Sprint 11.6 diagnostics: record link state before DHCP so we can see the
+# interface name and whether bring-up succeeded.
+{
+    echo "--- links after bring-up (wired=$WIRED) ---"
+    ip link show 2>&1
+} >> "$LOG" 2>&1
+
+if [ -z "$WIRED" ]; then
+    log "no wired interface found — starting dropbear (loopback only)"
+    exec /usr/sbin/dropbear -F -E -R \
+        -r "$DATA_SSH/dropbear_rsa_host_key" \
+        -r "$DATA_SSH/dropbear_ed25519_host_key" >> "$LOG" 2>&1
+fi
+
+# udhcpc keeps running in the background and applies the lease via its default
+# script when it arrives. Wait up to 15s for an IPv4 address on the wired
+# interface only (not lo).
+udhcpc -i "$WIRED" -q >> "$LOG" 2>&1 &
+
+i=0
+addr=""
+while [ "$i" -lt 15 ]; do
+    if ip -4 addr show dev "$WIRED" 2>/dev/null | grep -q 'inet '; then
+        addr="$(ip -4 addr show dev "$WIRED" 2>/dev/null | grep 'inet ' | head -1)"
+        break
+    fi
+    sleep 1
+    i=$((i+1))
+done
+{
+    echo "--- ipv4 after ${i}s (dev $WIRED) ---"
+    echo "${addr:-NO_IPV4_ADDRESS}"
+    echo "--- ip addr ---"
+    ip addr show 2>&1
+    echo "--- ip route ---"
+    ip route show 2>&1
+} >> "$LOG" 2>&1
+
+log "starting dropbear with host keys from $DATA_SSH"
+exec /usr/sbin/dropbear -F -E -R \
+    -r "$DATA_SSH/dropbear_rsa_host_key" \
+    -r "$DATA_SSH/dropbear_ed25519_host_key" >> "$LOG" 2>&1

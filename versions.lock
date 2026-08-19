@@ -20,10 +20,10 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=6aeeb98d563f8c7e5b4662606051458c98e2780b  # spec: add Sprint 11.6 (wired SSH) and gate Sprint 11.5 Ally matrix on it
+PLAYOS_SPEC_COMMIT=0b13a1feac80373697f846df71b60f6d6106f620  # spec: Sprint 11.6 QEMU validation (udhcpc bring-up) + dhcpcd wording fixes
 PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
 PLAYOS_RUNTIME_COMMIT=43caa65fcb7012c4b6190612dca9e3a7ca79e304  # runtime: trusted apply_update + update progress/complete/error events (Sprint 11)
-PLAYOS_INIT_COMMIT=ce4c90f5fe46dae4d6878f2c89421b50c12ba615  # init: make update_apply testable and cover apply path in host tests
+PLAYOS_INIT_COMMIT=e654cf3c51989531ba30c0f0939c1f1da4d90c66  # init: supervise playos-ssh-bringup for Sprint 11.6 wired SSH
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
 PLAYOS_SHELL_COMMIT=18beb503290568b97c927670c2a6fbef92b9a759  # shell: Sprint 11 software-update UI in Settings
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)

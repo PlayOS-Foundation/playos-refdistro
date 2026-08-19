@@ -176,6 +176,11 @@ qemu-run: ## Boot the QEMU image in QEMU/OVMF
 	@echo "==> Booting PlayOS in QEMU/OVMF..."
 	@bash "$(SCRIPTS_DIR)/qemu-boot-check.sh"
 
+.PHONY: qemu-pivot-check
+qemu-pivot-check: ## Verify A/B slot pivot + forced rollback in QEMU
+	@echo "==> Running A/B pivot + rollback check in QEMU..."
+	@bash "$(SCRIPTS_DIR)/qemu-pivot-check.sh"
+
 # ── ROG Ally targets ─────────────────────────────────────────────────────
 .PHONY: ally-config
 ally-config: ## Open menuconfig for ROG Ally target

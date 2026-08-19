@@ -25,6 +25,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +51,39 @@
 #include "disk.h"
 #include "format.h"
 #include "efi.h"
+
+/* ── installer diagnostics ───────────────────────────────────────────────
+ * The installer runs while the boot medium's playos-data partition is mounted
+ * at /data, so we append a plain-text log there. This makes failures
+ * diagnosable without a serial console on the Ally. Never fail the install
+ * because logging is unavailable. */
+static FILE *installer_log;
+
+static void
+installer_log_open(void)
+{
+    if (installer_log)
+        return;
+    installer_log = fopen("/data/log/installer.log", "a");
+    if (!installer_log)
+        installer_log = fopen("/tmp/installer.log", "a");
+}
+
+static void
+installer_logf(const char *fmt, ...)
+{
+    if (!installer_log)
+        installer_log_open();
+    if (!installer_log)
+        return;
+
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(installer_log, fmt, ap);
+    va_end(ap);
+    fputc('\n', installer_log);
+    fflush(installer_log);
+}
 
 /* ── Raylib PlayOS backend accessors ─────────────────────────────────────
  * Declared here because the vendored raylib builds the PlayOS backend
@@ -328,6 +362,9 @@ run_install_step(struct installer *st)
     snprintf(st->step_name, sizeof(st->step_name), "%s",
              STEP_NAMES[st->step_index]);
 
+    installer_logf("installer step %d/8 %s: begin (target=%s)",
+                   st->step_index, st->step_name, dev);
+
     switch (st->step_index) {
     case 0: rc = playos_format_partition_disk(dev, err, errlen); break;
     case 1: rc = playos_format_mkfs_fat(dev, 1, "ESP", err, errlen); break;
@@ -342,10 +379,15 @@ run_install_step(struct installer *st)
     }
 
     if (rc != 0) {
+        installer_logf("installer step %d/8 %s: FAILED: %s",
+                       st->step_index, st->step_name, err);
         st->step_error = st->step_index;
         st->mode = MODE_ERROR;
         return -1;
     }
+
+    installer_logf("installer step %d/8 %s: ok",
+                   st->step_index, st->step_name);
 
     st->step_index++;
     if (st->step_index >= 8)
@@ -598,6 +640,11 @@ main(void)
                                sizeof(st.payload_mount)) == 0)
         st.payload_ok = 1;
 
+    installer_logf("installer started: disks=%d payload=%s payload_ok=%d",
+                   st.disk_count,
+                   st.payload_ok ? st.payload_mount : "(none)",
+                   st.payload_ok);
+
     while (!WindowShouldClose()) {
         poll_input(st.evdev_fd, &st.input);
 
@@ -611,6 +658,8 @@ main(void)
                 if (st.input.a_press) {
                     st.confirm_progress = 0;
                     st.mode = MODE_CONFIRM;
+                    installer_logf("installer mode -> CONFIRM (target=%s)",
+                                   st.disks[st.cursor].device);
                 }
             }
             if (st.input.b_press)
@@ -618,9 +667,10 @@ main(void)
             break;
 
         case MODE_CONFIRM:
-            if (st.input.b_press)
+            if (st.input.b_press) {
+                installer_logf("installer mode -> DISCOVERY (cancel)");
                 st.mode = MODE_DISCOVERY;
-            else if (st.input.a_down) {
+            } else if (st.input.a_down) {
                 st.confirm_progress++;
                 if (st.confirm_progress >= 180) {
                     st.confirm_progress = 0;
@@ -628,6 +678,8 @@ main(void)
                     st.step_error = -1;
                     st.err_buf[0] = '\0';
                     st.mode = MODE_INSTALLING;
+                    installer_logf("installer mode -> INSTALLING (target=%s)",
+                                   st.disks[st.cursor].device);
                 }
             } else {
                 st.confirm_progress = 0;
@@ -641,6 +693,7 @@ main(void)
                 snprintf(st.step_name, sizeof(st.step_name), "Payload");
                 st.step_error = -1;
                 st.mode = MODE_ERROR;
+                installer_logf("installer mode -> ERROR (payload missing)");
             } else {
                 (void)run_install_step(&st);
             }
@@ -655,6 +708,7 @@ main(void)
 
         case MODE_ERROR:
             if (st.input.a_press) {
+                installer_logf("installer mode -> DISCOVERY (retry)");
                 st.mode = MODE_DISCOVERY;
                 st.err_buf[0] = '\0';
                 st.step_error = -1;

@@ -147,6 +147,28 @@ echo "==> Payload staged on playos-a (rootfs.squashfs + BOOTX64.EFI)"
 sudo umount "$PAYLOAD_MOUNT"
 rmdir "$PAYLOAD_MOUNT"
 
+# ── Seed developer SSH key into playos-data ────────────────────────
+# The installer (step 5) copies /data/ssh/authorized_keys from this USB's
+# data partition into the target NVMe's data partition, so key auth works
+# on first boot. Optional: with no key present the stock image still
+# installs and boots, it simply accepts no SSH client key.
+DEV_PUBKEY=""
+for _k in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub"; do
+    if [[ -s "$_k" ]]; then DEV_PUBKEY="$_k"; break; fi
+done
+
+DATA_MOUNT="$(mktemp -d)"
+sudo mount "$DATA_PART" "$DATA_MOUNT"
+if [[ -n "$DEV_PUBKEY" ]]; then
+    sudo mkdir -p "$DATA_MOUNT/ssh"
+    sudo cp "$DEV_PUBKEY" "$DATA_MOUNT/ssh/authorized_keys"
+    echo "==> Seeded developer SSH key: $DEV_PUBKEY -> data/ssh/authorized_keys"
+else
+    echo "==> No ~/.ssh/id_ed25519.pub (or id_rsa.pub) found — SSH key not seeded"
+fi
+sudo umount "$DATA_MOUNT"
+rmdir "$DATA_MOUNT"
+
 # ── Cleanup loop device ────────────────────────────────────────────
 sudo losetup -d "$LOOP_DEV"
 LOOP_DEV=""

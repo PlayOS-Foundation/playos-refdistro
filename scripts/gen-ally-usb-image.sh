@@ -124,6 +124,27 @@ echo "==> Kernel installed as EFI/BOOT/BOOTX64.EFI (EFI stub, no GRUB)"
 sudo umount "$ESP_MOUNT"
 rmdir "$ESP_MOUNT"
 
+# ── Seed developer SSH key into playos-data ────────────────────────
+# The live-USB boot bind-mounts /data/ssh over /root/.ssh for dropbear, so
+# seeding the developer's public key here makes SSH key auth work on the
+# live image as well. Optional: with no key present the image still boots.
+DEV_PUBKEY=""
+for _k in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub"; do
+    if [[ -s "$_k" ]]; then DEV_PUBKEY="$_k"; break; fi
+done
+
+DATA_MOUNT="$(mktemp -d)"
+sudo mount "$DATA_PART" "$DATA_MOUNT"
+if [[ -n "$DEV_PUBKEY" ]]; then
+    sudo mkdir -p "$DATA_MOUNT/ssh"
+    sudo cp "$DEV_PUBKEY" "$DATA_MOUNT/ssh/authorized_keys"
+    echo "==> Seeded developer SSH key: $DEV_PUBKEY -> data/ssh/authorized_keys"
+else
+    echo "==> No ~/.ssh/id_ed25519.pub (or id_rsa.pub) found — SSH key not seeded"
+fi
+sudo umount "$DATA_MOUNT"
+rmdir "$DATA_MOUNT"
+
 # ── Cleanup loop device ────────────────────────────────────────────
 sudo losetup -d "$LOOP_DEV"
 LOOP_DEV=""

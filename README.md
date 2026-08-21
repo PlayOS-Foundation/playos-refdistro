@@ -8,7 +8,7 @@
 
 - Buildroot `br2-external` tree (`br2-external/`) — package definitions, defconfigs, board files, rootfs overlay
 - Kernel configurations and patches for all supported targets
-- Board-specific firmware, grub configs, and BusyBox/init config
+- Board-specific firmware, grub configs, the BusyBox config, and the `playos-init` `/init` binary
 - Image assembly and USB-flash scripts (`scripts/`)
 - Hardware check helpers (`tools/hw-check/`)
 - `versions.lock` — all component commit pins (single source of truth for reproducibility)

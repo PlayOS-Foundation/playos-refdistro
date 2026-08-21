@@ -27,6 +27,12 @@ int  playos_format_mkfs_ext4(const char *device, int partno, const char *label,
 int  playos_format_write_image(const char *device, int partno,
                                const char *image_path, char *err, size_t errlen);
 
+/* Copy an authorized_keys file into the freshly-formatted data partition so
+ * the target system accepts the developer's SSH key on first boot. The source
+ * key is optional: if absent the function succeeds without seeding anything. */
+int  playos_format_seed_ssh_keys(const char *device, int partno,
+                                 const char *src_keys, char *err, size_t errlen);
+
 /* Build the partition device node path for a whole-disk device. */
 void playos_format_partition_path(const char *device, int partno,
                                   char *out, size_t outlen);

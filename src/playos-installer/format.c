@@ -17,6 +17,8 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
 
 #include <libfdisk/libfdisk.h>
 
@@ -116,6 +118,82 @@ playos_format_mkfs_ext4(const char *device, int partno, const char *label,
     return run_cmd(argv, err, errlen);
 }
 
+/* ── SSH key seeding ─────────────────────────────────────────────────────
+ * The installer runs while the boot medium's playos-data partition is mounted
+ * at /data. The developer places their public key on the installer USB at
+ * <data>/ssh/authorized_keys. This helper mounts the *target* data partition
+ * we just created, copies that key into its /ssh/authorized_keys, and
+ * unmounts. The source is optional: with no key present this is a no-op so a
+ * stock install still succeeds (it will simply accept no SSH key). */
+int
+playos_format_seed_ssh_keys(const char *device, int partno,
+                            const char *src_keys, char *err, size_t errlen)
+{
+    char part[128];
+    playos_format_partition_path(device, partno, part, sizeof(part));
+
+    const char *mnt = "/mnt/data-target";
+    (void)mkdir(mnt, 0755);
+
+    if (mount(part, mnt, "ext4", 0, NULL) != 0) {
+        snprintf(err, errlen, "mount %s: %s", part, strerror(errno));
+        return -1;
+    }
+
+    if (access(src_keys, R_OK) == 0) {
+        char dst[256];
+        snprintf(dst, sizeof(dst), "%s/ssh", mnt);
+        (void)mkdir(dst, 0700);
+        snprintf(dst, sizeof(dst), "%s/ssh/authorized_keys", mnt);
+
+        int in = open(src_keys, O_RDONLY | O_CLOEXEC);
+        if (in < 0) {
+            snprintf(err, errlen, "open %s: %s", src_keys, strerror(errno));
+            (void)umount(mnt);
+            return -1;
+        }
+        int out = open(dst, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+        if (out < 0) {
+            snprintf(err, errlen, "open %s: %s", dst, strerror(errno));
+            close(in);
+            (void)umount(mnt);
+            return -1;
+        }
+
+        char buf[4096];
+        ssize_t n;
+        int rc = 0;
+        while ((n = read(in, buf, sizeof(buf))) > 0) {
+            ssize_t off = 0;
+            while (off < n) {
+                ssize_t w = write(out, buf + off, (size_t)(n - off));
+                if (w < 0) {
+                    if (errno == EINTR)
+                        continue;
+                    rc = -1;
+                    break;
+                }
+                off += w;
+            }
+            if (rc)
+                break;
+        }
+        if (n < 0)
+            rc = -1;
+        close(out);
+        close(in);
+        if (rc != 0) {
+            snprintf(err, errlen, "copy %s -> %s failed", src_keys, dst);
+            (void)umount(mnt);
+            return -1;
+        }
+    }
+
+    (void)umount(mnt);
+    (void)rmdir(mnt);
+    return 0;
+}
+
 /* ── image copy ────────────────────────────────────────────────────────── */
 
 int
@@ -178,6 +256,23 @@ void
 playos_format_sync(void)
 {
     sync();
+}
+
+/* Wipe stale filesystem signatures from the freshly-created partition nodes
+ * so a previous install's superblock (an old slot-B or data partition left
+ * over from a prior layout) cannot fool blkid into labelling the wrong
+ * partition as playos-data. Best effort: some nodes may not exist yet, and
+ * not every node carries a signature to wipe. */
+static void
+playos_format_wipe_partitions(const char *device)
+{
+    for (int partno = 1; partno <= 5; partno++) {
+        char part[128];
+        playos_format_partition_path(device, partno, part, sizeof(part));
+
+        char *argv[] = { "wipefs", "-a", part, NULL };
+        run_cmd_best_effort(argv);
+    }
 }
 
 /* ── GPT layout ────────────────────────────────────────────────────────── */
@@ -331,6 +426,9 @@ out:
         char *reread[] = { "blockdev", "--rereadpt", devpath, NULL };
         run_cmd_best_effort(reread);
         sync();
+
+        /* Clear any stale filesystem signatures the old layout left behind. */
+        playos_format_wipe_partitions(device);
     }
 
     return rc;

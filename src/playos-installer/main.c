@@ -372,7 +372,16 @@ run_install_step(struct installer *st)
                                            err, errlen); break;
     case 3: rc = 0; break; /* system B is reserved for a future OTA */
     case 4: rc = playos_format_mkfs_ext4(dev, 4, "misc", err, errlen); break;
-    case 5: rc = playos_format_mkfs_ext4(dev, 5, "playos-data", err, errlen); break;
+    case 5:
+        rc = playos_format_mkfs_ext4(dev, 5, "playos-data", err, errlen);
+        if (rc == 0) {
+            const char *src = "/data/ssh/authorized_keys";
+            int key_present = (access(src, R_OK) == 0);
+            rc = playos_format_seed_ssh_keys(dev, 5, src, err, errlen);
+            installer_logf("installer step 5/8 Format data: ssh key source %s, seed rc=%d",
+                           key_present ? "present" : "absent", rc);
+        }
+        break;
     case 6: rc = playos_efi_write(dev, st->payload_mount, err, errlen); break;
     case 7: playos_format_sync(); rc = 0; break;
     default: rc = -1; break;

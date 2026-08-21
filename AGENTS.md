@@ -142,6 +142,6 @@ Live USB and installer USB keep the compact 3-partition layout (ESP, `playos-a` 
 - **Do not add C source code here** — all source lives in the component repos. Exceptions: `src/playos-overlay/` holds the trusted in-game overlay client source (Sprint 7), and `src/playos-installer/` holds the standalone installer source (Sprint 10); both are reference-distro-specific and built here rather than as standalone component repos.
 - **Do not commit build output** (`output/`, `dl/` except for the lock file) — `.gitignore` covers this.
 - **Do not hardcode `/dev/dri/card0`** anywhere — GPU discovery is done by `playos-init` via PCI enumeration (ADR-0008).
-- **Do not add BusyBox applets to the production `ally` defconfig** — production image has no shell, no SSH, no debug tools (see `security-model.md`). BusyBox is allowed in the `qemu` defconfig for dev convenience.
+- **Do not add BusyBox applets to the production `ally` defconfig** — production image has no shell, no SSH, no debug tools (see `security-model.md`). BusyBox is currently present in the dev/installer `ally` defconfig (Sprint 11.6); the *production* defconfig (Sprint 12) must exclude it. Note `playos-init`, not BusyBox, is PID 1.
 - **Do not change the partition layout** without an ADR — the A/B update engine depends on it.
 - **Linux environment required** — Buildroot does not run on Windows or macOS. Use WSL2, a Linux VM, or a dedicated Linux machine.

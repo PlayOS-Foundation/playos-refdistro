@@ -80,6 +80,7 @@ BR2_PACKAGE_PLAYOS_SAMPLES=y
 # ── Packages — Audio tools (for hw-check) ─────────────────────────
 BR2_PACKAGE_ALSA_UTILS=y
 BR2_PACKAGE_ALSA_UTILS_APLAY=y
+BR2_PACKAGE_ALSA_UTILS_AMIXER=y
 
 # ── Packages — Hardware utilities ─────────────────────────────────
 BR2_PACKAGE_EVTEST=y

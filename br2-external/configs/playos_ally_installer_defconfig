@@ -37,7 +37,7 @@ BR2_KERNEL_HEADERS_6_12=y
 # ── Initramfs ─────────────────────────────────────────────────────
 BR2_TARGET_ROOTFS_INITRAMFS=y
 BR2_TARGET_ROOTFS_INITRAMFS_CUSTOM=y
-BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay"
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay $(BR2_EXTERNAL_PlayOS_PATH)/board/dev/rootfs-overlay"
 
 # ── Filesystem images ─────────────────────────────────────────────
 BR2_TARGET_ROOTFS_EXT2=y

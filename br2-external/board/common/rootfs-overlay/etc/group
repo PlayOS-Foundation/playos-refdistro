@@ -13,7 +13,7 @@ cdrom:x:11:
 dialout:x:18:
 floppy:x:19:
 video:x:28:
-audio:x:29:
+audio:x:29:playos-game
 tape:x:32:
 www-data:x:33:
 operator:x:37:
@@ -25,3 +25,4 @@ netdev:x:82:
 users:x:100:
 nobody:x:65534:
 playos-trusted:x:1000:
+playos-game:x:1001:

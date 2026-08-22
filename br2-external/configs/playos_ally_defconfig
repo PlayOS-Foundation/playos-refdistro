@@ -1,9 +1,12 @@
-# PlayOS ROG Ally x86_64 Production Configuration
+# PlayOS ROG Ally x86_64 Development Configuration
 #
-# This is the production target for ASUS ROG Ally (2023) hardware.
+# Development image for ASUS ROG Ally (2023) hardware. Retains full debug
+# tooling (BusyBox, Dropbear SSH, evtest). The stripped production image
+# is in playos_ally_production_defconfig (Sprint 12).
 # Development QEMU configuration is in playos_qemu_x86_64_defconfig.
 #
 # Generated: Sprint 3 — ROG Ally Hardware Bring-Up
+# Updated:   Sprint 12 — playos-game identity, dev/prod split
 
 # ── Architecture ──────────────────────────────────────────────────
 BR2_x86_64=y
@@ -12,6 +15,7 @@ BR2_x86_64_haswell=y
 # ── System ────────────────────────────────────────────────────────
 BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
 BR2_ROOTFS_DEVICE_TABLE=""
+BR2_ROOTFS_USERS_TABLES="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/users-table.txt"
 BR2_ROOTFS_POST_BUILD_SCRIPT=""
 BR2_TARGET_GENERIC_HOSTNAME="playos-ally"
 BR2_TARGET_GENERIC_ISSUE="PlayOS (ROG Ally)"
@@ -36,7 +40,7 @@ BR2_KERNEL_HEADERS_6_12=y
 # ── Initramfs ─────────────────────────────────────────────────────
 BR2_TARGET_ROOTFS_INITRAMFS=y
 BR2_TARGET_ROOTFS_INITRAMFS_CUSTOM=y
-BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay"
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay $(BR2_EXTERNAL_PlayOS_PATH)/board/dev/rootfs-overlay"
 
 # ── Filesystem images ─────────────────────────────────────────────
 BR2_TARGET_ROOTFS_EXT2=y

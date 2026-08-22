@@ -1,28 +1,25 @@
-# PlayOS QEMU x86_64 Installer Configuration (development variant)
+# PlayOS ROG Ally x86_64 Production Configuration (Sprint 12)
 #
-# Same one-shot internal-disk installer state machine as the production
-# playos_ally_installer_defconfig, but built for the QEMU/virtio-gpu dev
-# target instead of physical ROG Ally hardware:
-#   * generic x86_64 userspace (no -march=haswell, so it runs under TCG/KVM)
-#   * software GL (softpipe) instead of radeonsi — QEMU has no AMD GPU
-#   * virtio + virtio-gpu/bochs kernel drivers for the graphical path
+# Hardened production image for ASUS ROG Ally (2023) hardware.
+# Stripped of debug tooling: no BusyBox shell, no Dropbear SSH, no
+# evtest. A post-build lint (board/ally/post-build.sh) fails the build
+# if any debug artifact is present. The development image (with full
+# debug tools) is playos_ally_defconfig.
 #
-# The headless loopback install test does NOT require this variant: it boots
-# the production installer build with playos.install.auto=1. This variant is
-# for exercising the graphical installer UI under QEMU.
-#
-# Generated: Sprint 10 — Installer bring-up (T8 QEMU validation)
+# Generated: Sprint 3 — ROG Ally Hardware Bring-Up
+# Updated:   Sprint 12 — debug-tool strip + production lint
 
 # ── Architecture ──────────────────────────────────────────────────
 BR2_x86_64=y
-BR2_x86_64_generic=y
+BR2_x86_64_haswell=y
 
 # ── System ────────────────────────────────────────────────────────
 BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
 BR2_ROOTFS_DEVICE_TABLE=""
-BR2_ROOTFS_POST_BUILD_SCRIPT=""
-BR2_TARGET_GENERIC_HOSTNAME="playos-installer"
-BR2_TARGET_GENERIC_ISSUE="PlayOS Installer (QEMU)"
+BR2_ROOTFS_USERS_TABLES="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/users-table.txt"
+BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/post-build.sh"
+BR2_TARGET_GENERIC_HOSTNAME="playos-ally"
+BR2_TARGET_GENERIC_ISSUE="PlayOS (ROG Ally)"
 BR2_TARGET_GENERIC_GETTY_PORT="tty1"
 BR2_TARGET_GENERIC_GETTY_BAUDRATE_115200=y
 
@@ -31,7 +28,7 @@ BR2_LINUX_KERNEL=y
 BR2_LINUX_KERNEL_CUSTOM_VERSION=y
 BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.12.103"
 BR2_LINUX_KERNEL_USE_CUSTOM_CONFIG=y
-BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="$(BR2_EXTERNAL_PlayOS_PATH)/board/qemu-installer/linux.config"
+BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/linux.config"
 BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_PlayOS_PATH)/board/patches"
 BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
 BR2_LINUX_KERNEL_INITRAMFS_SOURCE="$(BINARIES_DIR)/rootfs.cpio"
@@ -44,33 +41,40 @@ BR2_KERNEL_HEADERS_6_12=y
 # ── Initramfs ─────────────────────────────────────────────────────
 BR2_TARGET_ROOTFS_INITRAMFS=y
 BR2_TARGET_ROOTFS_INITRAMFS_CUSTOM=y
-BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay $(BR2_EXTERNAL_PlayOS_PATH)/board/dev/rootfs-overlay"
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay"
 
 # ── Filesystem images ─────────────────────────────────────────────
 BR2_TARGET_ROOTFS_EXT2=y
 BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
+# Installer payload: squashfs of the rootfs is copied onto the installer
+# USB's playos-a partition and written verbatim to the target system slot.
+BR2_TARGET_ROOTFS_SQUASHFS=y
 
 # ── Bootloader (UEFI direct EFI stub, no GRUB) ───────────────────
 # Kernel is built with CONFIG_EFI_STUB=y and placed directly as
 # EFI/BOOT/BOOTX64.EFI on the ESP. No intermediate bootloader needed.
 
 # ── Packages — Base system ────────────────────────────────────────
-BR2_PACKAGE_BUSYBOX=y
-BR2_PACKAGE_BUSYBOX_CONFIG="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/busybox.config"
+# NOTE: no BusyBox in production. PID 1 is playos-init (/init), not
+# BusyBox, so removing BusyBox removes /bin/sh and its applets only.
+# ip (BusyBox) is replaced by iproute2 and udhcpc (BusyBox) by dhcpcd
+# for the future networking stack (Sprint 16).
 BR2_PACKAGE_EUDEV=y
+BR2_PACKAGE_IPROUTE2=y
+BR2_PACKAGE_DHCPCD=y
 
 # ── Packages — Firmware ───────────────────────────────────────────
-# No AMDGPU firmware needed for QEMU (virtio-gpu/bochs are in-kernel).
-# Keep the linux-firmware package for the base firmware blobs.
+BR2_PACKAGE_LINUX_FIRMWARE=y
+BR2_PACKAGE_LINUX_FIRMWARE_AMDGPU=y
+BR2_PACKAGE_LINUX_FIRMWARE_AMD_UCODE=y
 
 # ── Packages — Graphics stack ────────────────────────────────────
-# softpipe is the software Gallium driver; virtio-gpu + bochs-drm provide
-# the DRM/KMS device under QEMU. No LLVM dependency (unlike llvmpipe).
 BR2_PACKAGE_MESA3D=y
-BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_SOFTPIPE=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_RADEONSI=y
 BR2_PACKAGE_MESA3D_OPENGL_EGL=y
 BR2_PACKAGE_MESA3D_OPENGL_ES=y
 BR2_PACKAGE_MESA3D_GBM=y
+BR2_PACKAGE_MESA3D_VULKAN_DRIVER_AMD=y
 
 # ── Packages — PlayOS components ──────────────────────────────────
 BR2_PACKAGE_PLAYOS_INIT=y
@@ -80,25 +84,16 @@ BR2_PACKAGE_PLAYOS_COMPOSITOR=y
 BR2_PACKAGE_PLAYOS_SHELL=y
 BR2_PACKAGE_PLAYOS_RAYLIB=y
 BR2_PACKAGE_PLAYOS_OVERLAY=y
-BR2_PACKAGE_PLAYOS_INSTALLER=y
 BR2_PACKAGE_PLAYOS_SAMPLES=y
 
 # ── Packages — Audio tools (for hw-check) ─────────────────────────
 BR2_PACKAGE_ALSA_UTILS=y
 BR2_PACKAGE_ALSA_UTILS_APLAY=y
+BR2_PACKAGE_ALSA_UTILS_AMIXER=y
 
-# ── Packages — Hardware utilities ─────────────────────────────────
-BR2_PACKAGE_EVTEST=y
-
-# ── Packages — Installer tools ────────────────────────────────────
-# libfdisk (GPT write), blockdev/mkfs/fdisk (partition sync + filesystems),
-# and efibootmgr (best-effort NVRAM boot entry). e2fsprogs supplies mkfs.ext2/4.
-BR2_PACKAGE_UTIL_LINUX=y
-BR2_PACKAGE_UTIL_LINUX_BINARIES=y
-BR2_PACKAGE_DOSFSTOOLS=y
-BR2_PACKAGE_DOSFSTOOLS_MKFS_FAT=y
-BR2_PACKAGE_E2FSPROGS=y
-BR2_PACKAGE_EFIBOOTMGR=y
+# ── Packages — Developer SSH (Sprint 11.6) ─────────────────────────
+# NOT enabled in production: Dropbear and playos-ssh-bringup are
+# dev/installer-image features. Production ships with no open sockets.
 
 # ── Host utilities ────────────────────────────────────────────────
 BR2_PACKAGE_HOST_DOSFSTOOLS=y

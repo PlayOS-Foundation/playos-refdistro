@@ -6,7 +6,8 @@
 #   make qemu-build       Full image build for QEMU
 #   make qemu-run         Boot image in QEMU/OVMF
 #   make ally-config      Open menuconfig for ROG Ally target
-#   make ally-build       Full image build for ROG Ally
+#   make ally-build       Full image build for ROG Ally (dev image)
+#   make ally-production-build  Full image build for ROG Ally (production image)
 #   make ally-usb-image   Produce USB-bootable disk image
 #   make ally-flash       Flash image to USB drive (prompts for device)
 #   make installer-config Open menuconfig for the installer target
@@ -26,6 +27,8 @@ QEMU_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_qemu_x86_64_defconfig
 QEMU_OUTPUT := $(CURDIR)/output/qemu
 ALLY_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_defconfig
 ALLY_OUTPUT := $(CURDIR)/output/ally
+ALLY_PRODUCTION_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_production_defconfig
+ALLY_PRODUCTION_OUTPUT := $(CURDIR)/output/ally-production
 INSTALLER_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_installer_defconfig
 INSTALLER_OUTPUT := $(CURDIR)/output/installer
 SCRIPTS_DIR := $(CURDIR)/scripts
@@ -206,6 +209,20 @@ ally-build: ## Full image build for ROG Ally (requires setup)
 	@$(MAKE) -C "$(BUILDROOT_DIR)" \
 		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
 		O="$(ALLY_OUTPUT)"
+
+.PHONY: ally-production-build
+ally-production-build: ## Full production image build for ROG Ally (Sprint 12)
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(ALLY_PRODUCTION_OUTPUT)" \
+		$(notdir $(ALLY_PRODUCTION_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(ALLY_PRODUCTION_OUTPUT)" \
+		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(ALLY_PRODUCTION_OUTPUT)"
 
 .PHONY: ally-usb-image
 ally-usb-image: ally-build ## Produce a USB-bootable disk image for the ROG Ally

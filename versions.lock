@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-
 PLAYOS_RUNTIME_COMMIT=43caa65fcb7012c4b6190612dca9e3a7ca79e304  # runtime: trusted apply_update + update progress/complete/error events (Sprint 11)
 PLAYOS_INIT_COMMIT=9fb5a49da7151f796c5526a1d87cfa98b6f75271  # init: mount /tmp as tmpfs on read-only squashfs root (udhcpc mktemp fix)
 PLAYOS_COMPOSITOR_COMMIT=d22cd642d18f5accec1616573e9a4654b86e6295  # Sprint 7: foreground state machine + per-client overlay resource resolution
-PLAYOS_SHELL_COMMIT=18beb503290568b97c927670c2a6fbef92b9a759  # shell: Sprint 11 software-update UI in Settings
+PLAYOS_SHELL_COMMIT=31bc6ed92170ab2a0106d1924644a05bbbfd4e4e  # shell: retry audio device init until late card 1 registers
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

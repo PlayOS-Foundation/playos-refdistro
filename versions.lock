@@ -20,11 +20,11 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=705dfb6e2dd36ef2540088e7814fb0b4af50d94f  # spec: Sprint 12 status + security-model updates
+PLAYOS_SPEC_COMMIT=10d1c40fdb4b1e285a56677d9d85aae5e6ed2009  # spec: Sprint 11.5 + 12 status updates
 PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
-PLAYOS_INIT_COMMIT=71070707db06666259587f4ebabe0444779d80cf  # init: Sprint 12 game sandbox (T1-T4, T8)
-PLAYOS_COMPOSITOR_COMMIT=04b26c486034de233a3b0334ceeefebc1c968c69  # compositor: full reserved-button intercept (S12-T5)
+PLAYOS_INIT_COMMIT=017e1028261af8fc23813c5ec0382617d479fdb7  # init: unprivileged game launch + installer SSH key seed fix
+PLAYOS_COMPOSITOR_COMMIT=fdcd4bd79e267956de6fefc58079b218631d66f6  # compositor: open Wayland socket for unprivileged games (S12)
 PLAYOS_SHELL_COMMIT=31bc6ed92170ab2a0106d1924644a05bbbfd4e4e  # shell: retry audio device init until late card 1 registers
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples

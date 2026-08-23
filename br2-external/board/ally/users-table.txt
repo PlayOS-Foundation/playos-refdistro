@@ -7,6 +7,8 @@
 # include/playos-init/security.h (PLAYOS_GAME_UID/GID). Supplementary
 # groups: `audio` grants /dev/snd access so ALSA keeps working; `render`
 # grants /dev/dri/renderD* access so the game's client-side EGL/GLES2
-# path can reach the GPU through the Wayland seat. Games are intentionally
-# NOT in video/input/drm — the primary node /dev/dri/card* stays root-only.
-playos-game 1001 playos-game 1001 * - - audio,render PlayOS game user
+# path can reach the GPU through the Wayland seat; `input` grants
+# /dev/input/event* access so libplayos's evdev backend can read the
+# built-in controller. Games are intentionally NOT in video/drm — the
+# primary node /dev/dri/card* stays root-only.
+playos-game 1001 playos-game 1001 * - - audio,render,input PlayOS game user

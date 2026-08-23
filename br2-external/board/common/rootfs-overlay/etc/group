@@ -13,6 +13,7 @@ cdrom:x:11:
 dialout:x:18:
 floppy:x:19:
 video:x:28:
+render:x:108:playos-game
 audio:x:29:playos-game
 tape:x:32:
 www-data:x:33:

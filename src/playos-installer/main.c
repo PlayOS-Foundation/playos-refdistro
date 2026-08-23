@@ -64,6 +64,7 @@ installer_log_open(void)
 {
     if (installer_log)
         return;
+    mkdir("/data/log", 0755);
     installer_log = fopen("/data/log/installer.log", "a");
     if (!installer_log)
         installer_log = fopen("/tmp/installer.log", "a");

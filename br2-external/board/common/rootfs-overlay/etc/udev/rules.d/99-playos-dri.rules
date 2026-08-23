@@ -1,0 +1,8 @@
+# PlayOS DRI device permissions (Sprint 12 — game GPU access)
+#
+# Grant the unprivileged game identity (playos-game) access to the DRM
+# render node only. The primary node (/dev/dri/card*) stays root-only, so a
+# game cannot take over the display or perform modesetting — it can only
+# render client-side buffers that the compositor scans out through the
+# Wayland seat. playos-game is a member of the `render` group.
+SUBSYSTEM=="drm", KERNEL=="renderD*", GROUP="render", MODE="0660"

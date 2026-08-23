@@ -1,0 +1,71 @@
+name: PlayOS Production Build (ROG Ally)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'br2-external/**'
+      - 'versions.lock'
+      - 'Makefile'
+      - 'scripts/**'
+      - '.github/workflows/production-build.yml'
+  pull_request:
+    branches: [main]
+
+jobs:
+  production-build:
+    name: Build production image and verify debug-free target
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify version pins
+        run: |
+          bash scripts/verify-versions.sh versions.lock
+
+      - name: Setup host environment
+        run: |
+          bash scripts/setup-ubuntu.sh
+
+      - name: Setup Buildroot
+        run: |
+          make setup
+
+      - name: Build production image
+        run: |
+          make ally-production-build
+
+      - name: Verify debug artifacts are absent
+        run: |
+          set -euo pipefail
+          TARGET="output/ally-production/target"
+          FORBIDDEN=(
+            "bin/busybox"
+            "bin/sh"
+            "usr/bin/gdbserver"
+            "usr/bin/strace"
+            "usr/bin/ltrace"
+            "usr/bin/evtest"
+            "usr/bin/modetest"
+            "usr/sbin/dropbear"
+            "usr/sbin/sshd"
+          )
+          found=0
+          for rel in "${FORBIDDEN[@]}"; do
+            if [[ -e "$TARGET/$rel" ]]; then
+              echo "::error::DEBUG ARTIFACT PRESENT: $rel"
+              found=1
+            fi
+          done
+          if [[ "$found" == "1" ]]; then
+            echo "Production target still contains development/debug artifacts."
+            exit 1
+          fi
+          echo "OK: no development/debug artifacts found in production target."
+
+      - name: Boot-check production image in QEMU
+        run: |
+          bash scripts/qemu-boot-check.sh --production --timeout 60

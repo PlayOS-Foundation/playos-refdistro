@@ -1,8 +1,8 @@
 # PlayOS ROG Ally x86_64 Installer Configuration
 #
 # One-shot internal-disk installer booted with playos.mode=install.
-# The production shell target is playos_ally_defconfig; this variant uses
-# the same kernel/driver stack but forces the installer command line.
+# The production payload is playos_ally_production_defconfig; this variant
+# uses the same kernel/driver stack but forces the installer command line.
 #
 # Generated: Sprint 10 — Installer bring-up
 

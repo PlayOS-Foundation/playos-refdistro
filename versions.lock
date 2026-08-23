@@ -20,11 +20,11 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=27faca7b6be4c3b7420bf9cf34dbdffbd63806cd  # spec: on-device security self-test runbook (Sprint 12)
+PLAYOS_SPEC_COMMIT=d5f1e6d32a83a82a9def2f8631d0bc986643e3af  # spec: reconcile input/DRM boundary to implementation (Sprint 12)
 PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
-PLAYOS_INIT_COMMIT=75f5858a8b79572082a7ff9a79caa0cb0da5389d  # init: security self-test binary + drop stale Sprint banners
-PLAYOS_COMPOSITOR_COMMIT=fdcd4bd79e267956de6fefc58079b218631d66f6  # compositor: open Wayland socket for unprivileged games (S12)
+PLAYOS_INIT_COMMIT=fca80cb589c0d1b6294f06a99846cb9244d5334f  # init: grant /dev/dri to games for render node (Landlock)
+PLAYOS_COMPOSITOR_COMMIT=1885f2d5a6ea29b93ce8d5afc8848104780b93e9  # compositor: correct reserved-button boundary comment (S12)
 PLAYOS_SHELL_COMMIT=dde9f57b91dfbd2f208b51f62a7264d4fb494869  # shell: terminate running game on B (exit fix)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples

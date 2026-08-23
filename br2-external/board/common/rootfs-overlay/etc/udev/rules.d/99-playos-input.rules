@@ -1,0 +1,14 @@
+# PlayOS input node separation (Sprint 12 — deferred hardening)
+#
+# The ASUS embedded-controller nodes (event6/7/8; USB 0b05:1abe, reported as
+# "Asus Keyboard") carry the Command Center keys (KEY_PROG1/KEY_PROG2), M1/M2,
+# brightness, volume, and power/sleep. A game must not read these directly —
+# it only needs the gamepad node (Microsoft X-Box 360 pad, 045e:028e, event5).
+# The compositor and shell run as root, so they still read the EC nodes.
+#
+# The gamepad stays in the `input` group (games are in `input`); the EC nodes
+# are moved to root:root 0600. The i8042 "AT Translated Set 2 keyboard"
+# (event3) is intentionally left in `input`: it carries only volume/power/
+# sleep/wakeup (no Command Center / M1-M2), power/sleep are intercepted at the
+# seat, and reboot is seccomp-blocked.
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{idVendor}=="0b05", ATTRS{idProduct}=="1abe", GROUP="root", MODE="0600"

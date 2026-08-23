@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=d5f1e6d32a83a82a9def2f8631d0bc986643e3af  # spec: reconcile input/DRM boundary to implementation (Sprint 12)
+PLAYOS_SPEC_COMMIT=7aacf9b8cb298aaec2b17bea6dcef9ec97c94cdb  # spec: reconcile input-node separation (ASUS EC -> root:root 0600)
 PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=fca80cb589c0d1b6294f06a99846cb9244d5334f  # init: grant /dev/dri to games for render node (Landlock)

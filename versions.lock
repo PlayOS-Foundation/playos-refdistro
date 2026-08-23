@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=10d1c40fdb4b1e285a56677d9d85aae5e6ed2009  # spec: Sprint 11.5 + 12 status updates
+PLAYOS_SPEC_COMMIT=4c05ac13f4d03852ad5b83e6e51fad50b9b63da1  # spec: Sprint 11.5/11.6 complete (on-device 3-strike rollback verified)
 PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=42b530db4e368d69755d3d87a3c58a01fcfd65da  # init: grant games /dev/input access (controller scan fix)

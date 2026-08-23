@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=7aacf9b8cb298aaec2b17bea6dcef9ec97c94cdb  # spec: reconcile input-node separation (ASUS EC -> root:root 0600)
+PLAYOS_SPEC_COMMIT=2ff561aee3bc6c8975d90bd077abb026b16f1637  # spec: close Sprint 12 (Landlock kernel-config gap found + fixed)
 PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=4752290daa7b82ce072d70e974c028ae196a1add  # init: unmount ESP before pivot, skip second-init re-count (S12)

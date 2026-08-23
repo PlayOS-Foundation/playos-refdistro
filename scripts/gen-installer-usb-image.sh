@@ -2,9 +2,10 @@
 # gen-installer-usb-image.sh — Create the one-shot PlayOS installer USB image
 #
 # Usage:
-#   bash scripts/gen-installer-usb-image.sh <installer-output-dir> <ally-output-dir>
+#   bash scripts/gen-installer-usb-image.sh <installer-output-dir> <ally-output-dir> [image-name]
 #
-# Produces: <installer-output-dir>/images/playos-ally-installer.img
+# Produces: <installer-output-dir>/images/<image-name>
+#           (image-name defaults to playos-ally-installer.img)
 #
 # The installer USB carries TWO kernels:
 #   * ESP/EFI/BOOT/BOOTX64.EFI  — installer kernel (CONFIG_CMDLINE has
@@ -23,9 +24,10 @@ set -euo pipefail
 
 INSTALLER_OUTPUT="${1:-}"
 ALLY_OUTPUT="${2:-}"
+IMAGE_NAME="${3:-playos-ally-installer.img}"
 if [[ -z "$INSTALLER_OUTPUT" || -z "$ALLY_OUTPUT" ]]; then
     echo "ERROR: Missing output directory argument(s)." >&2
-    echo "Usage: $0 <installer-output-dir> <ally-output-dir>" >&2
+    echo "Usage: $0 <installer-output-dir> <ally-output-dir> [image-name]" >&2
     exit 1
 fi
 
@@ -79,7 +81,7 @@ echo "==> System image (payload):      $SQUASHFS"
 ESP_SIZE_MB=256
 SYSTEM_A_SIZE_MB=2048
 IMAGE_SIZE_MB=$((ESP_SIZE_MB + SYSTEM_A_SIZE_MB + 1024 + 2))
-IMAGE_PATH="$INSTALLER_IMAGES_DIR/playos-ally-installer.img"
+IMAGE_PATH="$INSTALLER_IMAGES_DIR/$IMAGE_NAME"
 echo "==> Creating disk image: ${IMAGE_SIZE_MB} MiB..."
 
 truncate -s "${IMAGE_SIZE_MB}M" "$IMAGE_PATH"

@@ -13,8 +13,10 @@
 #   make installer-config Open menuconfig for the installer target
 #   make installer-build  Full image build for the installer
 #   make installer-image  Produce one-shot installer USB image (dev payload)
+#   make installer-dev-image  Produce dev installer USB image with SSH (distinct filename)
 #   make installer-production-image  Produce production installer USB image (Sprint 12 payload)
 #   make installer-flash  Flash installer image to USB (prompts for device)
+#   make installer-dev-flash  Flash dev installer image to USB (prompts for device)
 #   make update-bundle    Build a dev-signed update bundle (.playosb)
 #   make clean            Remove build output (preserves dl/ cache)
 #   make distclean        Remove everything including dl/
@@ -265,6 +267,16 @@ installer-build: ## Full image build for the installer (requires setup)
 installer-image: installer-build ally-build ## Produce one-shot installer USB image (dev payload)
 	@echo "==> Creating installer USB image..."
 	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INSTALLER_OUTPUT)" "$(ALLY_OUTPUT)"
+
+.PHONY: installer-dev-image
+installer-dev-image: installer-build ally-build ## Produce dev installer USB image with SSH (distinct filename)
+	@echo "==> Creating development installer USB image (SSH enabled)..."
+	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INSTALLER_OUTPUT)" "$(ALLY_OUTPUT)" playos-ally-dev-installer.img
+
+.PHONY: installer-dev-flash
+installer-dev-flash: installer-dev-image ## Flash dev installer image to USB (prompts for device)
+	@echo "==> Development installer image: $(INSTALLER_OUTPUT)/images/playos-ally-dev-installer.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INSTALLER_OUTPUT)/images/playos-ally-dev-installer.img"
 
 .PHONY: installer-production-image
 installer-production-image: installer-build ally-production-build ## Produce production installer USB image (Sprint 12 payload)

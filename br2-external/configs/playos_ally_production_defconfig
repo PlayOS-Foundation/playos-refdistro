@@ -18,6 +18,10 @@ BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
 BR2_ROOTFS_DEVICE_TABLE=""
 BR2_ROOTFS_USERS_TABLES="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/users-table.txt"
 BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/post-build.sh"
+# PID 1 is playos-init (/init), so no BusyBox/systemd/sysv init system.
+BR2_INIT_NONE=y
+# No shell in production (playos-init and components are native binaries).
+BR2_SYSTEM_BIN_SH_NONE=y
 BR2_TARGET_GENERIC_HOSTNAME="playos-ally"
 BR2_TARGET_GENERIC_ISSUE="PlayOS (ROG Ally)"
 BR2_TARGET_GENERIC_GETTY_PORT="tty1"
@@ -59,6 +63,8 @@ BR2_TARGET_ROOTFS_SQUASHFS=y
 # BusyBox, so removing BusyBox removes /bin/sh and its applets only.
 # ip (BusyBox) is replaced by iproute2 and udhcpc (BusyBox) by dhcpcd
 # for the future networking stack (Sprint 16).
+# Explicitly drop BusyBox so no shell/applet toolbox is present.
+# BR2_PACKAGE_BUSYBOX is not set
 BR2_PACKAGE_EUDEV=y
 BR2_PACKAGE_IPROUTE2=y
 BR2_PACKAGE_DHCPCD=y

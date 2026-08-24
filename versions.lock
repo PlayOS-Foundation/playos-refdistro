@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=29dfd089c620ab6080301d868263053bef51a50d  # spec: Sprint 12 on-device 11/11 self-test passed — close acceptance
+PLAYOS_SPEC_COMMIT=2060b445a725f3af6e2444b6dcd1859a80be0712  # spec: Sprint 11.5 follow-up — installer zero-head wipe
 PLAYOS_PLATFORM_API_COMMIT=ca746c7c55a7a0e34e3b8a8088f363380d692aa5  # platform-api: read active slot version from boot.json (Sprint 11)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=ce0cb4b28c52d7dac19bef225f4e868207834e74  # init: grant device-dir enumeration + sysfs to Landlock games (S12)

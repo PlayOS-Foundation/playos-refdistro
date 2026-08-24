@@ -258,6 +258,39 @@ playos_format_sync(void)
     sync();
 }
 
+/* wipefs(8) probes for known signatures (ext4, vfat, etc.) but does NOT probe
+ * squashfs, whose "hsqs" magic sits at byte offset 0. A prior install leaves a
+ * squashfs superblock at the start of the inactive slot partition (playos-b),
+ * so wipefs alone leaves that slot looking bootable on a reinstall. Destroy
+ * any offset-0 superblock by zeroing the first 16 KiB of the partition head
+ * before wiping — harmless on a brand-new partition. */
+static void
+playos_format_zero_head(const char *part)
+{
+    int fd = open(part, O_WRONLY | O_CLOEXEC);
+    if (fd < 0)
+        return;
+
+    char zeros[16384];
+    memset(zeros, 0, sizeof(zeros));
+
+    ssize_t off = 0;
+    while (off < (ssize_t)sizeof(zeros)) {
+        ssize_t w = write(fd, zeros + off, sizeof(zeros) - (size_t)off);
+        if (w < 0) {
+            if (errno == EINTR)
+                continue;
+            break;
+        }
+        if (w == 0)
+            break;
+        off += w;
+    }
+
+    (void)fsync(fd);
+    close(fd);
+}
+
 /* Wipe stale filesystem signatures from the freshly-created partition nodes
  * so a previous install's superblock (an old slot-B or data partition left
  * over from a prior layout) cannot fool blkid into labelling the wrong
@@ -269,6 +302,9 @@ playos_format_wipe_partitions(const char *device)
     for (int partno = 1; partno <= 5; partno++) {
         char part[128];
         playos_format_partition_path(device, partno, part, sizeof(part));
+
+        /* Kill a stale squashfs (or other offset-0) superblock first. */
+        playos_format_zero_head(part);
 
         char *argv[] = { "wipefs", "-a", part, NULL };
         run_cmd_best_effort(argv);

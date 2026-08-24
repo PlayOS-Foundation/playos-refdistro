@@ -1,0 +1,99 @@
+# PlayOS Intel PC x86_64 Development Configuration
+#
+# Development image for the ASUS ZenBook UX530 (Kaby Lake, Intel HD Graphics
+# 620, NVIDIA 940MX/GTX 950 dGPU). Retains full debug tooling (BusyBox,
+# Dropbear SSH, evtest), mirroring playos_ally_defconfig.
+#
+# Generated: Sprint 13 — Intel Expansion
+
+# ── Architecture ──────────────────────────────────────────────────
+BR2_x86_64=y
+BR2_x86_skylake=y
+
+# ── System ────────────────────────────────────────────────────────
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
+BR2_ROOTFS_DEVICE_TABLE=""
+BR2_ROOTFS_USERS_TABLES="$(BR2_EXTERNAL_PlayOS_PATH)/board/ally/users-table.txt"
+BR2_ROOTFS_POST_BUILD_SCRIPT=""
+BR2_TARGET_GENERIC_HOSTNAME="playos-intel"
+BR2_TARGET_GENERIC_ISSUE="PlayOS (Intel PC)"
+BR2_TARGET_GENERIC_GETTY_PORT="tty1"
+BR2_TARGET_GENERIC_GETTY_BAUDRATE_115200=y
+
+# ── Kernel ────────────────────────────────────────────────────────
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.12.103"
+BR2_LINUX_KERNEL_USE_DEFCONFIG=y
+BR2_LINUX_KERNEL_DEFCONFIG="x86_64"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_PlayOS_PATH)/board/intel/linux-fragment.cfg"
+BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_PlayOS_PATH)/board/patches"
+BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
+BR2_LINUX_KERNEL_INITRAMFS_SOURCE="$(BINARIES_DIR)/rootfs.cpio"
+
+# ── Toolchain ─────────────────────────────────────────────────────
+BR2_TOOLCHAIN_BUILDROOT_MUSL=y
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+BR2_KERNEL_HEADERS_6_12=y
+
+# ── Initramfs ─────────────────────────────────────────────────────
+BR2_TARGET_ROOTFS_INITRAMFS=y
+BR2_TARGET_ROOTFS_INITRAMFS_CUSTOM=y
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay $(BR2_EXTERNAL_PlayOS_PATH)/board/dev/rootfs-overlay"
+
+# ── Filesystem images ─────────────────────────────────────────────
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
+BR2_TARGET_ROOTFS_SQUASHFS=y
+
+# ── Bootloader (UEFI direct EFI stub, no GRUB) ───────────────────
+# Kernel is built with CONFIG_EFI_STUB=y (see board/intel/linux-fragment.cfg)
+# and placed directly as EFI/BOOT/BOOTX64.EFI on the ESP.
+
+# ── Packages — Base system ────────────────────────────────────────
+BR2_PACKAGE_BUSYBOX=y
+BR2_PACKAGE_BUSYBOX_CONFIG="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/busybox.config"
+BR2_PACKAGE_EUDEV=y
+
+# ── Packages — Firmware ───────────────────────────────────────────
+BR2_PACKAGE_LINUX_FIRMWARE=y
+BR2_PACKAGE_LINUX_FIRMWARE_I915=y
+
+# ── Packages — Graphics stack ────────────────────────────────────
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_LLVM=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_IRIS=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_OPENGL_ES=y
+BR2_PACKAGE_MESA3D_GBM=y
+# Intel Vulkan (ANV) deferred per Sprint 13 — do NOT enable
+# BR2_PACKAGE_MESA3D_VULKAN_DRIVER_INTEL here.
+
+# ── Packages — PlayOS components ──────────────────────────────────
+BR2_PACKAGE_PLAYOS_INIT=y
+BR2_PACKAGE_PLAYOS_PLATFORM_API=y
+BR2_PACKAGE_PLAYOS_RUNTIME=y
+BR2_PACKAGE_PLAYOS_COMPOSITOR=y
+BR2_PACKAGE_PLAYOS_SHELL=y
+BR2_PACKAGE_PLAYOS_RAYLIB=y
+BR2_PACKAGE_PLAYOS_OVERLAY=y
+BR2_PACKAGE_PLAYOS_SAMPLES=y
+
+# ── Packages — Audio tools (for hw-check) ─────────────────────────
+BR2_PACKAGE_ALSA_UTILS=y
+BR2_PACKAGE_ALSA_UTILS_APLAY=y
+BR2_PACKAGE_ALSA_UTILS_AMIXER=y
+
+# ── Packages — Hardware utilities ─────────────────────────────────
+BR2_PACKAGE_EVTEST=y
+
+# ── Packages — Developer SSH (Sprint 11.6) ─────────────────────────
+BR2_PACKAGE_DROPBEAR=y
+BR2_PACKAGE_DROPBEAR_CLIENT=y
+BR2_PACKAGE_DROPBEAR_DISABLE_REVERSEDNS=y
+BR2_PACKAGE_DHCPCD=y
+
+# ── Host utilities ────────────────────────────────────────────────
+BR2_PACKAGE_HOST_DOSFSTOOLS=y
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_PACKAGE_HOST_MTOOLS=y

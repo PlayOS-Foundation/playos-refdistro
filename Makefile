@@ -10,6 +10,10 @@
 #   make ally-production-build  Full image build for ROG Ally (production image)
 #   make ally-usb-image   Produce USB-bootable disk image
 #   make ally-flash       Flash image to USB drive (prompts for device)
+#   make intel-config     Open menuconfig for Intel PC target
+#   make intel-build      Full image build for Intel PC (dev image)
+#   make intel-usb-image  Produce USB-bootable disk image for Intel PC
+#   make intel-flash      Flash Intel image to USB drive (prompts for device)
 #   make installer-config Open menuconfig for the installer target
 #   make installer-build  Full image build for the installer
 #   make installer-image  Produce one-shot installer USB image (dev payload)
@@ -32,6 +36,8 @@ ALLY_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_defconfig
 ALLY_OUTPUT := $(CURDIR)/output/ally
 ALLY_PRODUCTION_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_production_defconfig
 ALLY_PRODUCTION_OUTPUT := $(CURDIR)/output/ally-production
+INTEL_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_intel_pc_defconfig
+INTEL_OUTPUT := $(CURDIR)/output/intel
 INSTALLER_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_installer_defconfig
 INSTALLER_OUTPUT := $(CURDIR)/output/installer
 SCRIPTS_DIR := $(CURDIR)/scripts
@@ -237,6 +243,42 @@ ally-flash: ally-usb-image ## Flash PlayOS to a USB drive (prompts for device)
 	@echo "==> USB image: $(ALLY_OUTPUT)/images/playos-ally-usb.img"
 	@echo "==> Run: sudo bash scripts/flash-usb.sh $(ALLY_OUTPUT)/images/playos-ally-usb.img"
 
+# ── Intel PC targets (Sprint 13) ────────────────────────────────────────
+.PHONY: intel-config
+intel-config: ## Open menuconfig for Intel PC target
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_OUTPUT)" \
+		$(notdir $(INTEL_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_OUTPUT)" \
+		menuconfig
+
+.PHONY: intel-build
+intel-build: ## Full image build for Intel PC (requires setup)
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_OUTPUT)" \
+		$(notdir $(INTEL_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_OUTPUT)" \
+		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_OUTPUT)"
+
+.PHONY: intel-usb-image
+intel-usb-image: intel-build ## Produce a USB-bootable disk image for the Intel PC
+	@echo "==> Creating USB-bootable image for Intel PC..."
+	@bash "$(SCRIPTS_DIR)/gen-intel-usb-image.sh" "$(INTEL_OUTPUT)"
+
+.PHONY: intel-flash
+intel-flash: intel-usb-image ## Flash Intel image to USB drive (prompts for device)
+	@echo "==> USB image: $(INTEL_OUTPUT)/images/playos-intel-usb.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INTEL_OUTPUT)/images/playos-intel-usb.img"
+
 # ── Installer targets ─────────────────────────────────────────────────────
 .PHONY: installer-config
 installer-config: ## Open menuconfig for the installer target
@@ -307,10 +349,10 @@ update-bundle: ## Build a dev-signed update bundle from the ally rootfs.squashfs
 # ── Clean targets ────────────────────────────────────────────────────────
 .PHONY: clean
 clean: ## Remove build output (preserves dl/ cache)
-	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(INSTALLER_OUTPUT)"
+	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(ALLY_PRODUCTION_OUTPUT)" "$(INTEL_OUTPUT)" "$(INSTALLER_OUTPUT)"
 	@echo "Build output cleaned. dl/ cache preserved."
 
 .PHONY: distclean
 distclean: ## Remove everything including dl/ and buildroot/
-	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(INSTALLER_OUTPUT)" "$(BUILDROOT_DIR)"
+	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(ALLY_PRODUCTION_OUTPUT)" "$(INTEL_OUTPUT)" "$(INSTALLER_OUTPUT)" "$(BUILDROOT_DIR)"
 	@echo "Full distclean complete."

@@ -1,0 +1,9 @@
+# Intel i915 firmware blobs needed by the ZenBook UX530 (Kaby Lake / HD 620).
+#
+# These are selected in the image by BR2_PACKAGE_LINUX_FIRMWARE_I915 in
+# playos_intel_pc_defconfig. This file documents the key blobs so a missing
+# firmware message in dmesg can be matched back to the right package.
+
+i915/kbl_dmc_ver1_04.bin
+i915/kbl_guc_32.0.3.bin
+i915/kbl_huc_4.0.0.bin

@@ -1,0 +1,61 @@
+name: PlayOS Intel Build (cross-compile)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'br2-external/**'
+      - 'versions.lock'
+      - 'Makefile'
+      - 'scripts/**'
+      - '.github/workflows/intel-build.yml'
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build PlayOS Intel PC image (cross-compile only)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify version pins
+        run: |
+          bash scripts/verify-versions.sh versions.lock
+
+      - name: Setup host environment
+        run: |
+          bash scripts/setup-ubuntu.sh
+
+      - name: Setup Buildroot
+        run: |
+          make setup
+
+      - name: Build Intel PC image
+        run: |
+          make intel-build
+
+      - name: Verify Intel kernel symbols
+        run: |
+          grep -E '^CONFIG_DRM_I915=y' output/intel/build/linux-*/.config
+          grep -E '^CONFIG_SND_HDA_INTEL=y' output/intel/build/linux-*/.config
+          grep -E '^CONFIG_X86_INTEL_PSTATE=y' output/intel/build/linux-*/.config
+          grep -E '^CONFIG_INTEL_RAPL=y' output/intel/build/linux-*/.config
+          if grep -E '^CONFIG_DRM_AMDGPU=y|^CONFIG_DRM_NOUVEAU=y|^CONFIG_X86_AMD_PSTATE=y' output/intel/build/linux-*/.config; then
+            echo "ERROR: AMD/NVIDIA symbols must be disabled in the Intel kernel" >&2
+            exit 1
+          fi
+          echo "Intel kernel symbols OK"
+
+      - name: Upload image artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intel-image-artifacts
+          path: |
+            output/intel/images/bzImage
+            output/intel/images/rootfs.squashfs
+          retention-days: 7

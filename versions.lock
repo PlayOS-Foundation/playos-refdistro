@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=b937a959e87f7a86fbbd945652bd34f5d27379df  # spec: Sprint 13 task grid progress + hardware matrix/backend portability docs
+PLAYOS_SPEC_COMMIT=e874c13ae699d149980178ef2643860f7e3b957e  # spec: Sprint 13 on-device ZenBook evidence (boot/render/gamepad/power)
 PLAYOS_PLATFORM_API_COMMIT=d9d5baebe5b0734f72af5e4df84565c54c5c0b71  # platform-api: Sprint 13 T5 vendor-agnostic hwmon readers (i915/coretemp)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=41c071b237e570a4ff652c6f5a22602d06700b09  # init: Sprint 13 T5 vendor-agnostic hwmon name matchers

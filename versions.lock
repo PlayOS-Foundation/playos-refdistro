@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=e874c13ae699d149980178ef2643860f7e3b957e  # spec: Sprint 13 on-device ZenBook evidence (boot/render/gamepad/power)
+PLAYOS_SPEC_COMMIT=70ab6cbee2cabcbe6cf2cc85f0fe865ae7d901b0  # spec: Sprint 14 version/header alignment (0.3.0, eight headers)
 PLAYOS_PLATFORM_API_COMMIT=d9d5baebe5b0734f72af5e4df84565c54c5c0b71  # platform-api: Sprint 13 T5 vendor-agnostic hwmon readers (i915/coretemp)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=555530f46bca15c4245d248e3a698245ddb2563a  # init: Landlock allow /etc (ALSA dmix getgrnam game audio)

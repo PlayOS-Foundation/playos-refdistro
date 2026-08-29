@@ -20,12 +20,12 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=70ab6cbee2cabcbe6cf2cc85f0fe865ae7d901b0  # spec: Sprint 14 version/header alignment (0.3.0, eight headers)
-PLAYOS_PLATFORM_API_COMMIT=d9d5baebe5b0734f72af5e4df84565c54c5c0b71  # platform-api: Sprint 13 T5 vendor-agnostic hwmon readers (i915/coretemp)
+PLAYOS_SPEC_COMMIT=0ed6aff759b705727d29a5d57e0b9e48339be263  # spec: document ROG Ally face-button X/Y quirk
+PLAYOS_PLATFORM_API_COMMIT=fe202945edfff541b3fe6e3a403b063f6d705b46  # platform-api: ROG Ally face-button quirk (swap WEST/NORTH)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=555530f46bca15c4245d248e3a698245ddb2563a  # init: Landlock allow /etc (ALSA dmix getgrnam game audio)
 PLAYOS_COMPOSITOR_COMMIT=8efd749260a93e4ce245c394f21ccf28113a76d6  # compositor: wire gpu_select_index into gpu_discovery (single source of truth)
-PLAYOS_SHELL_COMMIT=dde9f57b91dfbd2f208b51f62a7264d4fb494869  # shell: terminate running game on B (exit fix)
+PLAYOS_SHELL_COMMIT=57b29945f138bac63b8ba38644f37b4e5b8a0152  # shell: ROG Ally face-button quirk (swap X/Y)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

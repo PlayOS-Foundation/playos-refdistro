@@ -21,11 +21,11 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=4a188484dcb67d74ceca071bd9d16f04432da640  # spec: Sprint 13.6 gamepad identifier database
-PLAYOS_PLATFORM_API_COMMIT=22845cba2d9d703f17dd83f4d6e09b2f4d399d6d  # platform-api: SDL_GameControllerDB per-device remap (S13.6)
+PLAYOS_PLATFORM_API_COMMIT=a21756296bd5271fc10aa79e14730ae19df74b34  # platform-api: SDL_GameControllerDB + Sony preferred names (S13.6)
 PLAYOS_RUNTIME_COMMIT=fbc16036cbf90d96df5ca5829bfe043c499317e6  # runtime: control-socket policy test (S12-T6)
 PLAYOS_INIT_COMMIT=555530f46bca15c4245d248e3a698245ddb2563a  # init: Landlock allow /etc (ALSA dmix getgrnam game audio)
 PLAYOS_COMPOSITOR_COMMIT=8efd749260a93e4ce245c394f21ccf28113a76d6  # compositor: wire gpu_select_index into gpu_discovery (single source of truth)
-PLAYOS_SHELL_COMMIT=57b29945f138bac63b8ba38644f37b4e5b8a0152  # shell: ROG Ally face-button quirk (swap X/Y)
+PLAYOS_SHELL_COMMIT=f481b2b015a045e3907a3211a7c8e352c56a7842  # shell: SDL_GameControllerDB in trusted evdev path (S13.6)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

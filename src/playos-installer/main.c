@@ -315,6 +315,90 @@ find_and_mount_payload(char *mount_path, size_t mount_len)
     return -1;
 }
 
+/* S13.7: mount the removable boot medium's playos-data read-only at
+ * /mnt/payload-data. The live/installer session's /data is unmounted by init
+ * before the installer is spawned, so the dev SSH key must be read from the
+ * USB's own data partition instead of /data. Returns 0 and leaves the mount
+ * in place (caller unmounts), or -1 when no removable playos-data exists. */
+static int
+find_and_mount_payload_data(char *mount_path, size_t mount_len)
+{
+    (void)mkdir("/mnt/payload-data", 0755);
+    snprintf(mount_path, mount_len, "/mnt/payload-data");
+
+    /* Fast path: by-label playos-data on a removable disk. */
+    if (access("/dev/disk/by-label/playos-data", R_OK) == 0) {
+        char resolved[256] = {0};
+        ssize_t rl = readlink("/dev/disk/by-label/playos-data", resolved,
+                              sizeof(resolved) - 1);
+        if (rl > 0) {
+            resolved[rl] = '\0';
+            const char *base = strrchr(resolved, '/');
+            base = base ? base + 1 : resolved;
+            char devtmp[256];
+            snprintf(devtmp, sizeof(devtmp), "/dev/%s", base);
+            char disk[128];
+            size_t len = strlen(devtmp);
+            while (len > 0 && isdigit((unsigned char)devtmp[len - 1]))
+                len--;
+            if (len > 0 && devtmp[len - 1] == 'p')
+                len--;
+            if (len > 0 && len < sizeof(disk)) {
+                memcpy(disk, devtmp, len);
+                disk[len] = '\0';
+                const char *dname = strrchr(disk, '/');
+                dname = dname ? dname + 1 : disk;
+                char rb[192];
+                snprintf(rb, sizeof(rb), "/sys/block/%s/removable", dname);
+                int removable = 0;
+                if (read_int_file(rb, &removable) == 0 && removable == 1) {
+                    if (mount("/dev/disk/by-label/playos-data",
+                              "/mnt/payload-data", "ext4", MS_RDONLY, NULL) == 0 ||
+                        mount("/dev/disk/by-label/playos-data",
+                              "/mnt/payload-data", "ext2", MS_RDONLY, NULL) == 0)
+                        return 0;
+                }
+            }
+        }
+    }
+
+    /* Slow path: scan removable disks' partitions for a playos-data with the
+     * dev SSH seed directory. */
+    DIR *dir = opendir("/sys/block");
+    if (!dir)
+        return -1;
+    struct dirent *e;
+    int found = 0;
+    while (!found && (e = readdir(dir)) != NULL) {
+        const char *name = e->d_name;
+        if (name[0] == '.')
+            continue;
+        if (is_ignored_block_dev(name))
+            continue;
+        char rb[192];
+        snprintf(rb, sizeof(rb), "/sys/block/%s/removable", name);
+        int removable = 0;
+        if (read_int_file(rb, &removable) != 0 || removable == 0)
+            continue;
+        char parts[256][64];
+        int nparts = playos_disk_list_partitions(name, parts, 256);
+        for (int i = 0; i < nparts; i++) {
+            char devpath[128];
+            snprintf(devpath, sizeof(devpath), "/dev/%s", parts[i]);
+            if (mount(devpath, "/mnt/payload-data", "ext4", MS_RDONLY, NULL) != 0 &&
+                mount(devpath, "/mnt/payload-data", "ext2", MS_RDONLY, NULL) != 0)
+                continue;
+            if (access("/mnt/payload-data/ssh/authorized_keys", R_OK) == 0) {
+                found = 1;
+                break;
+            }
+            (void)umount("/mnt/payload-data");
+        }
+    }
+    closedir(dir);
+    return found ? 0 : -1;
+}
+
 /* ── installer state machine ───────────────────────────────────────────── */
 
 enum installer_mode {
@@ -379,9 +463,30 @@ run_install_step(struct installer *st)
         if (rc == 0) {
             const char *src = "/data/ssh/authorized_keys";
             int key_present = (access(src, R_OK) == 0);
+            char payload_key[192] = {0};
+            int payload_data_mounted = 0;
+
+            /* /data is unmounted by init before the installer spawns, so the
+             * live session's key is not visible here. Fall back to the
+             * removable boot medium's own playos-data partition. */
+            if (!key_present) {
+                char pd_mount[64];
+                if (find_and_mount_payload_data(pd_mount, sizeof(pd_mount)) == 0) {
+                    snprintf(payload_key, sizeof(payload_key),
+                             "/mnt/payload-data/ssh/authorized_keys");
+                    if (access(payload_key, R_OK) == 0) {
+                        src = payload_key;
+                        key_present = 1;
+                        payload_data_mounted = 1;
+                    }
+                }
+            }
+
             rc = playos_format_seed_ssh_keys(dev, 5, src, err, errlen);
             installer_logf("installer step 5/8 Format data: ssh key source %s, seed rc=%d",
                            key_present ? "present" : "absent", rc);
+            if (payload_data_mounted)
+                (void)umount("/mnt/payload-data");
         }
         break;
     case 6: rc = playos_efi_write(dev, st->payload_mount, err, errlen); break;

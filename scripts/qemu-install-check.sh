@@ -180,6 +180,7 @@ sgdisk -p "$TARGET" 2>/dev/null | sed -n '1,12p' || true
 
 ESP_OK=0
 PAYLOAD_OK=0
+DATA_OK=0
 LOOP_DEV=$(sudo losetup --partscan --find --show "$TARGET" 2>/dev/null || true)
 if [[ -n "$LOOP_DEV" ]]; then
     sleep 1
@@ -208,13 +209,24 @@ if [[ -n "$LOOP_DEV" ]]; then
     else
         echo "  [FAIL] could not mount target playos-a"
     fi
+    if sudo mount "${LOOP_DEV}p5" "$M" 2>/dev/null; then
+        if [[ -s "$M/ssh/authorized_keys" ]]; then
+            echo "  [OK] target playos-data has dev SSH key seeded"
+            DATA_OK=1
+        else
+            echo "  [FAIL] target playos-data missing ssh/authorized_keys"
+        fi
+        sudo umount "$M"
+    else
+        echo "  [FAIL] could not mount target playos-data"
+    fi
     rmdir "$M"
     sudo losetup -d "$LOOP_DEV"
 else
     echo "  [FAIL] could not attach target disk to loop device"
 fi
 
-if [[ "$FAIL" == "0" && "$ESP_OK" == "1" && "$PAYLOAD_OK" == "1" ]]; then
+if [[ "$FAIL" == "0" && "$ESP_OK" == "1" && "$PAYLOAD_OK" == "1" && "$DATA_OK" == "1" ]]; then
     echo ""
     echo "  ✅ QEMU runtime-install check PASSED"
 else

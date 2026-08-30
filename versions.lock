@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=a21756296bd5271fc10aa79e14730ae19df74b34  # platform-
 PLAYOS_RUNTIME_COMMIT=85acbb98d53c38f5d2ba3a687cc75d629dd57766  # runtime: playos_trusted_start_installer (S13.7 T1)
 PLAYOS_INIT_COMMIT=901efc2cd9b396244c35f6b397eb88016bee425d  # init: StartInstaller IPC + runtime installer handoff (S13.7 T1/T2)
 PLAYOS_COMPOSITOR_COMMIT=8efd749260a93e4ce245c394f21ccf28113a76d6  # compositor: wire gpu_select_index into gpu_discovery (single source of truth)
-PLAYOS_SHELL_COMMIT=d1729a48f63d3b5e5d29caf9116bcd77c7ba223d  # shell: SDL_GameControllerDB in trusted evdev path (S13.6)
+PLAYOS_SHELL_COMMIT=df6ea9d6aae3336a54fbb6a766b4473903092741  # shell: SDL_GameControllerDB in trusted evdev path (S13.6)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

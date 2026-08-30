@@ -126,6 +126,11 @@ sudo mkdir -p "$ESP_MOUNT/EFI/BOOT"
 sudo cp "$BZIMAGE" "$ESP_MOUNT/EFI/BOOT/BOOTX64.EFI"
 echo "==> Kernel installed as EFI/BOOT/BOOTX64.EFI (EFI stub, no GRUB)"
 
+# S13.7: live-USB marker so init never pivots into an installed internal slot
+sudo mkdir -p "$ESP_MOUNT/EFI/playos"
+sudo touch "$ESP_MOUNT/EFI/playos/live-usb"
+echo "==> Live-USB marker stamped (EFI/playos/live-usb)"
+
 sudo umount "$ESP_MOUNT"
 rmdir "$ESP_MOUNT"
 

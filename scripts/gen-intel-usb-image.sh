@@ -2,9 +2,12 @@
 # gen-intel-usb-image.sh — Create a USB-bootable disk image for Intel PC
 #
 # Usage:
-#   bash scripts/gen-intel-usb-image.sh <intel-output-dir>
+#   bash scripts/gen-intel-usb-image.sh <intel-output-dir> [image-name] [flavor]
 #
-# Produces: <intel-output-dir>/images/playos-intel-usb.img
+#   image-name  Output filename (default: playos-intel-usb.img)
+#   flavor      "dev" (default) seeds the SSH key; "prod" does not
+#
+# Produces: <intel-output-dir>/images/<image-name>
 #
 # Boot method: EFI stub (CONFIG_EFI_STUB=y, set by board/intel/linux-fragment.cfg).
 # The kernel bzImage with embedded initramfs is placed as
@@ -12,15 +15,17 @@
 #
 # Partition layout (GPT):
 #   1. ESP        256 MiB  FAT32  (EFI System Partition)
-#   2. playos-a   2048 MiB ext2   (System A, immutable)
+#   2. playos-a   2048 MiB ext2   (System A, immutable + install payload)
 #   3. playos-data ~1 GiB  ext4   (Data, writable)
 
 set -euo pipefail
 
 INTEL_OUTPUT="${1:-}"
+IMAGE_NAME="${2:-playos-intel-usb.img}"
+FLAVOR="${3:-dev}"
 if [[ -z "$INTEL_OUTPUT" ]]; then
     echo "ERROR: Missing intel output directory argument." >&2
-    echo "Usage: $0 <intel-output-dir>" >&2
+    echo "Usage: $0 <intel-output-dir> [image-name] [flavor]" >&2
     exit 1
 fi
 
@@ -55,8 +60,8 @@ ESP_SIZE_MB=256
 SYSTEM_A_SIZE_MB=2048
 # Data partition fills remaining space (GPT metadata needs ~2 MiB overhead)
 IMAGE_SIZE_MB=$((ESP_SIZE_MB + SYSTEM_A_SIZE_MB + 1024 + 2))
-IMAGE_PATH="$IMAGES_DIR/playos-intel-usb.img"
-echo "==> Creating disk image: ${IMAGE_SIZE_MB} MiB..."
+IMAGE_PATH="$IMAGES_DIR/$IMAGE_NAME"
+echo "==> Creating disk image: ${IMAGE_SIZE_MB} MiB (flavor=$FLAVOR)..."
 
 # Create empty sparse image
 truncate -s "${IMAGE_SIZE_MB}M" "$IMAGE_PATH"
@@ -122,7 +127,24 @@ echo "==> Kernel installed as EFI/BOOT/BOOTX64.EFI (EFI stub, no GRUB)"
 sudo umount "$ESP_MOUNT"
 rmdir "$ESP_MOUNT"
 
-# ── Seed developer SSH key into playos-data ────────────────────────
+# ── Stage the install payload on playos-a (S13.7) ──────────────────
+PAYLOAD_MOUNT="$(mktemp -d)"
+sudo mount "$SYSTEM_PART" "$PAYLOAD_MOUNT"
+
+SQUASHFS="$IMAGES_DIR/rootfs.squashfs"
+if [[ ! -f "$SQUASHFS" ]]; then
+    echo "ERROR: $SQUASHFS not found — cannot stage install payload." >&2
+    exit 1
+fi
+sudo cp "$SQUASHFS" "$PAYLOAD_MOUNT/rootfs.squashfs"
+sudo cp "$BZIMAGE" "$PAYLOAD_MOUNT/BOOTX64.EFI"
+echo "==> Staged install payload on playos-a ($FLAVOR rootfs + kernel)"
+
+sudo umount "$PAYLOAD_MOUNT"
+rmdir "$PAYLOAD_MOUNT"
+
+# ── Seed developer SSH key into playos-data (dev flavor only) ──────
+if [[ "$FLAVOR" == "dev" ]]; then
 DEV_PUBKEY=""
 for _k in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub"; do
     if [[ -s "$_k" ]]; then DEV_PUBKEY="$_k"; break; fi
@@ -139,6 +161,9 @@ else
 fi
 sudo umount "$DATA_MOUNT"
 rmdir "$DATA_MOUNT"
+else
+    echo "==> Prod flavor: skipping SSH key seed"
+fi
 
 # ── Cleanup loop device ────────────────────────────────────────────
 sudo losetup -d "$LOOP_DEV"

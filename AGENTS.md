@@ -20,15 +20,17 @@ versions.lock                   ← Pinned commit SHAs for all components
 src/
 └── playos-installer/           ← Sprint 10 installer C source (in-repo exception)
 scripts/
-└── gen-installer-usb-image.sh  ← Sprint 10 installer USB image assembly
+├── gen-ally-usb-image.sh       ← ROG Ally live+installer USB image assembly (S13.7)
+└── gen-intel-usb-image.sh      ← Intel live+installer USB image assembly (S13.7)
 br2-external/
 ├── external.desc               ← br2-external name and description
 ├── Config.in                   ← Top-level Kconfig menu
 ├── external.mk                 ← Includes all package .mk files
 ├── configs/
 │   ├── playos_qemu_x86_64_defconfig      ← QEMU dev target
-│   ├── playos_ally_defconfig             ← ROG Ally production target
-│   └── playos_ally_installer_defconfig   ← Sprint 10 installer target
+│   ├── playos_ally_defconfig             ← ROG Ally dev target (live+installer)
+│   ├── playos_ally_production_defconfig  ← ROG Ally prod target (no SSH)
+│   └── playos_intel_pc_defconfig         ← Intel PC dev target (live+installer)
 ├── package/
 │   ├── playos-init/
 │   │   ├── playos-init.mk
@@ -85,11 +87,10 @@ make qemu-build     # Full image build for QEMU (slow first time, ~40 min)
 make qemu-run       # Boot image in QEMU/OVMF
 make ally-config    # Open menuconfig for ROG Ally target
 make ally-build     # Full image build for ROG Ally
-make ally-flash     # Flash image to USB drive (prompts for device)
-make installer-config   # Open menuconfig for the Sprint 10 installer target
-make installer-build    # Full installer image build
-make installer-image    # Assemble the installer USB image (also builds the normal ally payload)
-make installer-flash    # Flash the installer USB image (prompts for device)
+make ally-dev-usb-image    # Consolidated dev live+installer USB image (SSH)
+make ally-prod-usb-image   # Consolidated prod live+installer USB image (no SSH)
+make ally-flash     # Flash dev image to USB drive (prompts for device)
+make intel-dev-usb-image   # Intel dev live+installer USB image (SSH)
 make clean          # Remove build output (keeps dl/ cache)
 make distclean      # Remove everything including dl/
 ```

@@ -14,17 +14,9 @@
 #   make intel-build      Full image build for Intel PC (dev image)
 #   make intel-usb-image  Produce USB-bootable disk image for Intel PC
 #   make intel-flash      Flash Intel image to USB drive (prompts for device)
-#   make intel-installer-config  Open menuconfig for the Intel installer target
-#   make intel-installer-build   Full image build for the Intel installer
-#   make intel-installer-dev-image  Produce dev Intel installer USB image with SSH
-#   make intel-installer-dev-flash  Flash dev Intel installer image to USB
-#   make installer-config Open menuconfig for the installer target
-#   make installer-build  Full image build for the installer
-#   make installer-image  Produce one-shot installer USB image (dev payload)
-#   make installer-dev-image  Produce dev installer USB image with SSH (distinct filename)
-#   make installer-production-image  Produce production installer USB image (Sprint 12 payload)
-#   make installer-flash  Flash installer image to USB (prompts for device)
-#   make installer-dev-flash  Flash dev installer image to USB (prompts for device)
+#   make ally-dev-usb-image / ally-prod-usb-image   Consolidated dev/prod live+installer images
+#   make ally-dev-flash / ally-prod-flash           Flash them
+#   make intel-dev-usb-image / intel-dev-flash      Intel dev flavor
 #   make update-bundle    Build a dev-signed update bundle (.playosb)
 #   make clean            Remove build output (preserves dl/ cache)
 #   make distclean        Remove everything including dl/
@@ -42,12 +34,7 @@ ALLY_PRODUCTION_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_production_defc
 ALLY_PRODUCTION_OUTPUT := $(CURDIR)/output/ally-production
 INTEL_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_intel_pc_defconfig
 INTEL_OUTPUT := $(CURDIR)/output/intel
-INSTALLER_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_installer_defconfig
-INSTALLER_OUTPUT := $(CURDIR)/output/installer
-INTEL_INSTALLER_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_intel_installer_defconfig
-INTEL_INSTALLER_OUTPUT := $(CURDIR)/output/intel-installer
 SCRIPTS_DIR := $(CURDIR)/scripts
-
 # Local-site packages are rsync'd into the Buildroot output only on the first
 # build; Buildroot does NOT re-sync them when sources under src/ change. We
 # dirclean them before every build so edits to src/<component> are always
@@ -286,97 +273,36 @@ intel-flash: intel-usb-image ## Flash Intel image to USB drive (prompts for devi
 	@echo "==> USB image: $(INTEL_OUTPUT)/images/playos-intel-usb.img"
 	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INTEL_OUTPUT)/images/playos-intel-usb.img"
 
-# ── Intel installer targets ────────────────────────────────────────────────
-.PHONY: intel-installer-config
-intel-installer-config: ## Open menuconfig for the Intel installer target
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INTEL_INSTALLER_OUTPUT)" \
-		$(notdir $(INTEL_INSTALLER_DEFCONFIG))
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INTEL_INSTALLER_OUTPUT)" \
-		menuconfig
+# ── Consolidated dev/prod live+installer USB images (Sprint 13.7) ────────
+# Each image boots live to the shell AND carries the install payload on
+# playos-a, so "Install PlayOS to internal disk" works from Settings.
+# Dev images seed the SSH key; prod images do not (no Dropbear in prod).
+.PHONY: ally-dev-usb-image
+ally-dev-usb-image: ally-build ## Produce dev ROG Ally USB image (SSH + install payload)
+	@bash "$(SCRIPTS_DIR)/gen-ally-usb-image.sh" "$(ALLY_OUTPUT)" playos-ally-dev-usb.img dev
 
-.PHONY: intel-installer-build
-intel-installer-build: ## Full image build for the Intel installer (requires setup)
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INTEL_INSTALLER_OUTPUT)" \
-		$(notdir $(INTEL_INSTALLER_DEFCONFIG))
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INTEL_INSTALLER_OUTPUT)" \
-		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INTEL_INSTALLER_OUTPUT)"
+.PHONY: ally-prod-usb-image
+ally-prod-usb-image: ally-production-build ## Produce prod ROG Ally USB image (no SSH + install payload)
+	@bash "$(SCRIPTS_DIR)/gen-ally-usb-image.sh" "$(ALLY_PRODUCTION_OUTPUT)" playos-ally-prod-usb.img prod
 
-.PHONY: intel-installer-dev-image
-intel-installer-dev-image: intel-installer-build intel-build ## Produce dev Intel installer USB image with SSH (distinct filename)
-	@echo "==> Creating Intel development installer USB image (SSH enabled)..."
-	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INTEL_INSTALLER_OUTPUT)" "$(INTEL_OUTPUT)" playos-intel-dev-installer.img
+.PHONY: ally-dev-flash
+ally-dev-flash: ally-dev-usb-image ## Flash dev ROG Ally USB image (prompts for device)
+	@echo "==> Dev USB image: $(ALLY_OUTPUT)/images/playos-ally-dev-usb.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(ALLY_OUTPUT)/images/playos-ally-dev-usb.img"
 
-.PHONY: intel-installer-dev-flash
-intel-installer-dev-flash: intel-installer-dev-image ## Flash dev Intel installer image to USB (prompts for device)
-	@echo "==> Intel development installer image: $(INTEL_INSTALLER_OUTPUT)/images/playos-intel-dev-installer.img"
-	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INTEL_INSTALLER_OUTPUT)/images/playos-intel-dev-installer.img"
+.PHONY: ally-prod-flash
+ally-prod-flash: ally-prod-usb-image ## Flash prod ROG Ally USB image (prompts for device)
+	@echo "==> Prod USB image: $(ALLY_PRODUCTION_OUTPUT)/images/playos-ally-prod-usb.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(ALLY_PRODUCTION_OUTPUT)/images/playos-ally-prod-usb.img"
 
-# ── Installer targets ─────────────────────────────────────────────────────
-.PHONY: installer-config
-installer-config: ## Open menuconfig for the installer target
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INSTALLER_OUTPUT)" \
-		$(notdir $(INSTALLER_DEFCONFIG))
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INSTALLER_OUTPUT)" \
-		menuconfig
+.PHONY: intel-dev-usb-image
+intel-dev-usb-image: intel-build ## Produce dev Intel USB image (SSH + install payload)
+	@bash "$(SCRIPTS_DIR)/gen-intel-usb-image.sh" "$(INTEL_OUTPUT)" playos-intel-dev-usb.img dev
 
-.PHONY: installer-build
-installer-build: ## Full image build for the installer (requires setup)
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INSTALLER_OUTPUT)" \
-		$(notdir $(INSTALLER_DEFCONFIG))
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INSTALLER_OUTPUT)" \
-		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
-	@$(MAKE) -C "$(BUILDROOT_DIR)" \
-		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
-		O="$(INSTALLER_OUTPUT)"
-
-.PHONY: installer-image
-installer-image: installer-build ally-build ## Produce one-shot installer USB image (dev payload)
-	@echo "==> Creating installer USB image..."
-	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INSTALLER_OUTPUT)" "$(ALLY_OUTPUT)"
-
-.PHONY: installer-dev-image
-installer-dev-image: installer-build ally-build ## Produce dev installer USB image with SSH (distinct filename)
-	@echo "==> Creating development installer USB image (SSH enabled)..."
-	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INSTALLER_OUTPUT)" "$(ALLY_OUTPUT)" playos-ally-dev-installer.img
-
-.PHONY: installer-dev-flash
-installer-dev-flash: installer-dev-image ## Flash dev installer image to USB (prompts for device)
-	@echo "==> Development installer image: $(INSTALLER_OUTPUT)/images/playos-ally-dev-installer.img"
-	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INSTALLER_OUTPUT)/images/playos-ally-dev-installer.img"
-
-.PHONY: installer-production-image
-installer-production-image: installer-build ally-production-build ## Produce production installer USB image (Sprint 12 payload)
-	@echo "==> Creating production installer USB image..."
-	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INSTALLER_OUTPUT)" "$(ALLY_PRODUCTION_OUTPUT)"
-
-.PHONY: installer-production-flash
-installer-production-flash: installer-production-image ## Flash production installer image to USB (prompts for device)
-	@echo "==> Production installer image: $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
-	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
-
-.PHONY: installer-flash
-installer-flash: installer-image ## Flash installer image to USB (prompts for device)
-	@echo "==> Installer image: $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
-	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INSTALLER_OUTPUT)/images/playos-ally-installer.img"
+.PHONY: intel-dev-flash
+intel-dev-flash: intel-dev-usb-image ## Flash dev Intel USB image (prompts for device)
+	@echo "==> Dev USB image: $(INTEL_OUTPUT)/images/playos-intel-dev-usb.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INTEL_OUTPUT)/images/playos-intel-dev-usb.img"
 
 # ── Update bundle ─────────────────────────────────────────────────────────
 VERSION ?= 0.2.0
@@ -392,10 +318,10 @@ update-bundle: ## Build a dev-signed update bundle from the ally rootfs.squashfs
 # ── Clean targets ────────────────────────────────────────────────────────
 .PHONY: clean
 clean: ## Remove build output (preserves dl/ cache)
-	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(ALLY_PRODUCTION_OUTPUT)" "$(INTEL_OUTPUT)" "$(INSTALLER_OUTPUT)"
+	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(ALLY_PRODUCTION_OUTPUT)" "$(INTEL_OUTPUT)"
 	@echo "Build output cleaned. dl/ cache preserved."
 
 .PHONY: distclean
 distclean: ## Remove everything including dl/ and buildroot/
-	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(ALLY_PRODUCTION_OUTPUT)" "$(INTEL_OUTPUT)" "$(INSTALLER_OUTPUT)" "$(BUILDROOT_DIR)"
+	@rm -rf "$(QEMU_OUTPUT)" "$(ALLY_OUTPUT)" "$(ALLY_PRODUCTION_OUTPUT)" "$(INTEL_OUTPUT)" "$(BUILDROOT_DIR)"
 	@echo "Full distclean complete."

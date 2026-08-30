@@ -77,7 +77,18 @@ BR2_PACKAGE_PLAYOS_COMPOSITOR=y
 BR2_PACKAGE_PLAYOS_SHELL=y
 BR2_PACKAGE_PLAYOS_RAYLIB=y
 BR2_PACKAGE_PLAYOS_OVERLAY=y
+BR2_PACKAGE_PLAYOS_INSTALLER=y
 BR2_PACKAGE_PLAYOS_SAMPLES=y
+
+# ── Packages — Installer tools (S13.7 runtime install) ─────────────
+# libfdisk (GPT write), blockdev/mkfs/fdisk (partition sync + filesystems),
+# and efibootmgr (best-effort NVRAM boot entry). e2fsprogs supplies mkfs.ext2/4.
+BR2_PACKAGE_UTIL_LINUX=y
+BR2_PACKAGE_UTIL_LINUX_BINARIES=y
+BR2_PACKAGE_DOSFSTOOLS=y
+BR2_PACKAGE_DOSFSTOOLS_MKFS_FAT=y
+BR2_PACKAGE_E2FSPROGS=y
+BR2_PACKAGE_EFIBOOTMGR=y
 
 # ── Packages — Audio tools (for hw-check) ─────────────────────────
 BR2_PACKAGE_ALSA_UTILS=y

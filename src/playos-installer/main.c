@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #include <wayland-client.h>
 #include <sys/ioctl.h>
@@ -587,9 +588,45 @@ main(void)
             return EXIT_FAILURE;
         }
 
+        /* Never install onto the payload medium itself: resolve the disk
+         * behind /dev/disk/by-label/playos-a and skip it when picking the
+         * first fixed target (S13.7 headless QEMU safety). */
+        char payload_disk[64] = {0};
+        char resolved[256] = {0};
+        ssize_t rl = readlink("/dev/disk/by-label/playos-a", resolved,
+                              sizeof(resolved) - 1);
+        if (rl > 0) {
+            resolved[rl] = '\0';
+            const char *base = strrchr(resolved, '/');
+            base = base ? base + 1 : resolved;
+            size_t len = strlen(base);
+            while (len > 0 && isdigit((unsigned char)base[len - 1]))
+                len--;
+            if (len > 0)
+                snprintf(payload_disk, sizeof(payload_disk), "/dev/%.*s",
+                         (int)len, base);
+        }
+
+        int target_idx = -1;
+        for (int i = 0; i < st.disk_count; i++) {
+            if (st.disks[i].removable)
+                continue;
+            if (payload_disk[0] &&
+                strcmp(st.disks[i].path, payload_disk) == 0)
+                continue;
+            target_idx = i;
+            break;
+        }
+        if (target_idx < 0) {
+            fprintf(stderr, "AUTO: no install target disk found "
+                    "(all disks are removable or are the payload medium)\n");
+            return EXIT_FAILURE;
+        }
+
         st.mode = MODE_INSTALLING;
+        st.cursor = target_idx;
         fprintf(stdout, "AUTO: installing to %s (%s)\n",
-                st.disks[0].path, st.disks[0].model);
+                st.disks[st.cursor].path, st.disks[st.cursor].model);
 
         while (st.mode == MODE_INSTALLING) {
             fprintf(stdout, "AUTO: step %d/8 %s\n", st.step_index,

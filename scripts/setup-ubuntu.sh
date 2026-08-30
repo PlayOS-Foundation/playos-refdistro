@@ -39,6 +39,14 @@ fi
 
 playos_log_ok "setup" "Detected $PRETTY_NAME"
 
+# apt-get needs root. GitHub Actions runners run as a non-root user with
+# passwordless sudo, so escalate automatically when we are not already root.
+if [[ $EUID -eq 0 ]]; then
+    APT_GET=(apt-get)
+else
+    APT_GET=(sudo apt-get)
+fi
+
 # ── Required packages ──────────────────────────────────────────────
 PACKAGES=(
     # Core build tools
@@ -71,7 +79,7 @@ PACKAGES=(
 )
 
 playos_log_info "setup" "Updating package lists..."
-apt-get update -qq
+"${APT_GET[@]}" update -qq
 
 INSTALLED=()
 ALREADY=()
@@ -82,7 +90,7 @@ for pkg in "${PACKAGES[@]}"; do
         ALREADY+=("$pkg")
     else
         playos_log_info "setup" "Installing $pkg..."
-        if apt-get install -y -qq "$pkg" 2>/dev/null; then
+        if "${APT_GET[@]}" install -y -qq "$pkg" 2>/dev/null; then
             INSTALLED+=("$pkg")
         else
             FAILED+=("$pkg")

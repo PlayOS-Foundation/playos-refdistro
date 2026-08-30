@@ -152,7 +152,7 @@ playos_log_step "Building wlroots $WLROOTS_TAG"
 _clone wlroots "$WLROOTS_GIT" "$WLROOTS_TAG"
 _meson_build wlroots \
     -Dbackends=x11,libinput \
-    -Dxwayland=enabled \
+    -Dxwayland=disabled \
     -Drenderers=gles2,vulkan \
     -Dallocators=gbm \
     -Dsession=enabled \

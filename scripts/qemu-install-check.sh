@@ -210,7 +210,8 @@ if [[ -n "$LOOP_DEV" ]]; then
         echo "  [FAIL] could not mount target playos-a"
     fi
     if sudo mount "${LOOP_DEV}p5" "$M" 2>/dev/null; then
-        if [[ -s "$M/ssh/authorized_keys" ]]; then
+        # ssh/ is 0700 root:root, so the existence test must run as root too.
+        if sudo test -s "$M/ssh/authorized_keys"; then
             echo "  [OK] target playos-data has dev SSH key seeded"
             DATA_OK=1
         else

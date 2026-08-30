@@ -45,6 +45,7 @@ WAYLAND_PROTOCOLS_TAG=1.47
 LIBDRM_TAG=libdrm-2.4.134
 XKBCOMMON_TAG=xkbcommon-1.9.2
 PIXMAN_TAG=pixman-0.46.4
+SEATD_TAG=0.9.1
 WLROOTS_TAG=0.20.2
 
 WAYLAND_GIT=https://gitlab.freedesktop.org/wayland/wayland.git
@@ -52,6 +53,7 @@ WAYLAND_PROTOCOLS_GIT=https://gitlab.freedesktop.org/wayland/wayland-protocols.g
 LIBDRM_GIT=https://gitlab.freedesktop.org/mesa/drm.git
 XKBCOMMON_GIT=https://github.com/xkbcommon/libxkbcommon.git
 PIXMAN_GIT=https://gitlab.freedesktop.org/pixman/pixman.git
+SEATD_GIT=https://git.sr.ht/~kennylevinsen/seatd
 WLROOTS_GIT=https://gitlab.freedesktop.org/wlroots/wlroots.git
 
 SRC_DIR="$PREFIX/src"
@@ -135,6 +137,16 @@ _meson_build libxkbcommon \
     -Denable-tools=false \
     -Denable-x11=true \
     -Denable-wayland=false
+
+# wlroots 0.20 session support needs libseat >= 0.9, newer than Ubuntu 22.04
+# ships, so build it into the isolated prefix (logind backend off: we only
+# need the library for linking; CI does not run a session).
+playos_log_step "Building seatd $SEATD_TAG"
+_clone seatd "$SEATD_GIT" "$SEATD_TAG"
+_meson_build seatd \
+    -Dlibseat-logind=disabled \
+    -Dman-pages=disabled \
+    -Dexamples=disabled
 
 playos_log_step "Building wlroots $WLROOTS_TAG"
 _clone wlroots "$WLROOTS_GIT" "$WLROOTS_TAG"

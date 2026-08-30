@@ -710,10 +710,13 @@ main(void)
             break;
 
         case MODE_SUCCESS:
-            if (st.input.a_press)
+            if (st.input.a_press) {
+                sync();
                 reboot(RB_AUTOBOOT);
-            else if (st.input.b_press)
+            } else if (st.input.b_press) {
+                sync();
                 reboot(RB_POWER_OFF);
+            }
             break;
 
         case MODE_ERROR:
@@ -724,6 +727,7 @@ main(void)
                 st.step_error = -1;
                 st.step_index = 0;
             } else if (st.input.b_press) {
+                sync();
                 reboot(RB_POWER_OFF);
             }
             break;

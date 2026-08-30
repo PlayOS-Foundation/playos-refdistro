@@ -14,6 +14,10 @@
 #   make intel-build      Full image build for Intel PC (dev image)
 #   make intel-usb-image  Produce USB-bootable disk image for Intel PC
 #   make intel-flash      Flash Intel image to USB drive (prompts for device)
+#   make intel-installer-config  Open menuconfig for the Intel installer target
+#   make intel-installer-build   Full image build for the Intel installer
+#   make intel-installer-dev-image  Produce dev Intel installer USB image with SSH
+#   make intel-installer-dev-flash  Flash dev Intel installer image to USB
 #   make installer-config Open menuconfig for the installer target
 #   make installer-build  Full image build for the installer
 #   make installer-image  Produce one-shot installer USB image (dev payload)
@@ -40,6 +44,8 @@ INTEL_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_intel_pc_defconfig
 INTEL_OUTPUT := $(CURDIR)/output/intel
 INSTALLER_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_installer_defconfig
 INSTALLER_OUTPUT := $(CURDIR)/output/installer
+INTEL_INSTALLER_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_intel_installer_defconfig
+INTEL_INSTALLER_OUTPUT := $(CURDIR)/output/intel-installer
 SCRIPTS_DIR := $(CURDIR)/scripts
 
 # Local-site packages are rsync'd into the Buildroot output only on the first
@@ -278,6 +284,42 @@ intel-usb-image: intel-build ## Produce a USB-bootable disk image for the Intel 
 intel-flash: intel-usb-image ## Flash Intel image to USB drive (prompts for device)
 	@echo "==> USB image: $(INTEL_OUTPUT)/images/playos-intel-usb.img"
 	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INTEL_OUTPUT)/images/playos-intel-usb.img"
+
+# ── Intel installer targets ────────────────────────────────────────────────
+.PHONY: intel-installer-config
+intel-installer-config: ## Open menuconfig for the Intel installer target
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_INSTALLER_OUTPUT)" \
+		$(notdir $(INTEL_INSTALLER_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_INSTALLER_OUTPUT)" \
+		menuconfig
+
+.PHONY: intel-installer-build
+intel-installer-build: ## Full image build for the Intel installer (requires setup)
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_INSTALLER_OUTPUT)" \
+		$(notdir $(INTEL_INSTALLER_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_INSTALLER_OUTPUT)" \
+		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(INTEL_INSTALLER_OUTPUT)"
+
+.PHONY: intel-installer-dev-image
+intel-installer-dev-image: intel-installer-build intel-build ## Produce dev Intel installer USB image with SSH (distinct filename)
+	@echo "==> Creating Intel development installer USB image (SSH enabled)..."
+	@bash "$(SCRIPTS_DIR)/gen-installer-usb-image.sh" "$(INTEL_INSTALLER_OUTPUT)" "$(INTEL_OUTPUT)" playos-intel-dev-installer.img
+
+.PHONY: intel-installer-dev-flash
+intel-installer-dev-flash: intel-installer-dev-image ## Flash dev Intel installer image to USB (prompts for device)
+	@echo "==> Intel development installer image: $(INTEL_INSTALLER_OUTPUT)/images/playos-intel-dev-installer.img"
+	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INTEL_INSTALLER_OUTPUT)/images/playos-intel-dev-installer.img"
 
 # ── Installer targets ─────────────────────────────────────────────────────
 .PHONY: installer-config

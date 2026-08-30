@@ -77,7 +77,7 @@ PACKAGES=(
     libxcb-res0-dev libxcb-shape0-dev libxcb-shm0-dev
     libxcb-sync-dev libxcb-xfixes0-dev libxcb-xinput-dev libxcb-xkb-dev
     libx11-dev libx11-xcb-dev
-    libinput-dev libseat-dev libvulkan-dev
+    libinput-dev libseat-dev libvulkan-dev glslang-tools
     libegl1-mesa-dev libgbm-dev libgles2-mesa-dev
     libdisplay-info-dev libliftoff-dev hwdata
 )

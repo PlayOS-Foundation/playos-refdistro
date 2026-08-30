@@ -39,6 +39,10 @@ fi
 
 playos_log_ok "setup" "Detected $PRETTY_NAME"
 
+# Quiet the "You are in 'detached HEAD' state" advice emitted when the
+# Makefile pins Buildroot to a specific commit.
+git config --global advice.detachedHead false
+
 # apt-get needs root. GitHub Actions runners run as a non-root user with
 # passwordless sudo, so escalate automatically when we are not already root.
 if [[ $EUID -eq 0 ]]; then
@@ -98,9 +102,27 @@ for pkg in "${PACKAGES[@]}"; do
     fi
 done
 
+# ── Modern Meson ────────────────────────────────────────────────────
+# Ubuntu 22.04 ships Meson 0.61, but the pinned host-deps stack needs
+# >= 1.3 (pixman 0.46). Install a current Meson via pip when the system
+# one is too old. Newer releases (24.04+) already ship a new-enough Meson.
+meson_version="$(meson --version 2>/dev/null || echo 0)"
+meson_ok="no"
+if command -v meson >/dev/null 2>&1; then
+    meson_ok="$(awk -v v="$meson_version" 'BEGIN { split(v,a,"."); if (a[1] > 1 || (a[1] == 1 && a[2] >= 3)) print "yes"; else print "no" }')"
+fi
+if [[ "$meson_ok" != "yes" ]]; then
+    playos_log_info "setup" "Meson $meson_version too old — installing current Meson via pip..."
+    if [[ $EUID -eq 0 ]]; then
+        python3 -m pip install --upgrade meson
+    else
+        sudo python3 -m pip install --upgrade meson
+    fi
+    playos_log_ok "setup" "Meson now: $(meson --version)"
+fi
+
 # ── Summary ────────────────────────────────────────────────────────
 playos_log_step "Installation Summary"
-
 if [[ ${#INSTALLED[@]} -gt 0 ]]; then
     playos_log_ok "setup" "Installed ${#INSTALLED[@]} package(s): ${INSTALLED[*]}"
 fi

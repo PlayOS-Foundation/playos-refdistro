@@ -86,6 +86,7 @@ verify-pins: ## Verify versions.lock pins are all set
 .PHONY: setup
 setup: verify-pins ## Clone Buildroot, apply br2-external, check dependencies
 	@echo "==> Setting up PlayOS build environment..."
+	@git config --global advice.detachedHead false
 	@if [ ! -d "$(BUILDROOT_DIR)" ]; then \
 		echo "==> Cloning Buildroot (shallow, 100 commits)..."; \
 		git clone --depth 100 https://git.buildroot.net/buildroot "$(BUILDROOT_DIR)"; \

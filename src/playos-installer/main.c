@@ -315,18 +315,84 @@ find_and_mount_payload(char *mount_path, size_t mount_len)
     return -1;
 }
 
-/* S13.7: mount the removable boot medium's playos-data read-only at
- * /mnt/payload-data. The live/installer session's /data is unmounted by init
- * before the installer is spawned, so the dev SSH key must be read from the
- * USB's own data partition instead of /data. Returns 0 and leaves the mount
- * in place (caller unmounts), or -1 when no removable playos-data exists. */
+/* S13.7: mount the boot medium's playos-data read-only at /mnt/payload-data.
+ * The live/installer session's /data is unmounted by init before the installer
+ * is spawned, so the dev SSH key must be read from the USB's own data
+ * partition instead of /data. Returns 0 and leaves the mount in place (caller
+ * unmounts), or -1 when no playos-data with a key can be found. */
 static int
 find_and_mount_payload_data(char *mount_path, size_t mount_len)
 {
     (void)mkdir("/mnt/payload-data", 0755);
     snprintf(mount_path, mount_len, "/mnt/payload-data");
 
-    /* Fast path: by-label playos-data on a removable disk. */
+    /* 1) Same disk as the already-mounted payload (playos-a). This is the
+     * reliable path: it works even when the firmware reports removable=0
+     * (e.g. QEMU usb-storage), unlike a pure /sys/block/removable filter. */
+    char payload_dev[128] = {0};
+    FILE *mntf = fopen("/proc/mounts", "r");
+    if (mntf) {
+        char line[512];
+        while (fgets(line, sizeof(line), mntf)) {
+            char src[128] = {0}, mnt[128] = {0};
+            if (sscanf(line, "%127s %127s %*s %*s %*d %*d", src, mnt) == 2 &&
+                strcmp(mnt, "/mnt/payload") == 0) {
+                snprintf(payload_dev, sizeof(payload_dev), "%s", src);
+                break;
+            }
+        }
+        fclose(mntf);
+    }
+    if (payload_dev[0] && strncmp(payload_dev, "/dev/disk/by-label/", 19) == 0) {
+        char resolved[256] = {0};
+        ssize_t rl = readlink(payload_dev, resolved, sizeof(resolved) - 1);
+        if (rl > 0) {
+            resolved[rl] = '\0';
+            const char *base = strrchr(resolved, '/');
+            base = base ? base + 1 : resolved;
+            snprintf(payload_dev, sizeof(payload_dev), "/dev/%s", base);
+        }
+    }
+    if (payload_dev[0]) {
+        char disk[128];
+        size_t dlen = strlen(payload_dev);
+        while (dlen > 0 && isdigit((unsigned char)payload_dev[dlen - 1]))
+            dlen--;
+        if (dlen > 0 && payload_dev[dlen - 1] == 'p')
+            dlen--;
+        if (dlen > 0 && dlen < sizeof(disk)) {
+            memcpy(disk, payload_dev, dlen);
+            disk[dlen] = '\0';
+            const char *dname = strrchr(disk, '/');
+            dname = dname ? dname + 1 : disk;
+            char parts[256][64];
+            int nparts = playos_disk_list_partitions(dname, parts, 256);
+            fprintf(stdout, "AUTO: payload-data: payload on %s, disk %s (%d parts)\n",
+                    payload_dev, dname, nparts);
+            for (int i = 0; i < nparts; i++) {
+                char devpath[128];
+                snprintf(devpath, sizeof(devpath), "/dev/%s", parts[i]);
+                if (strcmp(devpath, payload_dev) == 0)
+                    continue; /* playos-a itself, not data */
+                errno = 0;
+                int mrc = mount(devpath, "/mnt/payload-data", "ext4", MS_RDONLY, NULL);
+                if (mrc != 0)
+                    mrc = mount(devpath, "/mnt/payload-data", "ext2", MS_RDONLY, NULL);
+                fprintf(stdout, "AUTO: payload-data: try %s mount rc=%d errno=%s\n",
+                        devpath, mrc, strerror(errno));
+                if (mrc != 0)
+                    continue;
+                if (access("/mnt/payload-data/ssh/authorized_keys", R_OK) == 0) {
+                    fprintf(stdout, "AUTO: payload-data: key found on %s\n", devpath);
+                    return 0;
+                }
+                fprintf(stdout, "AUTO: payload-data: no key on %s\n", devpath);
+                (void)umount("/mnt/payload-data");
+            }
+        }
+    }
+
+    /* 2) Fast path: by-label playos-data on a removable disk (real HW). */
     if (access("/dev/disk/by-label/playos-data", R_OK) == 0) {
         char resolved[256] = {0};
         ssize_t rl = readlink("/dev/disk/by-label/playos-data", resolved,
@@ -339,6 +405,8 @@ find_and_mount_payload_data(char *mount_path, size_t mount_len)
             snprintf(devtmp, sizeof(devtmp), "/dev/%s", base);
             char disk[128];
             size_t len = strlen(devtmp);
+            fprintf(stdout, "AUTO: payload-data: by-label resolves to %s\n",
+                    devtmp);
             while (len > 0 && isdigit((unsigned char)devtmp[len - 1]))
                 len--;
             if (len > 0 && devtmp[len - 1] == 'p')
@@ -362,7 +430,7 @@ find_and_mount_payload_data(char *mount_path, size_t mount_len)
         }
     }
 
-    /* Slow path: scan removable disks' partitions for a playos-data with the
+    /* 3) Fallback: scan removable disks' partitions for a playos-data with the
      * dev SSH seed directory. */
     DIR *dir = opendir("/sys/block");
     if (!dir)
@@ -382,13 +450,20 @@ find_and_mount_payload_data(char *mount_path, size_t mount_len)
             continue;
         char parts[256][64];
         int nparts = playos_disk_list_partitions(name, parts, 256);
+        fprintf(stdout, "AUTO: payload-data: removable disk %s has %d partitions\n",
+                name, nparts);
         for (int i = 0; i < nparts; i++) {
             char devpath[128];
             snprintf(devpath, sizeof(devpath), "/dev/%s", parts[i]);
             if (mount(devpath, "/mnt/payload-data", "ext4", MS_RDONLY, NULL) != 0 &&
-                mount(devpath, "/mnt/payload-data", "ext2", MS_RDONLY, NULL) != 0)
+                mount(devpath, "/mnt/payload-data", "ext2", MS_RDONLY, NULL) != 0) {
+                fprintf(stdout, "AUTO: payload-data: mount %s failed: %s\n",
+                        devpath, strerror(errno));
                 continue;
+            }
+            fprintf(stdout, "AUTO: payload-data: mounted %s\n", devpath);
             if (access("/mnt/payload-data/ssh/authorized_keys", R_OK) == 0) {
+                fprintf(stdout, "AUTO: payload-data: key found on %s\n", devpath);
                 found = 1;
                 break;
             }
@@ -396,6 +471,8 @@ find_and_mount_payload_data(char *mount_path, size_t mount_len)
         }
     }
     closedir(dir);
+    if (!found)
+        fprintf(stdout, "AUTO: payload-data: no playos-data with key found\n");
     return found ? 0 : -1;
 }
 
@@ -467,8 +544,15 @@ run_install_step(struct installer *st)
             int payload_data_mounted = 0;
 
             /* /data is unmounted by init before the installer spawns, so the
-             * live session's key is not visible here. Fall back to the
-             * removable boot medium's own playos-data partition. */
+             * live session's key is not visible here. init preserves it at
+             * /tmp/playos-install-authorized_keys before the unmount. */
+            if (!key_present &&
+                access("/tmp/playos-install-authorized_keys", R_OK) == 0) {
+                src = "/tmp/playos-install-authorized_keys";
+                key_present = 1;
+            }
+
+            /* Last resort: mount the boot medium's own playos-data. */
             if (!key_present) {
                 char pd_mount[64];
                 if (find_and_mount_payload_data(pd_mount, sizeof(pd_mount)) == 0) {
@@ -482,6 +566,8 @@ run_install_step(struct installer *st)
                 }
             }
 
+            fprintf(stdout, "AUTO: payload-data: step5 src=%s key_present=%d\n",
+                    src, key_present);
             rc = playos_format_seed_ssh_keys(dev, 5, src, err, errlen);
             installer_logf("installer step 5/8 Format data: ssh key source %s, seed rc=%d",
                            key_present ? "present" : "absent", rc);

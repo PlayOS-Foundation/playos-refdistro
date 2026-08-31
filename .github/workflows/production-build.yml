@@ -34,6 +34,22 @@ jobs:
         run: |
           make setup
 
+      - name: Cache Buildroot downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: ${{ runner.os }}-buildroot-dl-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-dl-
+
+      - name: Cache Ally production host toolchain
+        uses: actions/cache@v4
+        with:
+          path: output/ally-production/host
+          key: ${{ runner.os }}-host-ally-production-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-host-ally-production-
+
       - name: Build production image
         run: |
           make ally-production-build

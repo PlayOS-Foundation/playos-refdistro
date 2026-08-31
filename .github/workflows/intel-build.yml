@@ -34,6 +34,22 @@ jobs:
         run: |
           make setup
 
+      - name: Cache Buildroot downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: ${{ runner.os }}-buildroot-dl-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-dl-
+
+      - name: Cache Intel host toolchain
+        uses: actions/cache@v4
+        with:
+          path: output/intel/host
+          key: ${{ runner.os }}-host-intel-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-host-intel-
+
       - name: Build Intel PC image
         run: |
           make intel-build

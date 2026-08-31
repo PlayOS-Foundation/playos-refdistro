@@ -34,6 +34,22 @@ jobs:
         run: |
           make setup
 
+      - name: Cache Buildroot downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: ${{ runner.os }}-buildroot-dl-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-dl-
+
+      - name: Cache QEMU host toolchain
+        uses: actions/cache@v4
+        with:
+          path: output/qemu/host
+          key: ${{ runner.os }}-host-qemu-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-host-qemu-
+
       - name: Build QEMU image
         run: |
           make qemu-build

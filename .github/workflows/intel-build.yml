@@ -15,7 +15,7 @@ on:
 jobs:
   build:
     name: Build PlayOS Intel PC image (cross-compile only)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
 
     steps:

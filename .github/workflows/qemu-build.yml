@@ -15,7 +15,7 @@ on:
 jobs:
   build-and-boot:
     name: Build and boot-check PlayOS (QEMU)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
 
     steps:

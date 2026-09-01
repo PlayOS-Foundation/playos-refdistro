@@ -183,6 +183,9 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [ally-dev, intel-dev, ally-prod]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download images
         uses: actions/download-artifact@v4
         with:
@@ -199,18 +202,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: PlayOS Dev Images ${{ github.ref_name }}
-          body: |
-            Development USB images built from `main`.
-
-            - `playos-ally-dev-usb.img.xz` — ROG Ally dev image (SSH + installer)
-            - `playos-intel-dev-usb.img.xz` — Intel dev image (SSH + installer)
-            - `playos-ally-prod-usb.img.xz` — ROG Ally prod image (no SSH + installer)
-
-            Flash with:
-            ```
-            xz -dk <image>.img.xz
-            sudo dd if=<image>.img of=/dev/sdX bs=4M status=progress conv=fsync
-            ```
+          body_path: docs/dev-release-body.md
           prerelease: true
           files: |
             artifacts/**/*.img.xz

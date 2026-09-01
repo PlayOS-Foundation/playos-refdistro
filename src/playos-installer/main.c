@@ -504,6 +504,7 @@ struct installer {
     char payload_mount[64];
     int  payload_ok;
     int  evdev_fd;
+    double splash_start;          /* S14-T10: fullscreen splash covers handoff */
     struct input_state input;
 };
 
@@ -624,6 +625,15 @@ draw_ui(struct installer *st)
 {
     BeginDrawing();
     ClearBackground((Color){12, 12, 18, 255});
+
+    /* S14-T10: brief fullscreen splash so the handoff never shows a gap. */
+    if (GetTime() - st->splash_start < 1.0) {
+        draw_centered("PlayOS", 380, 110, RAYWHITE);
+        draw_centered("Preparing installer...", 540, 26,
+                      (Color){180, 180, 210, 255});
+        EndDrawing();
+        return;
+    }
 
     DrawText("PlayOS Installer", 48, 32, 44, RAYWHITE);
     draw_centered(mode_title(st->mode), 96, 30, (Color){180, 180, 210, 255});
@@ -864,6 +874,7 @@ main(void)
     st.confirm_progress = 0;
     st.step_index = 0;
     st.step_error = -1;
+    st.splash_start = GetTime();
     st.evdev_fd = find_gamepad();
     st.payload_ok = 0;
 

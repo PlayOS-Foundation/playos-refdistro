@@ -19,7 +19,7 @@ echo
 
 echo "## Criterion 4 — compositor + Wayland socket"
 echo
-pgrep -a playos-compositor | sed 's/^/    /' || echo "- NOT RUNNING"
+pgrep -a -f "playos-compositor" | sed 's/^/    /' || echo "- NOT RUNNING"
 ls -l /run/playos/playos-0 2>/dev/null | sed 's/^/    /' || echo "- no wayland socket"
 echo
 

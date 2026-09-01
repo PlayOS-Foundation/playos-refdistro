@@ -1,0 +1,218 @@
+name: PlayOS Dev Images Release
+
+on:
+  push:
+    tags:
+      - 'dev-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ally-dev:
+    name: Build Ally dev USB image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify version pins
+        run: |
+          bash scripts/verify-versions.sh versions.lock
+
+      - name: Setup host environment
+        run: |
+          bash scripts/setup-ubuntu.sh
+
+      - name: Setup Buildroot
+        run: |
+          make setup
+
+      - name: Cache Buildroot downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: ${{ runner.os }}-buildroot-dl-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-dl-
+
+      - name: Cache Ally dev host toolchain
+        uses: actions/cache@v4
+        with:
+          path: output/ally/host
+          key: ${{ runner.os }}-host-ally-dev-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-host-ally-dev-
+
+      - name: Build Ally dev USB image
+        run: |
+          make ally-dev-usb-image
+
+      - name: Compress image
+        run: |
+          cd output/ally/images
+          xz -T0 -1 -k -f playos-ally-dev-usb.img
+          sha256sum playos-ally-dev-usb.img.xz > playos-ally-dev-usb.img.xz.sha256
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: ally-dev-img
+          path: |
+            output/ally/images/playos-ally-dev-usb.img.xz
+            output/ally/images/playos-ally-dev-usb.img.xz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  intel-dev:
+    name: Build Intel dev USB image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify version pins
+        run: |
+          bash scripts/verify-versions.sh versions.lock
+
+      - name: Setup host environment
+        run: |
+          bash scripts/setup-ubuntu.sh
+
+      - name: Setup Buildroot
+        run: |
+          make setup
+
+      - name: Cache Buildroot downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: ${{ runner.os }}-buildroot-dl-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-dl-
+
+      - name: Cache Intel host toolchain
+        uses: actions/cache@v4
+        with:
+          path: output/intel/host
+          key: ${{ runner.os }}-host-intel-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-host-intel-
+
+      - name: Build Intel dev USB image
+        run: |
+          make intel-dev-usb-image
+
+      - name: Compress image
+        run: |
+          cd output/intel/images
+          xz -T0 -1 -k -f playos-intel-dev-usb.img
+          sha256sum playos-intel-dev-usb.img.xz > playos-intel-dev-usb.img.xz.sha256
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: intel-dev-img
+          path: |
+            output/intel/images/playos-intel-dev-usb.img.xz
+            output/intel/images/playos-intel-dev-usb.img.xz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  ally-prod:
+    name: Build Ally prod USB image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify version pins
+        run: |
+          bash scripts/verify-versions.sh versions.lock
+
+      - name: Setup host environment
+        run: |
+          bash scripts/setup-ubuntu.sh
+
+      - name: Setup Buildroot
+        run: |
+          make setup
+
+      - name: Cache Buildroot downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: ${{ runner.os }}-buildroot-dl-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-dl-
+
+      - name: Cache Ally production host toolchain
+        uses: actions/cache@v4
+        with:
+          path: output/ally-production/host
+          key: ${{ runner.os }}-host-ally-production-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-host-ally-production-
+
+      - name: Build Ally prod USB image
+        run: |
+          make ally-prod-usb-image
+
+      - name: Compress image
+        run: |
+          cd output/ally-production/images
+          xz -T0 -1 -k -f playos-ally-prod-usb.img
+          sha256sum playos-ally-prod-usb.img.xz > playos-ally-prod-usb.img.xz.sha256
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: ally-prod-img
+          path: |
+            output/ally-production/images/playos-ally-prod-usb.img.xz
+            output/ally-production/images/playos-ally-prod-usb.img.xz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish dev release
+    runs-on: ubuntu-24.04
+    needs: [ally-dev, intel-dev, ally-prod]
+    steps:
+      - name: Download images
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          find . -name '*.img.xz' -exec sha256sum {} + > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PlayOS Dev Images ${{ github.ref_name }}
+          body: |
+            Development USB images built from `main`.
+
+            - `playos-ally-dev-usb.img.xz` — ROG Ally dev image (SSH + installer)
+            - `playos-intel-dev-usb.img.xz` — Intel dev image (SSH + installer)
+            - `playos-ally-prod-usb.img.xz` — ROG Ally prod image (no SSH + installer)
+
+            Flash with:
+            ```
+            xz -dk <image>.img.xz
+            sudo dd if=<image>.img of=/dev/sdX bs=4M status=progress conv=fsync
+            ```
+          prerelease: true
+          files: |
+            artifacts/**/*.img.xz
+            artifacts/**/*.sha256
+            artifacts/**/SHA256SUMS.txt

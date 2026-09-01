@@ -1,0 +1,139 @@
+name: PlayOS Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish PlayOS release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify version pins
+        run: |
+          bash scripts/verify-versions.sh versions.lock
+
+      - name: Setup host environment
+        run: |
+          bash scripts/setup-ubuntu.sh
+          sudo apt-get install -y -qq sbsigntool
+
+      - name: Setup Buildroot
+        run: |
+          make setup
+
+      - name: Cache Buildroot downloads (dl)
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: ${{ runner.os }}-buildroot-dl-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildroot-dl-
+
+      - name: Cache Ally production host toolchain
+        uses: actions/cache@v4
+        with:
+          path: output/ally-production/host
+          key: ${{ runner.os }}-host-ally-production-${{ hashFiles('versions.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-host-ally-production-
+
+      - name: Build production ROG Ally USB image
+        run: |
+          make ally-prod-usb-image
+
+      - name: Verify debug artifacts are absent (production lint)
+        run: |
+          set -euo pipefail
+          TARGET="output/ally-production/target"
+          FORBIDDEN=(
+            "bin/busybox"
+            "bin/sh"
+            "usr/bin/gdbserver"
+            "usr/bin/strace"
+            "usr/bin/ltrace"
+            "usr/bin/evtest"
+            "usr/bin/modetest"
+            "usr/sbin/dropbear"
+            "usr/sbin/sshd"
+          )
+          found=0
+          for rel in "${FORBIDDEN[@]}"; do
+            if [[ -e "$TARGET/$rel" ]]; then
+              echo "::error::DEBUG ARTIFACT PRESENT: $rel"
+              found=1
+            fi
+          done
+          if [[ "$found" == "1" ]]; then
+            echo "Production target still contains development/debug artifacts."
+            exit 1
+          fi
+          echo "OK: no development/debug artifacts found in production target."
+
+      - name: Boot-check production image in QEMU
+        run: |
+          bash scripts/qemu-boot-check.sh --production --timeout 60
+
+      - name: Sign EFI artifact
+        run: |
+          mkdir -p output/release
+          bash scripts/sign-efi.sh \
+            output/ally-production/images/bzImage \
+            output/release/BOOTX64.EFI.signed
+
+      - name: Build update bundle (.playosb)
+        run: |
+          bash scripts/create-update-bundle.sh \
+            output/ally-production/images/rootfs.squashfs \
+            "${{ github.ref_name }}" \
+            "output/release/playos-${{ github.ref_name }}-rog-ally-update.playosb"
+
+      - name: Build SDK headers tarball
+        run: |
+          bash scripts/export-sdk-headers.sh \
+            "${{ github.ref_name }}" \
+            "output/release/playos-${{ github.ref_name }}-sdk-headers.tar.gz"
+
+      - name: Package installer image
+        run: |
+          cp output/ally-production/images/playos-ally-prod-usb.img \
+             "output/release/playos-${{ github.ref_name }}-rog-ally-installer.img"
+          cd output/release
+          xz -T0 -1 -f "playos-${{ github.ref_name }}-rog-ally-installer.img"
+
+      - name: Generate checksums
+        run: |
+          cd output/release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PlayOS ${{ github.ref_name }}
+          body: |
+            PlayOS ${{ github.ref_name }} release artifacts.
+
+            - `playos-<tag>-rog-ally-installer.img.xz` — ROG Ally installer/live USB image (production, no debug tools)
+            - `playos-<tag>-rog-ally-update.playosb` — signed A/B update bundle
+            - `playos-<tag>-sdk-headers.tar.gz` — SDK public headers
+            - `BOOTX64.EFI.signed` — dev-signed EFI artifact
+            - `SHA256SUMS.txt` — checksums
+
+            Flash:
+            ```
+            xz -dk playos-<tag>-rog-ally-installer.img.xz
+            sudo dd if=playos-<tag>-rog-ally-installer.img of=/dev/sdX bs=4M status=progress conv=fsync
+            ```
+          prerelease: false
+          files: |
+            output/release/*

@@ -60,8 +60,12 @@ jobs:
           grep -E '^CONFIG_SND_HDA_INTEL=y' output/intel/build/linux-*/.config
           grep -E '^CONFIG_X86_INTEL_PSTATE=y' output/intel/build/linux-*/.config
           grep -E '^CONFIG_INTEL_RAPL=y' output/intel/build/linux-*/.config
-          if grep -E '^CONFIG_DRM_AMDGPU=y|^CONFIG_DRM_NOUVEAU=y|^CONFIG_X86_AMD_PSTATE=y' output/intel/build/linux-*/.config; then
-            echo "ERROR: AMD/NVIDIA symbols must be disabled in the Intel kernel" >&2
+          # GPU drivers must be off. X86_AMD_PSTATE is intentionally not
+          # checked: it is a CPUFreq driver, not a GPU, and the kernel forces
+          # it on via `select X86_AMD_PSTATE if CPU_SUP_AMD && ACPI`
+          # (CPU_SUP_AMD is default-y and invisible on x86_64).
+          if grep -E '^CONFIG_DRM_AMDGPU=y|^CONFIG_DRM_NOUVEAU=y' output/intel/build/linux-*/.config; then
+            echo "ERROR: AMD/NVIDIA GPU drivers must be disabled in the Intel kernel" >&2
             exit 1
           fi
           echo "Intel kernel symbols OK"

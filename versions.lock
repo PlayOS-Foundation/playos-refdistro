@@ -20,12 +20,12 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=2dd083ead98fa923fd411346fe6191fac9a04c1d  # spec: S13.7 T7 done
-PLAYOS_PLATFORM_API_COMMIT=a21756296bd5271fc10aa79e14730ae19df74b34  # platform-api: SDL_GameControllerDB + Sony preferred names (S13.6)
+PLAYOS_SPEC_COMMIT=99f8a93e8487047a3b4d1b114966715447f26885  # spec: S14 task grid + docs (T6/T7/T8 done, T9/T10 in progress)
+PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=85acbb98d53c38f5d2ba3a687cc75d629dd57766  # runtime: playos_trusted_start_installer (S13.7 T1)
-PLAYOS_INIT_COMMIT=53fc75a5a6a5d5c2e62b320a1df712ec94da3974  # init: StartInstaller IPC + runtime installer handoff (S13.7 T1/T2)
+PLAYOS_INIT_COMMIT=49fd28e9bc56a30e4c07fc817bf7a7a539e9b073  # init: recovery UI + button-hold + console-free installer handoff (S14 T6/T10)
 PLAYOS_COMPOSITOR_COMMIT=8efd749260a93e4ce245c394f21ccf28113a76d6  # compositor: wire gpu_select_index into gpu_discovery (single source of truth)
-PLAYOS_SHELL_COMMIT=fb7b978d6e41a9e76f47e390aaf3f4748efaf67d  # shell: SDL_GameControllerDB in trusted evdev path (S13.6)
+PLAYOS_SHELL_COMMIT=e3c0091e0a100d8e65acb9436d36e136a91b7737  # shell: recovery menu (S14 T6)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

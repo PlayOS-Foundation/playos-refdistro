@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-
 PLAYOS_RUNTIME_COMMIT=85acbb98d53c38f5d2ba3a687cc75d629dd57766  # runtime: playos_trusted_start_installer (S13.7 T1)
 PLAYOS_INIT_COMMIT=db92e74d9d534ea401a1daa8f188bda24ef388c9  # init: fix recovery black screen (S14)
 PLAYOS_COMPOSITOR_COMMIT=8efd749260a93e4ce245c394f21ccf28113a76d6  # compositor: wire gpu_select_index into gpu_discovery (single source of truth)
-PLAYOS_SHELL_COMMIT=aaac72a2f26e2e6f2e48629dab5a9e894466388a  # shell: recovery menu font/layout fix (S14)
+PLAYOS_SHELL_COMMIT=39c5c2c909c7b099b7b33cb4db75aacdf635d0fa  # shell: recovery log viewer (S14)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

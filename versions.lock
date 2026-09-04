@@ -22,10 +22,10 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=99f8a93e8487047a3b4d1b114966715447f26885  # spec: S14 task grid + docs (T6/T7/T8 done, T9/T10 in progress)
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
-PLAYOS_RUNTIME_COMMIT=85acbb98d53c38f5d2ba3a687cc75d629dd57766  # runtime: playos_trusted_start_installer (S13.7 T1)
-PLAYOS_INIT_COMMIT=db92e74d9d534ea401a1daa8f188bda24ef388c9  # init: fix recovery black screen (S14)
+PLAYOS_RUNTIME_COMMIT=7d65fe335441558a856fa4d719acf5ec6cbb687e  # runtime: overlay IPC wrappers (S14)
+PLAYOS_INIT_COMMIT=0c4fa77d8695a0f6a503e93aaebc6e1050d3604b  # init: overlay IPC forwarding (S14)
 PLAYOS_COMPOSITOR_COMMIT=ceffddefb66f1f906f19ed6d0658709d8e0e7fbe  # compositor: F17 system button intercept (S14)
-PLAYOS_SHELL_COMMIT=39c5c2c909c7b099b7b33cb4db75aacdf635d0fa  # shell: recovery log viewer (S14)
+PLAYOS_SHELL_COMMIT=00787439e89676841447122c83f79fbf6ab037f1  # shell: SYSTEM opens pause overlay (S14)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

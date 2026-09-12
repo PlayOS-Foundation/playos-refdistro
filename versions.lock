@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=280f5e89ac37c619423502123f15a9c777a488c1  # spec: COMMAND screenshot / ARMOURY CRATE menu (S14)
+PLAYOS_SPEC_COMMIT=55ef586aac9c752ced433ab2d6f714edc2416da8  # spec: S14 T5/T7 results + perf gaps P1-P7
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=01c193b6a3f8291acb02cb14f6c9254622c388b2  # runtime: playos_trusted_rollback_slot wrapper (S14)
 PLAYOS_INIT_COMMIT=3c7309d23bed22f22dde29d33c86931db8bdf8bc  # init: poll-based IPC wait (removes 1s control latency) (S14)

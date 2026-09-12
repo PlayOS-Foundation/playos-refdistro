@@ -613,117 +613,255 @@ mode_title(enum installer_mode mode)
 
 /* ── drawing ───────────────────────────────────────────────────────────── */
 
+/* S14 follow-up: the installer looks like the shell it was launched from.
+ * Same font (Silkscreen), same palette (navy background, orange accent,
+ * green success), same 15% content column and the same hint placement - so the
+ * handoff reads as a screen change inside one product instead of a different
+ * app starting up on a black background. */
+
+#define CLR_BG     ((Color){15, 31, 56, 255})
+#define CLR_TRACK  ((Color){26, 44, 72, 255})
+#define CLR_ACCENT ((Color){214, 107, 0, 255})
+#define CLR_TEXT   ((Color){235, 235, 242, 255})
+#define CLR_DIM    ((Color){150, 152, 173, 255})
+#define CLR_DONE   ((Color){77, 217, 122, 255})
+#define CLR_WARN   ((Color){255, 107, 107, 255})
+
+static Font g_ui_font = { 0 };
+
 static void
-draw_centered(const char *text, int y, int size, Color color)
+load_ui_font(void)
 {
-    int w = MeasureText(text, size);
-    DrawText(text, (1920 - w) / 2, y, size, color);
+    static const char *candidates[] = {
+        "/usr/share/playos-shell/assets/Silkscreen-Regular.ttf",
+        "assets/Silkscreen-Regular.ttf",
+        "Silkscreen-Regular.ttf",
+    };
+
+    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+        if (FileExists(candidates[i])) {
+            g_ui_font = LoadFontEx(candidates[i], 64, NULL, 95);
+            if (g_ui_font.texture.id > 0)
+                return;
+        }
+    }
+    fprintf(stderr, "playos-installer: UI font not found - using default\n");
+}
+
+static Font ui_font(void)
+{
+    return g_ui_font.texture.id ? g_ui_font : GetFontDefault();
+}
+
+static float
+ui_text_w(const char *text, float size)
+{
+    return MeasureTextEx(ui_font(), text, size, 1.0f).x;
+}
+
+static void
+ui_text(const char *text, float x, float y, float size, Color c)
+{
+    DrawTextEx(ui_font(), text, (Vector2){x, y}, size, 1.0f, c);
+}
+
+static void
+ui_text_centered(const char *text, float y, float size, Color c)
+{
+    ui_text(text, ((float)GetScreenWidth() - ui_text_w(text, size)) * 0.5f,
+            y, size, c);
+}
+
+static void
+ui_bar(float x, float y, float w, float h, float frac, Color fill)
+{
+    if (frac < 0.0f)
+        frac = 0.0f;
+    if (frac > 1.0f)
+        frac = 1.0f;
+    DrawRectangle((int)x, (int)y, (int)w, (int)h, CLR_TRACK);
+    if (frac > 0.0f)
+        DrawRectangle((int)x, (int)y, (int)(w * frac), (int)h, fill);
+}
+
+/* Long installer errors (mount failures, mkfs stderr) are wrapped instead of
+ * running off the screen. */
+static void
+ui_text_wrapped(const char *text, float x, float y, float size, float max_w,
+                Color c, int max_lines)
+{
+    char line[128];
+    size_t len = 0;
+    int lines = 0;
+
+    for (const char *p = text; *p && lines < max_lines; p++) {
+        if (len + 1 >= sizeof(line)) {
+            line[len] = '\0';
+            ui_text(line, x, y, size, c);
+            y += size * 1.6f;
+            len = 0;
+            lines++;
+            if (lines >= max_lines)
+                break;
+        }
+        line[len++] = *p;
+        if (len >= (size_t)(max_w / (size * 0.55f))) {
+            line[len] = '\0';
+            ui_text(line, x, y, size, c);
+            y += size * 1.6f;
+            len = 0;
+            lines++;
+        }
+    }
+    if (len > 0 && lines < max_lines) {
+        line[len] = '\0';
+        ui_text(line, x, y, size, c);
+    }
 }
 
 static void
 draw_ui(struct installer *st)
 {
-    BeginDrawing();
-    ClearBackground((Color){12, 12, 18, 255});
+    int sw = GetScreenWidth();
+    int sh = GetScreenHeight();
+    float content_x = (float)sw * 0.15f;
+    float content_w = (float)sw - content_x * 2.0f;
+    float title_size = (float)sh * 0.045f;
+    float body_size = (float)sh * 0.026f;
+    float hint_size = (float)sh * 0.020f;
+    float hint_y = (float)sh - hint_size * 3.5f;
 
-    /* S14-T10: brief fullscreen splash so the handoff never shows a gap. */
-    if (GetTime() - st->splash_start < 1.0) {
-        draw_centered("PlayOS", 380, 110, RAYWHITE);
-        draw_centered("Preparing installer...", 540, 26,
-                      (Color){180, 180, 210, 255});
+    BeginDrawing();
+    ClearBackground(CLR_BG);
+
+    /* Brief fullscreen splash so the handoff never shows a gap between the
+     * shell's last frame and the installer's first. */
+    if (GetTime() - st->splash_start < 0.8) {
+        ui_text_centered("PlayOS", (float)sh * 0.40f, (float)sh * 0.10f,
+                         CLR_TEXT);
+        ui_text_centered("Preparing installer", (float)sh * 0.56f, body_size,
+                         CLR_DIM);
         EndDrawing();
         return;
     }
 
-    DrawText("PlayOS Installer", 48, 32, 44, RAYWHITE);
-    draw_centered(mode_title(st->mode), 96, 30, (Color){180, 180, 210, 255});
+    ui_text_centered("Install PlayOS", (float)sh * 0.05f, title_size, CLR_TEXT);
+    ui_text_centered(mode_title(st->mode), (float)sh * 0.115f, body_size,
+                     CLR_DIM);
 
     switch (st->mode) {
     case MODE_DISCOVERY: {
         if (st->disk_count == 0) {
-            draw_centered("No fixed internal disk found.", 240, 26, RAYWHITE);
-            draw_centered("Attach an internal NVMe/SATA disk and restart.",
-                          280, 22, (Color){150, 150, 170, 255});
+            ui_text_centered("No suitable internal disk found", (float)sh * 0.28f,
+                             body_size, CLR_TEXT);
+            ui_text_centered("Attach an internal NVMe/SATA disk and restart.",
+                             (float)sh * 0.34f, hint_size, CLR_DIM);
         } else {
+            float row_h = body_size * 2.6f;
+            float y0 = (float)sh * 0.22f;
             for (int i = 0; i < st->disk_count; i++) {
                 struct playos_disk *d = &st->disks[i];
-                int y = 200 + i * 64;
+                float y = y0 + (float)i * row_h;
                 bool sel = (i == st->cursor);
+
                 if (sel)
-                    DrawRectangle(60, y - 8, 1800, 56,
-                                  (Color){60, 40, 120, 255});
+                    DrawRectangle((int)content_x, (int)(y - body_size * 0.4f),
+                                  (int)content_w, (int)(body_size * 2.0f),
+                                  CLR_ACCENT);
 
                 char line[512];
-                double gb = (double)d->size_bytes / (1024.0 * 1024.0 * 1024.0);
-                snprintf(line, sizeof(line), "%s  -  %.1f GiB  -  %s  (%d partitions)",
-                         d->path, gb, d->model, d->partitions);
-                DrawText(line, 84, y, 28,
-                         sel ? RAYWHITE : (Color){200, 200, 210, 255});
+                double gb = (double)d->size_bytes / (1000.0 * 1000.0 * 1000.0);
+                snprintf(line, sizeof(line), "%s", d->model);
+                ui_text(line, content_x + body_size * 0.6f, y, body_size,
+                        sel ? RAYWHITE : CLR_TEXT);
+
+                char right[64];
+                snprintf(right, sizeof(right), "%.0f GB", gb);
+                ui_text(right,
+                        content_x + content_w - ui_text_w(right, body_size)
+                            - body_size * 0.6f,
+                        y, body_size, sel ? RAYWHITE : CLR_DIM);
             }
-            draw_centered("A: select    D-pad: move    B: power off",
-                          980, 22, (Color){140, 140, 160, 255});
         }
+        ui_text("D-pad: choose   A: select   B: back", content_x, hint_y, hint_size, CLR_DIM);
         break;
     }
 
     case MODE_CONFIRM: {
         struct playos_disk *d = &st->disks[st->cursor];
         char line[512];
-        snprintf(line, sizeof(line), "Target: %s (%s)",
-                 d->path, d->model);
-        draw_centered(line, 260, 30, RAYWHITE);
-        draw_centered("This will DESTROY ALL DATA on the selected disk.",
-                      330, 26, (Color){255, 120, 120, 255});
-        draw_centered("Hold A for 3 seconds to install.", 430, 24, RAYWHITE);
+        snprintf(line, sizeof(line), "Erase %s and install PlayOS?", d->model);
+        ui_text_centered(line, (float)sh * 0.26f, body_size, CLR_TEXT);
+        ui_text_centered("Everything on this disk will be destroyed.",
+                         (float)sh * 0.33f, hint_size, CLR_WARN);
 
-        int bar_w = 1200;
-        int bar_x = (1920 - bar_w) / 2;
-        int bar_h = 36;
-        int bar_y = 500;
-        DrawRectangle(bar_x, bar_y, bar_w, bar_h, (Color){40, 40, 52, 255});
-        DrawRectangle(bar_x, bar_y,
-                      (bar_w * st->confirm_progress) / 180, bar_h,
-                      (Color){120, 70, 200, 255});
-
-        draw_centered("B: cancel", 580, 22, (Color){150, 150, 170, 255});
+        ui_text_centered("Hold A to install", (float)sh * 0.44f, body_size,
+                         CLR_TEXT);
+        ui_bar(content_x, (float)sh * 0.51f, content_w, hint_size * 1.6f,
+               (float)st->confirm_progress / 180.0f, CLR_ACCENT);
+        ui_text("B: cancel", content_x, hint_y, hint_size, CLR_DIM);
         break;
     }
 
     case MODE_INSTALLING: {
-        draw_centered(st->disks[st->cursor].path, 200, 26, RAYWHITE);
-        for (int i = 0; i < 8; i++) {
-            int y = 260 + i * 56;
-            Color c;
-            if (i < st->step_index)
-                c = (Color){80, 200, 120, 255};
-            else if (i == st->step_index)
-                c = RAYWHITE;
-            else
-                c = (Color){110, 110, 125, 255};
+        struct playos_disk *d = &st->disks[st->cursor];
+        char line[256];
+        snprintf(line, sizeof(line), "%s  -  %s", d->path, d->model);
+        ui_text(line, content_x, (float)sh * 0.20f, body_size, CLR_TEXT);
 
-            char line[96];
-            if (i < st->step_index)
-                snprintf(line, sizeof(line), "[done]  %s", STEP_NAMES[i]);
-            else if (i == st->step_index)
-                snprintf(line, sizeof(line), "[....]  %s", STEP_NAMES[i]);
-            else
-                snprintf(line, sizeof(line), "[    ]  %s", STEP_NAMES[i]);
-            DrawText(line, 300, y, 28, c);
+        float row_h = body_size * 1.9f;
+        float y0 = (float)sh * 0.30f;
+        for (int i = 0; i < 8; i++) {
+            float y = y0 + (float)i * row_h;
+            Color c;
+            const char *mark;
+
+            if (i < st->step_index) {
+                c = CLR_DONE;
+                mark = "[x]";
+            } else if (i == st->step_index) {
+                c = CLR_TEXT;
+                mark = "[>]";
+            } else {
+                c = CLR_DIM;
+                mark = "[ ]";
+            }
+
+            ui_text(mark, content_x, y, body_size, c);
+            ui_text(STEP_NAMES[i], content_x + body_size * 3.2f, y, body_size,
+                    c);
         }
+
+        float bar_y = y0 + 8.0f * row_h + body_size;
+        ui_bar(content_x, bar_y, content_w, hint_size * 1.6f,
+               (float)st->step_index / 8.0f, CLR_ACCENT);
+
+        char pct[64];
+        snprintf(pct, sizeof(pct), "Step %d of 8", st->step_index + 1);
+        ui_text(pct, content_x, bar_y + hint_size * 2.6f, hint_size, CLR_DIM);
+        ui_text("Keep the device powered - this takes about a minute", content_x, hint_y, hint_size, CLR_DIM);
         break;
     }
 
     case MODE_SUCCESS: {
-        draw_centered("PlayOS has been installed to the internal disk.",
-                      300, 30, (Color){120, 220, 160, 255});
-        draw_centered("A: reboot    B: power off", 420, 26, RAYWHITE);
+        ui_text_centered("PlayOS is installed", (float)sh * 0.34f,
+                         title_size, CLR_DONE);
+        ui_text_centered("Reboot to start using the internal disk.",
+                         (float)sh * 0.44f, body_size, CLR_TEXT);
+        ui_text("A: reboot now   B: power off", content_x, hint_y, hint_size, CLR_DIM);
         break;
     }
 
     case MODE_ERROR: {
-        draw_centered(st->step_name, 260, 28, (Color){255, 130, 130, 255});
-        DrawText(st->err_buf, 120, 320, 20, (Color){220, 200, 200, 255});
-        draw_centered("A: back    B: power off", 980, 22, RAYWHITE);
+        ui_text_centered("Install failed", (float)sh * 0.24f, title_size,
+                         CLR_WARN);
+        ui_text(st->step_name[0] ? st->step_name : "Unknown step",
+                content_x, (float)sh * 0.34f, body_size, CLR_TEXT);
+        ui_text_wrapped(st->err_buf, content_x, (float)sh * 0.40f, hint_size,
+                        content_w, CLR_DIM, 4);
+        ui_text("Log: /data/log/installer.log", content_x,
+                (float)sh * 0.62f, hint_size, CLR_DIM);
+        ui_text("A: try again   B: power off", content_x, hint_y, hint_size, CLR_DIM);
         break;
     }
     }
@@ -863,6 +1001,7 @@ main(void)
         fprintf(stderr, "playos-installer: InitWindow failed\n");
         return EXIT_FAILURE;
     }
+    load_ui_font();
     SetTargetFPS(60);
 
     struct installer st;

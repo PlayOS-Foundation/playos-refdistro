@@ -20,12 +20,12 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=90ab49035cb26baef58aaa8e9ef5b7fb8fa4e619  # spec: screenshots + init IPC wait + compositor screencopy (S14)
+PLAYOS_SPEC_COMMIT=579d862fceb16889745b4d665c66185b1ac90dde  # spec: ARMOURY CRATE screenshot gesture; hold-COMMAND impossible (S14)
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=01c193b6a3f8291acb02cb14f6c9254622c388b2  # runtime: playos_trusted_rollback_slot wrapper (S14)
 PLAYOS_INIT_COMMIT=3c7309d23bed22f22dde29d33c86931db8bdf8bc  # init: poll-based IPC wait (removes 1s control latency) (S14)
 PLAYOS_COMPOSITOR_COMMIT=f20597bbfec610fae04553dd693b9fdf8f504069  # compositor: wlr-screencopy manager for screenshots (S14)
-PLAYOS_SHELL_COMMIT=3f72c2fc6b1b9a90b1dca2175df6f931168247f0  # shell: full-output screenshots + hold-COMMAND gesture (S14)
+PLAYOS_SHELL_COMMIT=ec0f9e5d45df7c29932390d6f1a591c811d201ef  # shell: screenshots on ARMOURY CRATE tap; edge-triggered gestures (S14)
 PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

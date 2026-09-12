@@ -20,12 +20,12 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=9f376d17975fc9a8b20bb585d911c1eb07a8a975  # spec: suspended shell ignores input; screencopy notes (S14)
+PLAYOS_SPEC_COMMIT=280f5e89ac37c619423502123f15a9c777a488c1  # spec: COMMAND screenshot / ARMOURY CRATE menu (S14)
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=01c193b6a3f8291acb02cb14f6c9254622c388b2  # runtime: playos_trusted_rollback_slot wrapper (S14)
 PLAYOS_INIT_COMMIT=3c7309d23bed22f22dde29d33c86931db8bdf8bc  # init: poll-based IPC wait (removes 1s control latency) (S14)
 PLAYOS_COMPOSITOR_COMMIT=3862e4dd1ec485d465a20a6cd8be03480b51e4a6  # compositor: release trusted roles on client disconnect (S14)
-PLAYOS_SHELL_COMMIT=639b73d090a02e53cf758649e42da62061f5ca65  # shell: inert UI while suspended + screencopy fixes + ARMOURY CRATE (S14)
+PLAYOS_SHELL_COMMIT=da26d88e1c2a279f912672447f855b49127565da  # shell: COMMAND=screenshot, ARMOURY=menu; inert UI when suspended (S14)
 PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

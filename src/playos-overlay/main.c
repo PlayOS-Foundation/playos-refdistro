@@ -113,6 +113,10 @@ overlay_handle_about_to_hide(void *data, struct playos_overlay_v1 *overlay)
 
     st->visible = false;
     st->shown_at_valid = false;
+
+    /* Never leave a sub-menu armed across a hide: the next show must start on
+     * the top-level pause menu. */
+    st->mode = OVERLAY_MODE_NORMAL;
 }
 
 static void
@@ -232,6 +236,26 @@ poll_input(int fd, int *a_pressed, int *b_pressed,
 
     struct input_event ev;
     while (read(fd, &ev, sizeof(ev)) == sizeof(ev)) {
+        /* D-pad via ABS_HAT (xpad / hid-asus on the ROG Ally). The kernel
+         * emits one EV_ABS event per change (-1/0/1), so a non-zero value is
+         * this frame's press edge. The overlay previously decoded only
+         * BTN_DPAD_*, so on the Ally the d-pad was invisible: no volume step,
+         * no profile change, and the power-menu cursor could not move. */
+        if (ev.type == EV_ABS) {
+            if (ev.code == ABS_HAT0Y) {
+                if (ev.value < 0)
+                    *vol_up_pressed = 1;
+                else if (ev.value > 0)
+                    *vol_down_pressed = 1;
+            } else if (ev.code == ABS_HAT0X) {
+                if (ev.value < 0)
+                    *dpad_left_pressed = 1;
+                else if (ev.value > 0)
+                    *dpad_right_pressed = 1;
+            }
+            continue;
+        }
+
         if (ev.type != EV_KEY || ev.value != 1) /* press edge only */
             continue;
         if (ev.code == BTN_SOUTH)
@@ -377,6 +401,21 @@ main(int argc, char *argv[])
                    &vol_up_pressed, &vol_down_pressed,
                    &dpad_left_pressed, &dpad_right_pressed,
                    &select_pressed);
+
+        /* The overlay only owns input while it is visible; when it is hidden
+         * the game must receive its buttons. poll_input() above has already
+         * drained the device, so simply discard the decoded actions. Without
+         * this the hidden overlay still acted on them — pressing B during
+         * normal gameplay quit the game (and A sent a spurious dismiss). */
+        if (!st.visible) {
+            a_pressed = 0;
+            b_pressed = 0;
+            vol_up_pressed = 0;
+            vol_down_pressed = 0;
+            dpad_left_pressed = 0;
+            dpad_right_pressed = 0;
+            select_pressed = 0;
+        }
 
         /* Read the system master volume once per frame for the card and
          * use it as the baseline for d-pad volume steps. */

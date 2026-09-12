@@ -23,9 +23,9 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 PLAYOS_SPEC_COMMIT=46bb675057f1da0c54fdad763c7d0c059782b683  # spec: installer front-end docs (S14-T10)
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=17c006a8779da6f255b27dd502f89012c94e2a20  # playos-runtime (S14-T10 installer front-end)
-PLAYOS_INIT_COMMIT=87ae3bbb7b025e0998c0898f7278bcb552f82a17  # playos-init (S14-T10 installer front-end)
+PLAYOS_INIT_COMMIT=edba61a854428f5aedf49efe9a38b5383570e06a  # playos-init: live-vs-installed boot decision + payload mountpoint (S14-T10)
 PLAYOS_COMPOSITOR_COMMIT=3862e4dd1ec485d465a20a6cd8be03480b51e4a6  # compositor: release trusted roles on client disconnect (S14)
-PLAYOS_SHELL_COMMIT=b343f188714f8d63b580c0919719a75aa6fd6e07  # shell: installer picker boot-medium fix (S14-T10)
+PLAYOS_SHELL_COMMIT=ebbd6c8808d3d4eecd57b1aa60d74c4dcf0a7286  # playos-shell: live-vs-installed boot decision + payload mountpoint (S14-T10)
 PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

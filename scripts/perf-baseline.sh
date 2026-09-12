@@ -52,10 +52,62 @@ echo
 
 echo "## Shell FPS (last log lines)"
 echo
-grep -h -i "fps" /data/log/* 2>/dev/null | tail -3 | sed 's/^/    /' || true
+grep -h -i "fps" /data/log/shell-stderr.log 2>/dev/null | tail -3 | sed 's/^/    /' || true
 echo
 
-echo "## Init boot markers"
+echo "## Boot markers (timestamps are seconds since power-on)"
 echo
-grep -E "playos-init starting|system ready" /data/log/init.log 2>/dev/null | tail -4 | sed 's/^/    /' || true
+grep -a -E "playos-init starting as PID 1|system ready|ShellReady" \
+     /data/log/init.log 2>/dev/null | tail -3 | sed 's/^/    /' || true
+echo
+
+# ── Log-derived latencies ──────────────────────────────────────────────────
+# Every init.log line is prefixed with "[ <seconds>]" of system uptime, so the
+# sprint's latency targets can be read straight out of the log without extra
+# instrumentation. Each measurement prints the last completed pair.
+log_delta() {
+    pat_a="$1"
+    pat_b="$2"
+    label="$3"
+    awk -v a="$pat_a" -v b="$pat_b" -v lbl="$label" '
+        {
+            t = -1
+            if (match($0, /\[[ ]*[0-9]+\.[0-9]+\]/)) {
+                s = substr($0, RSTART + 1, RLENGTH - 2)
+                gsub(/ /, "", s)
+                t = s + 0
+            }
+            if ($0 ~ a) last = t
+            if ($0 ~ b && last != -1) { printf "    %-34s %.3f s\n", lbl, t - last; last = -1 }
+        }' /data/log/init.log 2>/dev/null | tail -1
+}
+
+echo "## Latencies (log-derived)"
+echo
+log_delta "received type=LaunchGame"      "GAME_FOREGROUND"   "launch→game foreground"
+log_delta "received type=ShowOverlay"     "PLAYOS_UI_FOREGROUND" "ARMOURY→overlay (IPC)"
+log_delta "TerminateGame: pid"            "SHELL_FOREGROUND"  "game exit→shell"
+echo "    boot: init starts at $(grep -a -m1 'playos-init starting' /data/log/init.log | sed 's/.*\[ *\([0-9.]*\)\].*/\1/') s (kernel+firmware before init)"
+echo
+
+echo "## Idle CPU (5 s sample, % of one core)"
+echo
+for p in playos-shell playos-compositor playos-overlay; do
+    pid=$(pgrep -f "$p" | head -1)
+    [ -n "$pid" ] || continue
+    a=$(awk '{print $14+$15}' "/proc/$pid/stat" 2>/dev/null)
+    sleep 5
+    b=$(awk '{print $14+$15}' "/proc/$pid/stat" 2>/dev/null)
+    [ -n "$a" ] && echo "    $p (pid $pid): $(( (b - a) * 100 / 500 ))%"
+done
+echo
+
+echo "## Direct scanout"
+echo
+n=$(grep -a -c -i "scanout" /data/log/compositor-stderr.log 2>/dev/null || true)
+if [ "${n:-0}" -gt 0 ]; then
+    grep -a -i "scanout" /data/log/compositor-stderr.log | tail -3 | sed 's/^/    /'
+else
+    echo "    no 'scanout' lines at the default wlroots log level — not confirmable from logs alone"
+fi
 echo

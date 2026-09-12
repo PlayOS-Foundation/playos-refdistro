@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-
 PLAYOS_RUNTIME_COMMIT=17c006a8779da6f255b27dd502f89012c94e2a20  # playos-runtime (S14-T10 installer front-end)
 PLAYOS_INIT_COMMIT=87ae3bbb7b025e0998c0898f7278bcb552f82a17  # playos-init (S14-T10 installer front-end)
 PLAYOS_COMPOSITOR_COMMIT=3862e4dd1ec485d465a20a6cd8be03480b51e4a6  # compositor: release trusted roles on client disconnect (S14)
-PLAYOS_SHELL_COMMIT=d084b6f84a9718d583da82547ecf297c06cf724c  # playos-shell (S14-T10 installer front-end)
+PLAYOS_SHELL_COMMIT=b343f188714f8d63b580c0919719a75aa6fd6e07  # shell: installer picker boot-medium fix (S14-T10)
 PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

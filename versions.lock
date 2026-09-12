@@ -26,7 +26,7 @@ PLAYOS_RUNTIME_COMMIT=01c193b6a3f8291acb02cb14f6c9254622c388b2  # runtime: playo
 PLAYOS_INIT_COMMIT=3c7309d23bed22f22dde29d33c86931db8bdf8bc  # init: poll-based IPC wait (removes 1s control latency) (S14)
 PLAYOS_COMPOSITOR_COMMIT=3862e4dd1ec485d465a20a6cd8be03480b51e4a6  # compositor: release trusted roles on client disconnect (S14)
 PLAYOS_SHELL_COMMIT=56912225f186b14b4e117b2dac0d242f0856e20f  # shell: screencopy v1 + format-aware pixels + ARMOURY CRATE gesture (S14)
-PLAYOS_SAMPLES_COMMIT=2aaec17b81d668f2116b5ec0c8a2d53db326faf9  # samples: fix cel shading white car (consume viewPos via specular)
+PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────

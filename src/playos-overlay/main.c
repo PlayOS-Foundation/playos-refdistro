@@ -59,10 +59,21 @@ extern int  platform_playos_preconnect(void);
 /* ── Overlay interaction modes (Sprint 9) ──────────────────────────────── */
 
 enum overlay_mode {
-    OVERLAY_MODE_NORMAL,   /* Resume / Quit game / Volume */
-    OVERLAY_MODE_PROFILE,  /* D-pad L/R select performance profile, A applies */
+    OVERLAY_MODE_NORMAL,   /* Focus list: Resume / Quit / Performance Profile */
+    OVERLAY_MODE_PROFILE,  /* Performance profile selector */
     OVERLAY_MODE_POWER,    /* Sleep / Restart / Shutdown menu */
 };
+
+/* Focus items in the quick menu (OVERLAY_MODE_NORMAL). */
+enum overlay_quick_item {
+    OVERLAY_QUICK_RESUME = 0,
+    OVERLAY_QUICK_QUIT,
+    OVERLAY_QUICK_PROFILE,
+    OVERLAY_QUICK_COUNT,
+};
+
+/* Quit Game is destructive, so it must be held rather than tapped. */
+#define OVERLAY_QUIT_HOLD_MS 900
 
 /* ── Overlay state ─────────────────────────────────────────────────────── */
 
@@ -84,6 +95,13 @@ struct overlay_state {
     int               power_cursor;     /* 0=Sleep,1=Restart,2=Shutdown */
     PlayOSPowerInfo   power_info;
     bool              power_info_valid;
+
+    /* S14 focus list. a_down tracks the A button's held state (the press
+     * edges in poll_input cannot express a hold); quit_hold_start_ms is the
+     * monotonic time the hold-A quit confirm started, or 0 when idle. */
+    int               quick_cursor;
+    int               a_down;
+    long long         quit_hold_start_ms;
 };
 
 /* ── playos_overlay_v1 listener ───────────────────────────────────────── */
@@ -97,6 +115,11 @@ overlay_handle_about_to_show(void *data, struct playos_overlay_v1 *overlay)
     st->visible = true;
     clock_gettime(CLOCK_MONOTONIC, &st->shown_at);
     st->shown_at_valid = true;
+
+    /* Always open on the top of the menu, with no half-charged confirm. */
+    st->mode = OVERLAY_MODE_NORMAL;
+    st->quick_cursor = OVERLAY_QUICK_RESUME;
+    st->quit_hold_start_ms = 0;
 
     /* Refresh the active-game status every time the overlay is raised. */
     memset(st->status_buf, 0, sizeof(st->status_buf));
@@ -113,6 +136,7 @@ overlay_handle_about_to_hide(void *data, struct playos_overlay_v1 *overlay)
 
     st->visible = false;
     st->shown_at_valid = false;
+    st->quit_hold_start_ms = 0;
 
     /* Never leave a sub-menu armed across a hide: the next show must start on
      * the top-level pause menu. */
@@ -221,7 +245,7 @@ static void
 poll_input(int fd, int *a_pressed, int *b_pressed,
            int *vol_up_pressed, int *vol_down_pressed,
            int *dpad_left_pressed, int *dpad_right_pressed,
-           int *select_pressed)
+           int *select_pressed, int *a_down)
 {
     *a_pressed = 0;
     *b_pressed = 0;
@@ -256,11 +280,22 @@ poll_input(int fd, int *a_pressed, int *b_pressed,
             continue;
         }
 
-        if (ev.type != EV_KEY || ev.value != 1) /* press edge only */
+        if (ev.type != EV_KEY)
             continue;
-        if (ev.code == BTN_SOUTH)
-            *a_pressed = 1;
-        else if (ev.code == BTN_EAST)
+
+        /* A is tracked as a held state as well as a press edge, so the menu
+         * can require a hold to confirm Quit. *a_down persists across frames
+         * (it is only updated by an event), so a release must clear it. */
+        if (ev.code == BTN_SOUTH) {
+            *a_down = ev.value ? 1 : 0;
+            if (ev.value == 1)
+                *a_pressed = 1;
+            continue;
+        }
+
+        if (ev.value != 1) /* press edge only */
+            continue;
+        if (ev.code == BTN_EAST)
             *b_pressed = 1;
         else if (ev.code == BTN_DPAD_UP)
             *vol_up_pressed = 1;
@@ -400,7 +435,7 @@ main(int argc, char *argv[])
         poll_input(evdev_fd, &a_pressed, &b_pressed,
                    &vol_up_pressed, &vol_down_pressed,
                    &dpad_left_pressed, &dpad_right_pressed,
-                   &select_pressed);
+                   &select_pressed, &st.a_down);
 
         /* The overlay only owns input while it is visible; when it is hidden
          * the game must receive its buttons. poll_input() above has already
@@ -415,6 +450,7 @@ main(int argc, char *argv[])
             dpad_left_pressed = 0;
             dpad_right_pressed = 0;
             select_pressed = 0;
+            st.quit_hold_start_ms = 0;
         }
 
         /* Read the system master volume once per frame for the card and
@@ -427,25 +463,6 @@ main(int argc, char *argv[])
         if (st.visible) {
             if (playos_power_get_info(&st.power_info) == 0)
                 st.power_info_valid = true;
-        }
-
-        /* D-pad L/R: select a performance profile (A applies it). */
-        if ((dpad_left_pressed || dpad_right_pressed) &&
-            st.mode != OVERLAY_MODE_POWER) {
-            if (st.mode != OVERLAY_MODE_PROFILE) {
-                st.mode = OVERLAY_MODE_PROFILE;
-                st.profile_index = st.power_info_valid
-                                   ? (int)st.power_info.active_profile
-                                   : PLAYOS_PERF_BALANCED;
-            }
-            if (dpad_left_pressed)
-                st.profile_index--;
-            else
-                st.profile_index++;
-            if (st.profile_index < 0)
-                st.profile_index = 2;
-            if (st.profile_index > 2)
-                st.profile_index = 0;
         }
 
         /* SELECT toggles the power menu (Sleep / Restart / Shutdown). */
@@ -491,13 +508,23 @@ main(int argc, char *argv[])
             if (b_pressed)
                 st.mode = OVERLAY_MODE_NORMAL;
         } else {
-            /* NORMAL: resume, quit game, and volume control. */
-            if (vol_up_pressed || vol_down_pressed) {
+            /* NORMAL: focus list — Resume Game / Quit Game / Performance
+             * Profile. Up/Down moves focus, A activates the focused item, B
+             * resumes (hides the overlay) and never quits, Left/Right steps
+             * the volume. Quit is item-only and needs a hold-A confirm. */
+            if (vol_up_pressed) {
+                st.quick_cursor = (st.quick_cursor + OVERLAY_QUICK_COUNT - 1)
+                                  % OVERLAY_QUICK_COUNT;
+                st.quit_hold_start_ms = 0;
+            }
+            if (vol_down_pressed) {
+                st.quick_cursor = (st.quick_cursor + 1) % OVERLAY_QUICK_COUNT;
+                st.quit_hold_start_ms = 0;
+            }
+
+            if (dpad_left_pressed || dpad_right_pressed) {
                 float vol = audio_info.master_volume;
-                if (vol_up_pressed)
-                    vol += 0.05f;
-                else
-                    vol -= 0.05f;
+                vol += dpad_right_pressed ? 0.05f : -0.05f;
                 if (vol < 0.0f)
                     vol = 0.0f;
                 if (vol > 1.0f)
@@ -505,17 +532,50 @@ main(int argc, char *argv[])
                 (void)playos_audio_set_master_volume(vol);
             }
 
-            if (a_pressed && overlay) {
-                /* Resume: ask the compositor to hide us. */
+            if (b_pressed && overlay) {
+                /* B = resume: hide the overlay, never quit the game. */
+                st.quit_hold_start_ms = 0;
                 playos_overlay_v1_request_dismiss(overlay);
                 platform_playos_flush();
             }
 
-            if (b_pressed) {
-                /* Quit active game via playos-init's trusted control socket. */
-                if (playos_trusted_terminate_game(-1) != 0)
-                    fprintf(stderr, "overlay: TerminateGame failed\n");
-                platform_playos_flush();
+            if (st.quick_cursor == OVERLAY_QUICK_RESUME) {
+                st.quit_hold_start_ms = 0;
+                if (a_pressed && overlay) {
+                    playos_overlay_v1_request_dismiss(overlay);
+                    platform_playos_flush();
+                }
+            } else if (st.quick_cursor == OVERLAY_QUICK_QUIT) {
+                /* Destructive: require A to be held for OVERLAY_QUIT_HOLD_MS. */
+                if (a_pressed && st.quit_hold_start_ms == 0) {
+                    struct timespec now;
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    st.quit_hold_start_ms =
+                        (long long)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+                }
+                if (!st.a_down) {
+                    st.quit_hold_start_ms = 0;
+                } else if (st.quit_hold_start_ms > 0) {
+                    struct timespec now;
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    long long now_ms = (long long)now.tv_sec * 1000 +
+                                       now.tv_nsec / 1000000;
+                    if (now_ms - st.quit_hold_start_ms >= OVERLAY_QUIT_HOLD_MS) {
+                        if (playos_trusted_terminate_game(-1) != 0)
+                            fprintf(stderr, "overlay: TerminateGame failed\n");
+                        platform_playos_flush();
+                        st.quit_hold_start_ms = 0;
+                    }
+                }
+            } else {
+                /* Performance Profile: open the selector sub-screen. */
+                st.quit_hold_start_ms = 0;
+                if (a_pressed) {
+                    st.mode = OVERLAY_MODE_PROFILE;
+                    st.profile_index = st.power_info_valid
+                                       ? (int)st.power_info.active_profile
+                                       : PLAYOS_PERF_BALANCED;
+                }
             }
         }
 
@@ -594,6 +654,37 @@ main(int argc, char *argv[])
             DrawText(line, margin, margin + 176, 20,
                      audio_info.muted ? ORANGE : LIGHTGRAY);
 
+            /* Quick menu focus list (NORMAL mode). */
+            if (st.mode == OVERLAY_MODE_NORMAL) {
+                static const char *quick[OVERLAY_QUICK_COUNT] = {
+                    "Resume Game", "Quit Game", "Performance Profile"
+                };
+                DrawText("Menu:", margin, margin + 204, 20, RAYWHITE);
+                for (int i = 0; i < OVERLAY_QUICK_COUNT; i++) {
+                    char item[96];
+                    const char *mark = (i == st.quick_cursor) ? "> " : "  ";
+                    if (i == OVERLAY_QUICK_QUIT && st.quit_hold_start_ms > 0) {
+                        /* Show hold-to-confirm progress. */
+                        struct timespec now;
+                        clock_gettime(CLOCK_MONOTONIC, &now);
+                        long long now_ms = (long long)now.tv_sec * 1000 +
+                                           now.tv_nsec / 1000000;
+                        long long pct = (now_ms - st.quit_hold_start_ms) * 100 /
+                                        OVERLAY_QUIT_HOLD_MS;
+                        if (pct < 0)
+                            pct = 0;
+                        if (pct > 100)
+                            pct = 100;
+                        snprintf(item, sizeof(item), "%sQuit Game  [%lld%%]",
+                                 mark, pct);
+                    } else {
+                        snprintf(item, sizeof(item), "%s%s", mark, quick[i]);
+                    }
+                    DrawText(item, margin, margin + 232 + i * 28, 20,
+                             (i == st.quick_cursor) ? YELLOW : LIGHTGRAY);
+                }
+            }
+
             /* Performance profile selector. */
             if (st.mode == OVERLAY_MODE_PROFILE) {
                 DrawText("Profile:", margin, margin + 204, 20, RAYWHITE);
@@ -631,8 +722,10 @@ main(int argc, char *argv[])
                 hint = "A: Apply    B: Back    Left/Right: Change";
             else if (st.mode == OVERLAY_MODE_POWER)
                 hint = "A: Confirm    B: Back    Up/Down: Select";
+            else if (st.quick_cursor == OVERLAY_QUICK_QUIT)
+                hint = "Hold A: Quit Game    B: Resume    Up/Down: Menu    Left/Right: Volume";
             else
-                hint = "A: Resume    B: Quit game    D-pad: Volume    Select: Power";
+                hint = "A: Select    B: Resume    Up/Down: Menu    Left/Right: Volume    Select: Power";
             DrawText(hint, margin, h - margin - 30, 20, GRAY);
         }
 

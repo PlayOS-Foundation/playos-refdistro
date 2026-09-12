@@ -894,6 +894,37 @@ main(void)
                    st.payload_ok ? st.payload_mount : "(none)",
                    st.payload_ok);
 
+    /* S14-T10: when the shell's installer front-end already showed the disk
+     * list and took the destructive confirmation, init passes the chosen disk
+     * in PLAYOS_INSTALL_TARGET and we start installing straight away — no
+     * second picker and no second confirmation. An unknown path (or none)
+     * falls back to the interactive flow, and MODE_INSTALLING still verifies
+     * the payload itself before anything touches the disk. */
+    const char *preselected = getenv("PLAYOS_INSTALL_TARGET");
+    if (preselected && preselected[0]) {
+        int idx = -1;
+        for (int i = 0; i < st.disk_count; i++) {
+            if (strcmp(st.disks[i].path, preselected) == 0) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx >= 0) {
+            st.cursor = idx;
+            st.confirm_progress = 0;
+            st.step_index = 0;
+            st.step_error = -1;
+            st.err_buf[0] = '\0';
+            installer_logf("preselected target %s (%s) — skipping picker and "
+                           "confirmation", st.disks[idx].path,
+                           st.disks[idx].model);
+            st.mode = MODE_INSTALLING;
+        } else {
+            installer_logf("PLAYOS_INSTALL_TARGET=%s matches no enumerated "
+                           "disk — falling back to the picker", preselected);
+        }
+    }
+
     while (!WindowShouldClose()) {
         poll_input(st.evdev_fd, &st.input);
 

@@ -102,6 +102,12 @@ struct overlay_state {
     int               quick_cursor;
     int               a_down;
     long long         quit_hold_start_ms;
+
+    /* Set by about_to_show: the first poll after becoming visible returns the
+     * presses the game received while the overlay was hidden (its frame loop
+     * blocks waiting for a frame callback then, so the evdev queue fills up),
+     * and acting on them dismissed the menu instantly. Throw that poll away. */
+    int               just_shown;
 };
 
 /* ── playos_overlay_v1 listener ───────────────────────────────────────── */
@@ -120,6 +126,12 @@ overlay_handle_about_to_show(void *data, struct playos_overlay_v1 *overlay)
     st->mode = OVERLAY_MODE_NORMAL;
     st->quick_cursor = OVERLAY_QUICK_RESUME;
     st->quit_hold_start_ms = 0;
+
+    /* Ignore the first input poll: everything queued while we were hidden is
+     * gameplay input, and a stale B/A edge would dismiss (or activate) a menu
+     * item before the user ever sees it. */
+    st->just_shown = 1;
+    st->a_down = 0;
 
     /* Refresh the active-game status every time the overlay is raised. */
     memset(st->status_buf, 0, sizeof(st->status_buf));
@@ -450,6 +462,23 @@ main(int argc, char *argv[])
             dpad_left_pressed = 0;
             dpad_right_pressed = 0;
             select_pressed = 0;
+            st.quit_hold_start_ms = 0;
+        }
+
+        /* Just became visible: this poll drained the presses the player made
+         * in game (the frame loop blocks while hidden, so the evdev queue
+         * backs up). Acting on them dismissed the menu two milliseconds after
+         * it appeared. Discard this one poll. */
+        if (st.just_shown) {
+            st.just_shown = 0;
+            a_pressed = 0;
+            b_pressed = 0;
+            vol_up_pressed = 0;
+            vol_down_pressed = 0;
+            dpad_left_pressed = 0;
+            dpad_right_pressed = 0;
+            select_pressed = 0;
+            st.a_down = 0;
             st.quit_hold_start_ms = 0;
         }
 

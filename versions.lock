@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-
 PLAYOS_RUNTIME_COMMIT=01c193b6a3f8291acb02cb14f6c9254622c388b2  # runtime: playos_trusted_rollback_slot wrapper (S14)
 PLAYOS_INIT_COMMIT=3c7309d23bed22f22dde29d33c86931db8bdf8bc  # init: poll-based IPC wait (removes 1s control latency) (S14)
 PLAYOS_COMPOSITOR_COMMIT=3862e4dd1ec485d465a20a6cd8be03480b51e4a6  # compositor: release trusted roles on client disconnect (S14)
-PLAYOS_SHELL_COMMIT=da26d88e1c2a279f912672447f855b49127565da  # shell: COMMAND=screenshot, ARMOURY=menu; inert UI when suspended (S14)
+PLAYOS_SHELL_COMMIT=07f29373289647c1d0fe6aa108aff1682a8430d6  # shell: status-bar layout fix (S14)
 PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

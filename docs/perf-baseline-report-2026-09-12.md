@@ -128,7 +128,31 @@ Two of those are pure added latency, and were cut:
   now polls every 25 ms (40 attempts, same 1 s tolerance), costing only the time
   actually needed.
 
-Expected saving ~0.7-0.9 s; to be confirmed from the next boot's markers.
+**Measured on the next boot (confirmation):**
+
+```
+  4.570s    +0.001s  udevd started (PID 226)
+  5.240s    +0.670s  ESP mounted at /EFI (device /dev/nvme0n1p1)
+  5.581s    +0.203s  compositor ready (PID 310)
+  5.581s    +0.000s  compositor Wayland socket ready after 0 ms   <- was a 504 ms sleep
+  5.581s    +0.000s  spawning shell: /usr/bin/playos-shell
+  6.490s    +0.908s  received type=ShellReady
+```
+
+**Cold boot → shell ready: 7.66 s → 6.49 s (−1.17 s)**, and `system ready`
+(i.e. every component spawned) at 5.58 s.
+
+Two corrections to the plan above, both from the data:
+
+- the ESP stage did **not** shrink (0.67 s): the wait is the *kernel* bringing up
+  the NVMe (init starts at 4.57 s, the partitions appear ~0.6 s later), so the
+  fast poll only removed the *sleeps* around a wait that is otherwise real. It is
+  on the critical path only because A/B boot counting and the slot pivot need
+  `/EFI` before the clients start; removing it needs the slot decision to come
+  from the bootloader (a `playos.slot=` cmdline token written by GRUB) rather
+  than from `boot.json` read after a mount. Worth ~0.67 s.
+- the shell's startup measured 0.91 s this boot (it was 1.37 s), so that stage is
+  highly variable — worth re-measuring before optimising it.
 
 **What remains, honestly:** hitting 5 s needs the two big items, not more
 trimming:

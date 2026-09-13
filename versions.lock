@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=78f3a2577100b432e5ae8924e2d04888d9dde97f  # spec: T9 done
+PLAYOS_SPEC_COMMIT=30b20389cdb5c124752b3dbcaf6d4b566dcc160f  # spec: T9 rollback verified
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=17c006a8779da6f255b27dd502f89012c94e2a20  # playos-runtime (S14-T10 installer front-end)
 PLAYOS_INIT_COMMIT=d70dc8f5fb04c6fb45980cb49e0e581e6c2a914d  # init: sysfs disk-name resolution (installs)

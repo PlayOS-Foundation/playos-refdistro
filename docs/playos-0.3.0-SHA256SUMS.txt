@@ -1,0 +1,8 @@
+# PlayOS v0.3.0 release artifacts — generated 2026-09-13T07:49:21Z
+
+5a062c2b4c8df815966f7d04f3a1d66f63bf0430eb2b0252335e6bcd09165b63  rootfs.squashfs
+12e764535178b569cc212b91ac88c02ecb1956ca687d50b7cd40d42a36b9213c  bzImage
+b23dcf8702a77cd5672aa76879508fb242eca30ddc05c42a2f7cf8df1bd60fd6  BOOTX64.EFI.signed
+b6249dff3b8b04a707f8bfa2488987db891c6becf61b1a777ea366d77196ce2c  playos-update-0.3.0-prod.playosb
+01ec4373759a01d7450741b87c29dc71e9806b39ce5afbcc23ce25d11eed62c6  playos-ally-prod-usb.img
+271ddd5e0633427531db6351066ad3d12a59610af7776b80cef269d9310c19d0  playos-0.3.0-sdk-headers.tar.gz

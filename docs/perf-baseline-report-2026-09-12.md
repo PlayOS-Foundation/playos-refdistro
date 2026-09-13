@@ -48,3 +48,52 @@ full at 100 %, `AC0` present.
   `/etc/hostname` is `playos-ally` — `playos-init` never applies the hostname.
   The image also carries no PlayOS version marker (`/etc/os-release` is stock
   Buildroot), so build identity has to be established from binary hashes.
+
+---
+
+## Follow-up 2026-09-13 — P2 instrumentation + P4 damage-driven shell rendering
+
+### P2 — in-game FPS instrumentation (done)
+
+The compositor now counts each tracked toplevel's commits per second and logs
+them, which measures the client's frame rate without any cooperation from it
+(so it covers non-cooperative games):
+
+```
+playos-compositor: fps shell=8 game=120 (commits/s)
+```
+
+Measured on the Ally with a sample game: **peak 120 commits/s** — the game
+saturates the panel's 120 Hz. `scripts/perf-baseline.sh` reports the shell rate
+plus the in-game peak.
+
+### P4 — damage-driven shell rendering (done)
+
+The shell used to redraw continuously (~55 fps) even when nothing changed. It now
+redraws only when something can have changed — input within 0.6 s, a screen
+change, toasts/modals, the installer hold, or the Live Input Test — and otherwise
+settles at ~8 fps, sleeping 4 ms per idle iteration (raylib's pacing lives inside
+`EndDrawing()`, so a skipped frame must not be left to spin).
+
+| Metric (Ally, idle) | Before | After |
+|---|---|---|
+| Shell frame rate (`shell-stderr.log`) | 55.5 fps | **8.0-8.2 fps** |
+| Shell commits/s (compositor) | 56 | **8-9** |
+| Shell CPU | 7.4% of one core | **2.8%** |
+
+Input latency is unchanged in practice: input is polled every iteration (the
+4 ms sleep bounds the delay), and any button/d-pad press switches to full rate
+for 0.6 s.
+
+**What made this interesting:** the first attempt did not engage at all — the
+shell stayed at 55 fps. Decoding the raw evdev traffic showed why: the Ally's
+right stick *at rest* oscillates `ABS_RY 511 <-> 767` (~65 events/s), so a
+"any event = activity" rule is permanently true. The activity signal now counts
+only discrete input (EV_KEY, d-pad hat). Trade-off, by design: analog motion no
+longer wakes the UI, so stick-driven list scrolling redraws at the idle rate
+(d-pad navigation, the primary path, stays full rate).
+
+### Still open from the original report
+
+P1 (boot 7.16 s vs 5 s target) and P3 (direct-scanout observability) are
+unchanged.

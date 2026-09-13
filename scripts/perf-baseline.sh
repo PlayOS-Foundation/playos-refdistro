@@ -50,9 +50,18 @@ for s in /sys/class/power_supply/*; do
 done
 echo
 
-echo "## Shell FPS (last log lines)"
+echo "## Shell FPS (last log lines — S14 P4: idle is now a few fps, not ~55)"
 echo
 grep -h -i "fps" /data/log/shell-stderr.log 2>/dev/null | tail -3 | sed 's/^/    /' || true
+echo
+echo "## Per-role frame rate from the compositor (S14 P2)"
+echo "    'game=' is the in-game instrumentation: the compositor counts every"
+echo "    committed client frame, so it covers non-cooperative games too."
+grep -h -a "fps shell=" /data/log/compositor-stderr.log 2>/dev/null | tail -6 | sed 's/^/    /' || true
+printf "    in-game peak: "
+grep -h -a "fps shell=" /data/log/compositor-stderr.log 2>/dev/null \
+    | sed -n 's/.*game=\([0-9]*\).*/\1/p' | sort -n | tail -1 \
+    | awk '{ print ($1 == "" ? "(no game ran)" : $1 " commits/s") }'
 echo
 
 echo "## Boot markers (timestamps are seconds since power-on)"

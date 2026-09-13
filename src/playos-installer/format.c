@@ -38,18 +38,56 @@ child_redirect_to_devnull(void)
     setenv("PATH", "/sbin:/usr/sbin:/bin:/usr/bin", 1);
 }
 
+/* Run a tool, capturing its stderr/stdout into `err` so a failure names its
+ * own reason (mkfs.fat's "contains a mounted filesystem", fdisk's "in use",
+ * ...). Previously the output went to /dev/null and all we had was an exit
+ * code, which cost a lot of guessing. */
 static int
 run_cmd(char *const argv[], char *err, size_t errlen)
 {
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        snprintf(err, errlen, "pipe failed: %s", strerror(errno));
+        return -1;
+    }
+
     pid_t pid = fork();
     if (pid < 0) {
         snprintf(err, errlen, "fork failed: %s", strerror(errno));
+        close(pipefd[0]);
+        close(pipefd[1]);
         return -1;
     }
     if (pid == 0) {
-        child_redirect_to_devnull();
+        setenv("PATH", "/sbin:/usr/sbin:/bin:/usr/bin", 1);
+        dup2(pipefd[1], STDOUT_FILENO);
+        dup2(pipefd[1], STDERR_FILENO);
+        close(pipefd[0]);
+        close(pipefd[1]);
         execvp(argv[0], argv);
         _exit(127);
+    }
+
+    close(pipefd[1]);
+
+    char captured[384];
+    size_t used = 0;
+    for (;;) {
+        char scratch[128];
+        char *dst = (used + 1 < sizeof(captured)) ? captured + used : scratch;
+        size_t cap = (used + 1 < sizeof(captured))
+                         ? sizeof(captured) - 1 - used : sizeof(scratch);
+        ssize_t n = read(pipefd[0], dst, cap);
+        if (n <= 0)
+            break;
+        if (dst == captured)
+            used += (size_t)n;      /* keep draining so the child never blocks */
+    }
+    close(pipefd[0]);
+    captured[used] = '\0';
+    for (size_t i = 0; i < used; i++) {
+        if (captured[i] == '\n' || captured[i] == '\r')
+            captured[i] = ' ';
     }
 
     int status = 0;
@@ -58,8 +96,9 @@ run_cmd(char *const argv[], char *err, size_t errlen)
         return -1;
     }
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        snprintf(err, errlen, "%s failed (exit %d)",
-                 argv[0], WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+        snprintf(err, errlen, "%s failed (exit %d)%s%s",
+                 argv[0], WIFEXITED(status) ? WEXITSTATUS(status) : -1,
+                 used ? ": " : "", captured);
         return -1;
     }
     return 0;
@@ -78,6 +117,87 @@ run_cmd_best_effort(char *const argv[])
     }
     int status;
     (void)waitpid(pid, &status, 0);
+}
+
+/* ── target release ────────────────────────────────────────────────────── */
+
+/* Base disk of a /dev path, asked of sysfs ("/dev/nvme0n1p1" -> "nvme0n1").
+ * Name parsing gets this wrong: "nvme0n1" itself ends in a digit. */
+static void
+disk_name_of(const char *dev, char *out, size_t outsz)
+{
+    const char *b = strrchr(dev, '/');
+    b = b ? b + 1 : dev;
+
+    char probe[192], link[192], target[256];
+    snprintf(probe, sizeof(probe), "/sys/class/block/%s/partition", b);
+    if (access(probe, F_OK) == 0) {
+        snprintf(link, sizeof(link), "/sys/class/block/%s", b);
+        ssize_t n = readlink(link, target, sizeof(target) - 1);
+        if (n > 0) {
+            target[n] = '\0';
+            char *slash = strrchr(target, '/');
+            if (slash && slash != target) {
+                *slash = '\0';
+                char *disk = strrchr(target, '/');
+                disk = disk ? disk + 1 : target;
+                size_t len = strlen(disk);
+                if (len >= outsz)
+                    len = outsz - 1;
+                memcpy(out, disk, len);
+                out[len] = '\0';
+                return;
+            }
+        }
+    }
+
+    size_t len = strlen(b);
+    if (len >= outsz)
+        len = outsz - 1;
+    memcpy(out, b, len);
+    out[len] = '\0';
+}
+
+/* Nothing on the target disk may stay mounted while we repartition and format
+ * it: mkfs refuses a mounted device ("contains a mounted filesystem", exit 1)
+ * and the kernel cannot re-read a partition table that is in use. init normally
+ * releases the ESP for us, but this is the check that makes the failure
+ * impossible rather than a silent one. */
+int
+playos_format_release_target(const char *device, char *err, size_t errlen)
+{
+    char want[64];
+    disk_name_of(device, want, sizeof(want));
+
+    FILE *f = fopen("/proc/mounts", "r");
+    if (!f) {
+        snprintf(err, errlen, "open /proc/mounts: %s", strerror(errno));
+        return -1;
+    }
+
+    int failed = 0;
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        char src[160], mnt[256];
+        if (sscanf(line, "%159s %255s", src, mnt) != 2)
+            continue;
+        if (strncmp(src, "/dev/", 5) != 0)
+            continue;
+
+        char have[64];
+        disk_name_of(src, have, sizeof(have));
+        if (strcmp(have, want) != 0)
+            continue;
+
+        if (umount(mnt) != 0 && umount2(mnt, MNT_DETACH) != 0) {
+            snprintf(err, errlen,
+                     "%s is mounted at %s and could not be released: %s",
+                     src, mnt, strerror(errno));
+            failed = 1;
+        }
+    }
+    fclose(f);
+    return failed ? -1 : 0;
 }
 
 /* ── partition device node path ────────────────────────────────────────── */

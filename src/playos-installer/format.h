@@ -18,6 +18,10 @@
  * The device argument is the bare kernel name (e.g. "nvme0n1"). */
 int  playos_format_partition_disk(const char *device, char *err, size_t errlen);
 
+/* Unmount anything on the target disk before repartitioning/formatting it.
+ * Returns 0 when the target is free. */
+int  playos_format_release_target(const char *device, char *err, size_t errlen);
+
 int  playos_format_mkfs_fat(const char *device, int partno, const char *label,
                             char *err, size_t errlen);
 int  playos_format_mkfs_ext4(const char *device, int partno, const char *label,

@@ -530,7 +530,17 @@ run_install_step(struct installer *st)
                    st->step_index, st->step_name, dev);
 
     switch (st->step_index) {
-    case 0: rc = playos_format_partition_disk(dev, err, errlen); break;
+    case 0:
+        /* Make the target free first: a partition of it staying mounted (the
+         * ESP is mounted as /EFI by init on a live session) makes mkfs refuse
+         * the format and the kernel refuse to re-read the partition table. */
+        if (playos_format_release_target(dev, err, errlen) != 0) {
+            rc = -1;
+            break;
+        }
+        installer_logf("installer: target %s is free of mounts", dev);
+        rc = playos_format_partition_disk(dev, err, errlen);
+        break;
     case 1: rc = playos_format_mkfs_fat(dev, 1, "ESP", err, errlen); break;
     case 2: rc = playos_format_write_image(dev, 2, "/mnt/payload/rootfs.squashfs",
                                            err, errlen); break;

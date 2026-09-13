@@ -60,6 +60,52 @@ So: with no accelerated GPU driver at all, the compositor came up on SimplEDRM
 with the pixman renderer, the shell ran, and the recovery menu reached the
 screen.
 
+## 8. The GL-free recovery UI (`playos-recovery`)
+
+Software rendering on the compositor side is not enough on its own: the shell is a
+**GL client**, so with a pixman (software) compositor Raylib's EGL cannot create a
+screen on the Ally (`failed to get driver name for fd -1` → `eglInitialize 0x3001`),
+the shell exits, crash-loops five times and init gives up — leaving an empty
+compositor on screen (a blue screen, measured on the Ally on 2026-09-13).
+
+The fix is a recovery UI that needs no GL at all: `src/playos-recovery/` (new
+`playos-recovery` package, built for every target). It is a plain Wayland client
+that
+
+- paints into a **`wl_shm`** buffer (so any compositor renderer can display it —
+  GLES2, pixman or SimplEDRM-over-software) and rasterises its text in software
+  with stb_truetype from the same Silkscreen TTF the shell uses,
+- reads input straight from **evdev** (d-pad via `ABS_HAT0X/Y` as the Ally sends
+  it, `BTN_SOUTH`, `BTN_EAST`, volume keys) — no seat, no shell, no GPU,
+- offers the same menu as the shell's recovery screen (reboot, shutdown, factory
+  reset with confirmation, rollback, log list + viewer) and performs the actions
+  through the trusted IPC to playos-init.
+
+**Trigger**: init starts it when the shell *cannot run* in recovery — i.e. when
+the shell hits its restart limit while `recovery_mode` is set
+(`supervisor.c`: "recovery: shell unavailable — starting the GL-free recovery
+client"). The GL shell is still preferred whenever it works, so nothing changes
+on a healthy machine.
+
+**Verification** (`scripts/qemu-recovery-check.sh`, F3_APPEND=playos.noshell=1):
+the hook `playos.noshell` makes the shell fail on purpose, reproducing the Ally's
+signature in QEMU so the client path is exercised end to end:
+
+```
+recovery: shell unavailable — starting the GL-free recovery client
+recovery client launched (PID 77)
+PASS: recovery UI rendered with software rendering (no GPU driver)
+```
+
+The captured frame — `docs/evidence/f3-recovery-client-no-gl-2026-09-13.png` —
+is the client's own menu: `RECOVERY MODE`, the five items with REBOOT highlighted,
+the control hints, and **no status bar** (which distinguishes it from the shell's
+screen).
+
+`playos.renderer=pixman` on the kernel cmdline forces the compositor into software
+rendering, which is how the same path can be reproduced on the Ally (combined with
+`playos.recovery`).
+
 ## Notes and residual risk
 
 - Enabling SimplEDRM on the Ally is the one change that touches the *normal*

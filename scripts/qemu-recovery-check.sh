@@ -24,6 +24,10 @@ INITRAMFS="$QEMU_OUT/images/rootfs.cpio"
 DATA_DISK="$QEMU_OUT/images/data.img"
 TIMEOUT="${F3_TIMEOUT:-90}"
 SETTLE="${F3_SETTLE:-8}"
+# F3_APPEND lets the caller exercise the GL-free recovery client: with
+# "playos.noshell=1" the shell fails by design, so init falls back to
+# playos-recovery — the path a machine with a broken GPU stack takes.
+EXTRA_APPEND="${F3_APPEND:-}"
 
 for f in "$BZIMAGE" "$INITRAMFS" "$DATA_DISK"; do
     if [ ! -f "$f" ]; then
@@ -82,7 +86,7 @@ timeout "$TIMEOUT" qemu-system-x86_64 \
     -initrd "$INITRAMFS" \
     -drive if=none,id=data,format=raw,file="$DATA_DISK" \
     -device virtio-blk-pci,drive=data \
-    -append "console=ttyS0,115200n8 quiet playos.recovery" \
+    -append "console=ttyS0,115200n8 quiet playos.recovery $EXTRA_APPEND" \
     -serial "file:$SERIAL" \
     -vga cirrus \
     -display none \
@@ -172,6 +176,10 @@ if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
         sudo tr -d '\0' < "$MNT/log/compositor-stderr.log" 2>/dev/null \
             | grep -aE "DRM device|software rendering|renderer forced|SimplEDRM" \
             | tail -4 | sed 's/^/      /' || true
+        echo "    recovery client:"
+        sudo tr -d '\0' < "$MNT/log/init.log" 2>/dev/null \
+            | grep -aE "recovery client launched|GL-free recovery client" \
+            | tail -3 | sed 's/^/      /' || true
         echo "    init:"
         sudo tr -d '\0' < "$MNT/log/init.log" 2>/dev/null \
             | grep -aE "recovery requested|cmdline:" | tail -3 | sed 's/^/      /' || true

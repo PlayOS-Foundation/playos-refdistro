@@ -115,6 +115,31 @@ b6249dff…96ce2c  playos-update-0.3.0-prod.playosb
 271ddd5e…c19d0  playos-0.3.0-sdk-headers.tar.gz
 ```
 
+## 7. Rollback — the other half of the A/B acceptance
+
+Still on slot B, the board was rebooted holding **Volume Up** → shell **Recovery Menu** →
+**Rollback** (d-pad + A).
+
+`init.log`:
+
+```
+[72.218] received type=RollbackSlot from fd=10
+[72.218] rollback requested via IPC
+[72.219] RollbackSlot: active slot b -> a, rebooting
+```
+
+After the reboot:
+
+| Evidence | Value |
+|---|---|
+| Running root | `/dev/nvme0n1p2` → **slot A** |
+| `boot.json` | `active_slot: "a"`, `slot_a {version 0.1.0, health good, boot_count 0}`, `slot_b {version 0.3.0, health **bad**}` |
+| Quarantine | the slot rolled back *from* is marked `bad`; the booted slot marked `good` by the normal good-boot timer |
+
+Both directions of the A/B contract are therefore hardware-verified: update forward
+(bundle → slot B → boots → mark-good) and roll back safely (recovery → RollbackSlot IPC →
+slot A, failed slot quarantined).
+
 ## Still open
 
 - **Rollback half** of the A/B acceptance: recovery menu → Rollback → back to slot A

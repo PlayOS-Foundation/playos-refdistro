@@ -17,8 +17,8 @@ Three separate things, none of them cosmetic:
    there was no firmware-framebuffer DRM device to fall back to.
 3. **`playos.recovery` on the kernel cmdline was a no-op.** The check ran before
    `playos_mount_virtual()`, so `/proc/cmdline` did not exist yet and
-   `playos_cmdline_has_flag()` always returned 0. (The Volume-Down button entry
-   uses evdev, which is why recovery *did* work on the device.)
+   `playos_cmdline_has_flag()` always returned 0. (The button-hold entry uses evdev, which is why
+   recovery *did* work on the device.)
 
 ## Changes
 
@@ -65,8 +65,9 @@ screen.
 - Enabling SimplEDRM on the Ally is the one change that touches the *normal*
   boot path. The handover is the arrangement mainstream distros ship; the
   compositor also prefers the real GPU explicitly. It still wants an on-device
-  confirmation (boot normally, then boot holding Volume Down / with
-  `playos.recovery`).
+  confirmation: boot normally, then boot with a recovery entry — hold
+  **START+SELECT for 2 s**, or **Volume Up / Volume Down for 5 s**, or pass
+  `playos.recovery` on the cmdline.
 - Recovery rendering is software, so it is slow by design — fine for a menu.
 - A machine with *no* DRM device at all (no firmware framebuffer either) still
   ends up headless; the next step there would be a kernel-console text menu.

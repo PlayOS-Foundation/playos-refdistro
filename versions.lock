@@ -20,7 +20,7 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=5904f0824a56b2edbf14fb49f856517e66e3e2c7  # spec: F3 closed
+PLAYOS_SPEC_COMMIT=de82dfe2ac8461651ec5f8bfef2c7a0d1c656cef  # spec: recovery trigger precision
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=17c006a8779da6f255b27dd502f89012c94e2a20  # playos-runtime (S14-T10 installer front-end)
 PLAYOS_INIT_COMMIT=fbaf778685a71ee5b86938cb4a800988ef35459b  # init: F3 software recovery + cmdline timing

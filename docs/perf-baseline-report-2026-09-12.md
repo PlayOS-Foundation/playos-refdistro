@@ -97,3 +97,46 @@ longer wakes the UI, so stick-driven list scrolling redraws at the idle rate
 
 P1 (boot 7.16 s vs 5 s target) and P3 (direct-scanout observability) are
 unchanged.
+
+---
+
+## Follow-up 2026-09-13 — P1 boot-time attribution (first cuts)
+
+Target: **cold boot → shell ready < 5 s**. Measured 7.44 s on the Ally. The init
+log timestamps attribute it exactly:
+
+| Stage | Time | Delta |
+|---|---|---|
+| power-on → init's first line (firmware + kernel + initramfs) | 4.51 s | **4.51 s** |
+| → ESP mounted (udev start + partition discovery) | 5.29 s | 0.79 s |
+| → compositor spawned | 5.37 s | 0.07 s |
+| → compositor **ready** | 5.57 s | 0.20 s |
+| → shell **spawned** (fixed "500 ms grace period") | 6.07 s | **0.50 s** |
+| → shell window ready 1920x1080 (EGL/GL context, first configure) | 7.00 s | **0.93 s** |
+| → registered as trusted shell | 7.01 s | 0.01 s |
+| → `ShellReady` seen by init (first frame rendered) | 7.44 s | **0.44 s** |
+
+Two of those are pure added latency, and were cut:
+
+- **the 500 ms grace period** before spawning the shell is replaced by a
+  connect-probe of the compositor's Wayland socket (`/run/playos/playos-0`,
+  polled every 20 ms, 2 s cap). The socket is the actual precondition and is
+  ready within a few ms; the fixed sleep was pure delay. The measured value is
+  logged on every boot ("compositor Wayland socket ready after N ms").
+- **the ESP mount retry** backed off 100/200/300…900 ms, so a boot whose
+  `/dev/nvme0n1p1` node appeared a moment late paid ~600 ms in sleeps alone. It
+  now polls every 25 ms (40 attempts, same 1 s tolerance), costing only the time
+  actually needed.
+
+Expected saving ~0.7-0.9 s; to be confirmed from the next boot's markers.
+
+**What remains, honestly:** hitting 5 s needs the two big items, not more
+trimming:
+
+1. **~2.5-3 s of kernel + initramfs before init runs** (firmware POST is the rest
+   and is not ours). The controllable part is the embedded initramfs: shrinking
+   it (dev tooling out of the packaged cpio) and/or its compression is the next
+   real win.
+2. **~1.4 s of shell startup** (0.93 s EGL/GL context + first configure, 0.44 s
+   first frame). Parallelising GL-context creation with the compositor configure
+   wait is the plausible cut.

@@ -106,6 +106,47 @@ screen).
 rendering, which is how the same path can be reproduced on the Ally (combined with
 `playos.recovery`).
 
+## 9. Verified on the Ally (2026-09-13)
+
+The whole chain was exercised on the ROG Ally, in recovery, with the *automatic*
+path — no manual start:
+
+1. Booted with the recovery hold; the shell's menu appeared (as before).
+2. The shell was killed repeatedly over SSH until init's restart limit tripped.
+   init then did exactly what it is built to do:
+
+```
+[50.637] recovery: shell unavailable — starting the GL-free recovery client
+[50.637] recovery client launched (PID 505)
+```
+
+3. The client's log (`/data/log/recovery-stderr.log`):
+
+```
+playos-recovery: font /usr/share/playos-shell/assets/Silkscreen-Regular.ttf
+playos-recovery: registered as the shell role
+playos-recovery: surface 1920x1080 (configured=1)
+playos-recovery: 3 input devices
+playos-recovery: screenshot -> /data/screenshots/recovery-1739319173.png (ok=1)
+```
+
+and the compositor confirmed the role grant (`trusted: shell client registered`).
+
+4. On the panel: d-pad navigation, the log list and viewer, and B back — all
+   worked. The screenshots below are the pair taken on the device, one from each
+   UI; the status bar is the tell:
+
+| File | Taken by | Content |
+|---|---|---|
+| `f3-recovery-shell-menu-on-ally-2026-09-13.png` | playos-shell | menu **with** `BATTERY 100% AC / GPU 49C / PROFILE / THERMAL` |
+| `f3-recovery-client-on-ally-2026-09-13.png` | playos-recovery | the same menu **without** any status bar, navy background, orange highlight |
+
+The client's capture was written by the client itself (`COMMAND`/`ARMOURY CRATE`
+→ `/data/screenshots/recovery-<epoch>.png`, colours verified unswapped), because
+the shell's screenshot gesture is unavailable precisely when the shell is gone.
+Both special keys are read from the hid-asus *vendor* input node, which the
+client's device filter now accepts.
+
 ## Notes and residual risk
 
 - Enabling SimplEDRM on the Ally is the one change that touches the *normal*

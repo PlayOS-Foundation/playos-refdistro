@@ -29,8 +29,19 @@ add_custom_command(
     DEPENDS ${XDG_SHELL_XML}
     COMMENT "Generating xdg-shell client protocol"
 )
+# The PlayOS manager protocol (trusted shell role). Vendored in protocols/
+# because it is specific to the PlayOS compositor, same as the installer does.
+set(PLAYOS_XML "${CMAKE_CURRENT_SOURCE_DIR}/protocols/playos-v1.xml")
+add_custom_command(
+    OUTPUT ${GEN_DIR}/playos-v1-client-protocol.h ${GEN_DIR}/playos-v1-protocol.c
+    COMMAND ${WAYLAND_SCANNER} client-header ${PLAYOS_XML} ${GEN_DIR}/playos-v1-client-protocol.h
+    COMMAND ${WAYLAND_SCANNER} private-code  ${PLAYOS_XML} ${GEN_DIR}/playos-v1-protocol.c
+    DEPENDS ${PLAYOS_XML}
+    COMMENT "Generating playos-v1 client protocol"
+)
 add_custom_target(playos-recovery-protocols DEPENDS
-    ${GEN_DIR}/xdg-shell-client-protocol.h ${GEN_DIR}/xdg-shell-protocol.c)
+    ${GEN_DIR}/xdg-shell-client-protocol.h ${GEN_DIR}/xdg-shell-protocol.c
+    ${GEN_DIR}/playos-v1-client-protocol.h ${GEN_DIR}/playos-v1-protocol.c)
 
 # ── trusted IPC (playos-runtime, installed into the sysroot) ──────────────
 find_library(TRUSTED_LIB playos-trusted
@@ -43,7 +54,8 @@ find_path(TRUSTED_INCLUDE_DIR playos-runtime/trusted_control.h
 # ── executable ────────────────────────────────────────────────────────────
 add_executable(playos-recovery
     main.c
-    ${GEN_DIR}/xdg-shell-protocol.c)
+    ${GEN_DIR}/xdg-shell-protocol.c
+    ${GEN_DIR}/playos-v1-protocol.c)
 add_dependencies(playos-recovery playos-recovery-protocols)
 
 target_include_directories(playos-recovery PRIVATE

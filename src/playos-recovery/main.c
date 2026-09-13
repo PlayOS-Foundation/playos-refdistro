@@ -32,15 +32,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
 
 #include <wayland-client.h>
 #include "xdg-shell-client-protocol.h"
+#include "playos-v1-client-protocol.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 #include "playos-runtime/trusted_control.h"
 
@@ -71,6 +76,7 @@ struct recovery {
     struct wl_compositor *compositor;
     struct wl_shm *shm;
     struct xdg_wm_base *wm_base;
+    struct playos_manager_v1 *manager;   /* trusted shell role (best effort) */
     struct wl_surface *surface;
     struct xdg_surface *xsurface;
     struct xdg_toplevel *toplevel;
@@ -463,6 +469,8 @@ registry_global(void *data, struct wl_registry *reg, uint32_t name,
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         r->wm_base = wl_registry_bind(reg, name, &xdg_wm_base_interface, 1);
         xdg_wm_base_add_listener(r->wm_base, &wm_base_listener, r);
+    } else if (strcmp(interface, playos_manager_v1_interface.name) == 0) {
+        r->manager = wl_registry_bind(reg, name, &playos_manager_v1_interface, 1);
     }
 }
 
@@ -576,6 +584,47 @@ activate(struct recovery *r)
     r->dirty = true;
 }
 
+/* ── screenshot ──────────────────────────────────────────────────────────── */
+
+/* Save the current frame. The recovery UI cannot rely on the shell's screenshot
+ * gesture: in the case this program exists for, playos-shell is dead. Useful for
+ * bug reports as well as for evidence, so both special buttons trigger it. */
+static void
+save_screenshot(struct recovery *r)
+{
+    mkdir("/data/screenshots", 0755);
+
+    char path[160];
+    snprintf(path, sizeof(path), "/data/screenshots/recovery-%ld.png",
+             (long)time(NULL));
+
+    /* stb writes the buffer as RGBA; our wl_shm buffer is B,G,R,X on
+     * little-endian, so swap the channels first (the same trap the shell's
+     * screencopy capture hit). */
+    size_t n = (size_t)r->width * (size_t)r->height * 4;
+    unsigned char *rgba = malloc(n);
+    if (!rgba) {
+        snprintf(r->toast, sizeof(r->toast), "SCREENSHOT FAILED (MEMORY)");
+        r->dirty = true;
+        return;
+    }
+    const unsigned char *src = r->pixels;
+    for (size_t i = 0; i < (size_t)r->width * (size_t)r->height; i++) {
+        rgba[i * 4 + 0] = src[i * 4 + 2];   /* R */
+        rgba[i * 4 + 1] = src[i * 4 + 1];   /* G */
+        rgba[i * 4 + 2] = src[i * 4 + 0];   /* B */
+        rgba[i * 4 + 3] = 255;
+    }
+
+    int ok = stbi_write_png(path, r->width, r->height, 4, rgba, r->width * 4);
+    free(rgba);
+
+    fprintf(stderr, "playos-recovery: screenshot -> %s (ok=%d)\n", path, ok);
+    snprintf(r->toast, sizeof(r->toast),
+             ok ? "SCREENSHOT SAVED" : "SCREENSHOT FAILED");
+    r->dirty = true;
+}
+
 /* ── input ───────────────────────────────────────────────────────────────── */
 
 static bool
@@ -594,7 +643,15 @@ evdev_wanted(int fd)
     bool hat = (abs[ABS_HAT0X / 8] >> (ABS_HAT0X % 8)) & 1;
     bool south = (key[BTN_SOUTH / 8] >> (BTN_SOUTH % 8)) & 1;
     bool vol = (key[KEY_VOLUMEUP / 8] >> (KEY_VOLUMEUP % 8)) & 1;
-    return (hat && south) || (south && vol);
+
+    /* The reserved keys (COMMAND = F16, ARMOURY CRATE = PROG1) and the volume
+     * keys live on the hid-asus "vendor" node, not on the gamepad, so accept a
+     * device that has them too - otherwise the screenshot button is invisible
+     * to us. */
+    bool cmd = (key[KEY_F16 / 8] >> (KEY_F16 % 8)) & 1;
+    bool prog = (key[KEY_PROG1 / 8] >> (KEY_PROG1 % 8)) & 1;
+
+    return (hat && south) || (south && vol) || cmd || prog;
 }
 
 static void
@@ -623,6 +680,13 @@ handle_key(struct recovery *r, uint16_t code, int32_t value)
 {
     if (value != 1)   /* act on the press edge */
         return;
+
+    /* COMMAND (F16) / ARMOURY CRATE (PROG1): save the screen. The shell's
+     * screenshot gesture is unavailable here - the shell is what failed. */
+    if (code == KEY_F16 || code == KEY_PROG1) {
+        save_screenshot(r);
+        return;
+    }
 
     if (r->mode == MODE_CONFIRM) {
         if (code == BTN_SOUTH) {
@@ -796,6 +860,22 @@ main(void)
     xdg_toplevel_set_title(r.toplevel, "PlayOS Recovery");
     xdg_toplevel_set_app_id(r.toplevel, "org.playos.recovery");
     xdg_toplevel_set_fullscreen(r.toplevel, NULL);
+
+    /* Claim the trusted shell role. The compositor only composites the shell
+     * surface while the shell holds the foreground, so an unclaimed surface is
+     * not enough (measured on the Ally: the unclaimed window stayed invisible
+     * behind the running shell). In the case this program exists for - the GL
+     * shell has died - the role is free, so registering succeeds. If another
+     * client still holds it the compositor sends an error and we simply exit,
+     * which is correct: whatever holds the shell role is already drawing. */
+    if (r.manager) {
+        playos_manager_v1_register_shell(r.manager);
+        fprintf(stderr, "playos-recovery: registered as the shell role\n");
+    } else {
+        fprintf(stderr, "playos-recovery: no playos_manager_v1; "
+                        "continuing without the shell role\n");
+    }
+
     wl_surface_commit(r.surface);
 
     /* Wait (briefly) for the configure that tells us the output size. */

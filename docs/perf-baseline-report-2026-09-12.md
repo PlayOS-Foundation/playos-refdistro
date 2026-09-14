@@ -161,6 +161,14 @@ slot). So on an installed device:
 - its prime suspect is the same blocking `udevadm settle`, in a binary that only
   a reflash or a new install payload can replace.
 
+Verified with `scripts/check-embedded-initramfs.py` (decompresses the embedded
+initramfs out of the kernel and greps it for a marker): the **rebuilt USB image is
+correct** — its `vmlinux` embeds 198,108,160 bytes of cpio containing the new
+marks. So the payload path works; it is the *installed* device that lags, because
+the installer copies the `BOOTX64.EFI` of whatever payload it was flashed from.
+Booting the freshly built USB image live is therefore a complete test of the
+first-init fixes, and reinstalling propagates them to the internal disk.
+
 **This promotes the payload item from "secondary" to the critical path**: ship a
 fresh (and minimal) kernel + initramfs as the install payload — the USB image
 already carries one, so **booting the freshly built USB live is the test**, and

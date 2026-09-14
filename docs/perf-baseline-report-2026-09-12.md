@@ -184,12 +184,18 @@ Two corrections to the plan above, both from the data:
   line is compiled in (`CONFIG_CMDLINE_BOOL=y`,
   `CONFIG_CMDLINE="console=tty1 quiet loglevel=3"`). There is therefore nothing
   that could pre-declare the active slot: init must mount `/EFI`, read
-  `boot.json` and pivot before any user-space component starts, and it cannot do
-  that until the kernel exposes the NVMe partitions (~0.6 s). This wait is not
-  removable by a cmdline token; it is hardware bring-up. **An earlier revision of
-  this report suggested "pass the slot from GRUB" — that was wrong** (it
-  generalised from the QEMU dev target, which does use GRUB2, to the Ally, which
-  does not).
+  `boot.json` and pivot before any user-space component starts. **An earlier
+  revision of this report suggested "pass the slot from GRUB" — that was wrong**
+  (it generalised from the QEMU dev target, which does use GRUB2, to the Ally,
+  which does not), and a second revision called the wait "hardware bring-up" —
+  **the kernel log contradicts that too**: `nvme0n1: p1 p2 p3 p4 p5` appears at
+  **1.76 s** and the kernel hands over at 1.81 s, while init's first ESP mount is
+  at **4.61 s**. The NVMe was ready 2.8 s before anyone asked for it.
+
+  So ~2.7 s is spent *inside* the first (initramfs) init doing something that
+  leaves no trace: its log cannot persist because `/data` is not mounted yet.
+  This is the actual P1 target, and it is unmeasured — the first task is to make
+  it visible (`/dev/kmsg` markers), not to guess at it.
 - the shell's startup measured 0.91 s this boot (it was 1.37 s), so that stage is
   highly variable — worth re-measuring before optimising it.
 
@@ -197,14 +203,19 @@ Two corrections to the plan above, both from the data:
 trimming. The first is the real prize, and it is also just *correct*
 engineering:
 
-0. **An installed system boots a live-USB kernel.** `CONFIG_INITRAMFS_SOURCE`
-   embeds `rootfs.cpio` — 198 MB uncompressed, ~60 MB inside the 74 MB
-   `bzImage` — so every boot of an *installed* device unpacks a complete
-   live rootfs into RAM and then pivots to the squashfs it actually runs from.
-   Only the live USB needs that payload. Shipping a second, minimal
-   kernel+initramfs (just enough to mount the active slot and pivot) as the
-   install payload — the installer already writes `/BOOTX64.EFI` to the target
-   ESP — removes seconds of pure overhead from every installed boot.
+0. **The unlogged 2.7 s of the first init (the real target — measure first).**
+   Add `/dev/kmsg` markers around the first init's steps (udev trigger/settle, ESP
+   find+mount, squashfs mount, pivot, exec) so the phase is visible in `dmesg`.
+   Candidates, none yet proven: the ESP FAT mount and its `sync`, the squashfs
+   mount of the active slot, the recovery button check (must return instantly
+   when nothing is held), boot-stage writes that fsync the FAT, and the udev
+   trigger+settle — though that measured **0.10 s** warm on the device, so it is
+   not automatically guilty.
+1. **An installed system boots a live-USB kernel.** `CONFIG_INITRAMFS_SOURCE`
+   embeds `rootfs.cpio` (198 MB uncompressed; the 74 MB `bzImage` installs to the
+   target ESP as `/BOOTX64.EFI`). The kernel hand-off at 1.81 s bounds this: the
+   unpack costs at most ~1 s, so it is a secondary item, not the headline.
+   Shipping a minimal kernel+initramfs as the install payload removes it.
 
 1. **~2.5-3 s of kernel + initramfs before init runs** (firmware POST is the rest
    and is not ours). The controllable part is the embedded initramfs: shrinking

@@ -93,10 +93,41 @@ only discrete input (EV_KEY, d-pad hat). Trade-off, by design: analog motion no
 longer wakes the UI, so stick-driven list scrolling redraws at the idle rate
 (d-pad navigation, the primary path, stays full rate).
 
+### P3 — direct scanout: measured, not assumed (done)
+
+The original report listed direct scanout as **not confirmable**. The compositor
+now listens for output *presentation* events and reports, once a second, how the
+frames actually reached the panel (`WLR_OUTPUT_PRESENT_ZERO_COPY` = presented
+without the renderer copying the buffer, i.e. the direct-scanout path):
+
+```
+fps shell=8 game=0 (commits/s) present zero-copy=8 copied=0
+```
+
+Measured on the Ally:
+
+| Window | Present events | Result |
+|---|---|---|
+| 30 s game run (typical second: `fps shell=0 game=56`) | 1684 zero-copy / 0 copied | **100.0% direct** |
+| Whole session (UI idle + game) | 2535 zero-copy / 0 copied | **100% direct** |
+
+So every presented frame - in-game and on the shell UI - went to the panel
+without a GPU copy. `scripts/perf-baseline.sh` now prints the percentage.
+
+Two things fall out of the same data:
+
+- the shell committed **0 frames/s while the game held the foreground** (max 12,
+  at the transitions), which is the P4 suspend gate verified in-game rather than
+  only on the idle UI;
+- the game itself presented at a steady 56 commits/s in this run (a 60 Hz-locked
+  title), against 120 in the earlier run - the panel and the compositor keep up
+  either way.
+
 ### Still open from the original report
 
-P1 (boot 7.16 s vs 5 s target) and P3 (direct-scanout observability) are
-unchanged.
+P1 only: cold boot 6.49 s against the 5 s target (see the follow-up above; the
+remaining ~1.5 s is the chunk before init runs, the ESP/NVMe wait on the
+critical path, and the shell's own startup).
 
 ---
 

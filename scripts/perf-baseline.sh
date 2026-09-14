@@ -58,6 +58,13 @@ echo "## Per-role frame rate from the compositor (S14 P2)"
 echo "    'game=' is the in-game instrumentation: the compositor counts every"
 echo "    committed client frame, so it covers non-cooperative games too."
 grep -h -a "fps shell=" /data/log/compositor-stderr.log 2>/dev/null | tail -6 | sed 's/^/    /' || true
+printf "    direct scanout (S14 P3): "
+grep -h -a "present zero-copy=" /data/log/compositor-stderr.log 2>/dev/null \
+    | sed -n 's/.*zero-copy=\([0-9]*\) copied=\([0-9]*\).*/\1 \2/p' \
+    | awk '{ z += $1; c += $2 } END {
+              if (z + c == 0) { print "(no presentation events)"; exit }
+              printf "%d zero-copy / %d copied (%.0f%% direct scanout)\n",
+                     z, c, 100.0 * z / (z + c) }'
 printf "    in-game peak: "
 grep -h -a "fps shell=" /data/log/compositor-stderr.log 2>/dev/null \
     | sed -n 's/.*game=\([0-9]*\).*/\1/p' | sort -n | tail -1 \

@@ -123,6 +123,59 @@ Two things fall out of the same data:
   title), against 120 in the earlier run - the panel and the compositor keep up
   either way.
 
+## Follow-up 2026-09-13 (2) — the boot marks, and what the first init really is
+
+`playos_boot_mark()` (21 marks, `/dev/kmsg` + a tmpfs mirror persisted to
+`/data/log/boot-marks.log`) made the previously invisible phase measurable.
+First result, and it overturned two of my own hypotheses:
+
+**On the Ally the udev settle is not the problem.** Measured on the second init:
+
+```
+[4.435] udevadm trigger start
+[4.469] udevadm trigger done (rc=0)                       34 ms
+[4.469] udevadm settle handed to background
+[4.579] udevadm settle done in background (rc=0)          110 ms  (was blocking ~2.7 s on the path)
+[5.242] recovery button check done (mode=0)               773 ms  ← the largest cost left in this phase
+[5.242] ESP discovery start → done (mounted=1)              3 ms
+[5.245] /data mount → done                                151 ms
+[5.397] spawning compositor → ready                       208 ms
+[5.605] system ready
+[6.958] ShellReady                       (shell startup 1.35 s this boot; 0.91 s the boot before)
+```
+
+QEMU's 2.18 s settle was a QEMU artefact, not the Ally's problem. Taking settle
+off the boot path is still correct (it removed a genuine unbounded wait and the
+Ally's own second-init settle now overlaps), but it is not what the 2.7 s was.
+
+**What the 2.7 s is: the first init is a different, *older* binary.** The dmesg
+marks start at 4.43 s — the first init leaves none, and it cannot: it runs from
+the kernel's **embedded initramfs**, and that kernel image lives on the **ESP**,
+which A/B payloads never touch (they only write `rootfs.squashfs` to the inactive
+slot). So on an installed device:
+
+- the first init is whatever was flashed/reinstalled last — **none of the fixes
+  in the rootfs apply to it**, including the settle change;
+- its phase (kernel hand-off at ~1.81 s → second init at 4.43 s = **2.6 s**) is
+  still unmeasured, because that binary has no marks;
+- its prime suspect is the same blocking `udevadm settle`, in a binary that only
+  a reflash or a new install payload can replace.
+
+**This promotes the payload item from "secondary" to the critical path**: ship a
+fresh (and minimal) kernel + initramfs as the install payload — the USB image
+already carries one, so **booting the freshly built USB live is the test**, and
+a reinstall propagates it to the internal disk. Doing it minimally also removes
+the ~1 s of unpacking a live rootfs that an installed system never uses.
+
+**Two fixes that need that payload to take effect** (they are in the rootfs now,
+so they light up the moment the first init is current):
+
+- the first init exports `PLAYOS_RECOVERY` across the `execve` of the second
+  init, so the second init can skip the 773 ms evdev check (it currently cannot:
+  the decision does not survive the exec and the command line is compiled in);
+- the second init honours that variable and only falls back to the check when it
+  is absent — so older images behave exactly as before.
+
 ### Still open from the original report
 
 P1 only: cold boot 6.49 s against the 5 s target (see the follow-up above; the

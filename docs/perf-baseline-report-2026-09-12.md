@@ -178,15 +178,33 @@ Two corrections to the plan above, both from the data:
 - the ESP stage did **not** shrink (0.67 s): the wait is the *kernel* bringing up
   the NVMe (init starts at 4.57 s, the partitions appear ~0.6 s later), so the
   fast poll only removed the *sleeps* around a wait that is otherwise real. It is
-  on the critical path only because A/B boot counting and the slot pivot need
-  `/EFI` before the clients start; removing it needs the slot decision to come
-  from the bootloader (a `playos.slot=` cmdline token written by GRUB) rather
-  than from `boot.json` read after a mount. Worth ~0.67 s.
+  on the critical path by construction: **the Ally has no bootloader at all** —
+  the kernel is booted by the EFI stub as `\EFI\BOOT\BOOTX64.EFI` (see
+  `scripts/gen-ally-usb-image.sh`: "EFI stub boot — no GRUB"), and its command
+  line is compiled in (`CONFIG_CMDLINE_BOOL=y`,
+  `CONFIG_CMDLINE="console=tty1 quiet loglevel=3"`). There is therefore nothing
+  that could pre-declare the active slot: init must mount `/EFI`, read
+  `boot.json` and pivot before any user-space component starts, and it cannot do
+  that until the kernel exposes the NVMe partitions (~0.6 s). This wait is not
+  removable by a cmdline token; it is hardware bring-up. **An earlier revision of
+  this report suggested "pass the slot from GRUB" — that was wrong** (it
+  generalised from the QEMU dev target, which does use GRUB2, to the Ally, which
+  does not).
 - the shell's startup measured 0.91 s this boot (it was 1.37 s), so that stage is
   highly variable — worth re-measuring before optimising it.
 
 **What remains, honestly:** hitting 5 s needs the two big items, not more
-trimming:
+trimming. The first is the real prize, and it is also just *correct*
+engineering:
+
+0. **An installed system boots a live-USB kernel.** `CONFIG_INITRAMFS_SOURCE`
+   embeds `rootfs.cpio` — 198 MB uncompressed, ~60 MB inside the 74 MB
+   `bzImage` — so every boot of an *installed* device unpacks a complete
+   live rootfs into RAM and then pivots to the squashfs it actually runs from.
+   Only the live USB needs that payload. Shipping a second, minimal
+   kernel+initramfs (just enough to mount the active slot and pivot) as the
+   install payload — the installer already writes `/BOOTX64.EFI` to the target
+   ESP — removes seconds of pure overhead from every installed boot.
 
 1. **~2.5-3 s of kernel + initramfs before init runs** (firmware POST is the rest
    and is not ours). The controllable part is the embedded initramfs: shrinking

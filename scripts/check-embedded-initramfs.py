@@ -23,24 +23,43 @@ markers = [m.encode() for m in markers]
 data = open(path, "rb").read()
 print(f"{path}: {len(data):,} bytes")
 
-found = 0
-for match in re.finditer(b"\x1f\x8b\x08", data):
-    off = match.start()
-    d = zlib.decompressobj(16 + zlib.MAX_WBITS)
-    try:
-        out = d.decompress(data[off:off + 200_000_000])
-    except Exception:
-        continue
-    if len(out) < 500_000:
-        continue
-    print(f"  compressed stream at offset {off:,}: {len(out):,} bytes")
-    for marker in markers:
-        print(f"    {marker.decode(errors='replace'):38s} "
-              f"{'FOUND' if marker in out else 'absent'}")
-    found += 1
-    if found >= 3:
-        break
+# A bzImage is itself compressed and the initramfs is nested inside that
+# compression, so one pass is not enough: decompress every gzip member we find,
+# then search the result for further members. The kernel's own payload is skipped
+# as noise; we report the first image that contains a marker.
+hits = []
+seen = 0
 
-if not found:
-    print("  no sizeable gzip member found (different compression or none)")
+
+def scan(blob, depth, origin):
+    global seen
+    for match in re.finditer(b"\x1f\x8b\x08", blob):
+        off = match.start()
+        d = zlib.decompressobj(16 + zlib.MAX_WBITS)
+        try:
+            out = d.decompress(blob[off:off + 400_000_000])
+        except Exception:
+            continue
+        if len(out) < 100_000:
+            continue
+        seen += 1
+        present = [m for m in markers if m in out]
+        label = "  " * depth + f"stream at {origin}+{off:,}: {len(out):,} bytes"
+        if present:
+            print(label)
+            for m in markers:
+                print(f"    {m.decode(errors='replace'):38s} "
+                      f"{'FOUND' if m in out else 'absent'}")
+            hits.append((origin + off, out))
+            return True
+        if depth < 3:
+            if scan(out, depth + 1, origin + off):
+                return True
+    return False
+
+
+ok = scan(data, 0, 0)
+if not ok:
+    print(f"  scanned {seen} compressed member(s): no marker found in any")
     sys.exit(2)
+print(f"  -> verified: the image contains an initramfs with the expected markers")

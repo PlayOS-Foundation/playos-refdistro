@@ -12,11 +12,11 @@
 #   live image kernel        playos.live=1
 #   installed-path kernel    playos.installed=1
 #
-# This builds the second from the same tree: it edits the kernel .config inside
-# the build directory (Buildroot's linux-rebuild keeps it, unlike
-# linux-reconfigure, which would copy the board config over it), then restores the
-# live configuration and rebuilds it, so output/<board>/images/bzImage is the live
-# kernel again and the generator can stage both.
+# This builds the second from the same tree by swapping the board kernel config
+# (Buildroot's linux-rebuild re-copies it into the build tree, so patching the
+# build tree's .config would be undone), then restoring the live configuration and
+# rebuilding, so output/<board>/images/bzImage is the live kernel again and the
+# generator can stage both.
 #
 # Freshness: the installed-path kernel is rebuilt whenever the live kernel is
 # newer than it, so any build that recompiled the kernel regenerates both. Set
@@ -30,10 +30,10 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/output/$BOARD"
 IMAGES="$OUT/images"
 BUILDROOT="$ROOT/buildroot"
-CONFIG=$(ls -d "$OUT"/build/linux-*/.config 2>/dev/null | head -1)
+KCONFIG="$ROOT/br2-external/board/$BOARD/linux.config"
 
-[ -n "$CONFIG" ] || { echo "build-install-kernel: no $OUT/build/linux-*/.config" >&2; exit 1; }
-grep -q 'CONFIG_CMDLINE=' "$CONFIG" || { echo "build-install-kernel: $CONFIG has no CONFIG_CMDLINE" >&2; exit 1; }
+[ -f "$KCONFIG" ] || { echo "build-install-kernel: no $KCONFIG" >&2; exit 1; }
+grep -q 'CONFIG_CMDLINE=' "$KCONFIG" || { echo "build-install-kernel: $KCONFIG has no CONFIG_CMDLINE" >&2; exit 1; }
 [ -f "$IMAGES/bzImage" ] || { echo "build-install-kernel: $IMAGES/bzImage missing" >&2; exit 1; }
 
 if [ -z "$FORCE" ] && [ -f "$IMAGES/bzImage.install" ] &&
@@ -42,27 +42,25 @@ if [ -z "$FORCE" ] && [ -f "$IMAGES/bzImage.install" ] &&
     exit 0
 fi
 
-if grep -q 'playos\.live=1' "$CONFIG"; then
-    echo "==> 1/2 building the installed-path kernel (playos.installed=1)"
-    cp "$CONFIG" "$CONFIG.saved"
-    sed -i 's/playos\.live=1/playos.installed=1/' "$CONFIG"
+cp "$KCONFIG" "$KCONFIG.saved"
+if grep -q 'playos\.live=1' "$KCONFIG"; then
+    sed -i 's/playos\.live=1/playos.installed=1/' "$KCONFIG"
 else
-    echo "==> 1/2 building the installed-path kernel (adding playos.installed=1)"
-    cp "$CONFIG" "$CONFIG.saved"
-    sed -i 's/\(CONFIG_CMDLINE="[^"]*\)"/\1 playos.installed=1"/' "$CONFIG"
+    sed -i 's/\(CONFIG_CMDLINE="[^"]*\)"/\1 playos.installed=1"/' "$KCONFIG"
 fi
-grep -q 'playos\.installed=1' "$CONFIG" || { echo "build-install-kernel: could not set playos.installed=1" >&2; cp "$CONFIG.saved" "$CONFIG"; exit 1; }
+grep -q 'playos\.installed=1' "$KCONFIG" || { echo "build-install-kernel: could not set playos.installed=1" >&2; cp "$KCONFIG.saved" "$KCONFIG"; exit 1; }
+echo "==> 1/2 building the installed-path kernel (playos.installed=1)"
 
 make -C "$BUILDROOT" BR2_EXTERNAL="$ROOT/br2-external" O="$OUT" linux-rebuild >/dev/null
 cp "$IMAGES/bzImage" "$IMAGES/bzImage.install"
 echo "    -> bzImage.install ($(stat -c %s "$IMAGES/bzImage.install") bytes)"
 
 echo "==> 2/2 restoring the live kernel (playos.live=1)"
-sed -i 's/playos\.installed=1/playos.live=1/' "$CONFIG.saved"
-grep -q 'playos\.live=1' "$CONFIG.saved" ||
-    sed -i 's/\(CONFIG_CMDLINE="[^"]*\)"/\1 playos.live=1"/' "$CONFIG.saved"
-cp "$CONFIG.saved" "$CONFIG"
-rm -f "$CONFIG.saved"
+sed -i 's/playos\.installed=1/playos.live=1/' "$KCONFIG.saved"
+grep -q 'playos\.live=1' "$KCONFIG.saved" ||
+    sed -i 's/\(CONFIG_CMDLINE="[^"]*\)"/\1 playos.live=1"/' "$KCONFIG.saved"
+cp "$KCONFIG.saved" "$KCONFIG"
+rm -f "$KCONFIG.saved"
 make -C "$BUILDROOT" BR2_EXTERNAL="$ROOT/br2-external" O="$OUT" linux-rebuild >/dev/null
 echo "    -> bzImage (live, $(stat -c %s "$IMAGES/bzImage") bytes)"
 echo "==> done: bzImage declares playos.live=1, bzImage.install declares playos.installed=1"

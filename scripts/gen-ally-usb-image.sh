@@ -129,6 +129,8 @@ echo "==> Kernel installed as EFI/BOOT/BOOTX64.EFI (EFI stub, no GRUB)"
 # S13.7: live-USB marker so init never pivots into an installed internal slot
 sudo mkdir -p "$ESP_MOUNT/EFI/playos"
 sudo touch "$ESP_MOUNT/EFI/playos/live-usb"
+sudo touch "$ESP_MOUNT/EFI/playos/live-boot"
+echo "==> Live-boot switch stamped (EFI/playos/live-boot): the USB image is live-only and never pivots into an installed slot"
 echo "==> Live-USB marker stamped (EFI/playos/live-usb)"
 
 sudo umount "$ESP_MOUNT"

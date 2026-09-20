@@ -20,10 +20,10 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=c1fb596667f20d9397d47728a5750260bafd2b6d  # spec: F3 closed (client)
+PLAYOS_SPEC_COMMIT=ae938db901bfdc9b921c75727fd8624fd5f80f2c  # spec: S14 close + Sprint 14.5 (shell-owned install progress)
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=17c006a8779da6f255b27dd502f89012c94e2a20  # playos-runtime (S14-T10 installer front-end)
-PLAYOS_INIT_COMMIT=6bc6642f7f0c227541c16c54490867be2e6708f2  # init: bounded wait for removable media (live-medium pivot check)
+PLAYOS_INIT_COMMIT=476c84dce9005fae89223e6629f121b34740b8fb  # init: per-image boot declaration + fast /data poll (S14-P1)
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging
 PLAYOS_SHELL_COMMIT=35a335da5f6b97072eeae79e80dd6058cb89d349  # shell: content-based install payload check
 PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)

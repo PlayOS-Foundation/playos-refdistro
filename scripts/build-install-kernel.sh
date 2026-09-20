@@ -36,9 +36,14 @@ KCONFIG="$ROOT/br2-external/board/$BOARD/linux.config"
 grep -q 'CONFIG_CMDLINE=' "$KCONFIG" || { echo "build-install-kernel: $KCONFIG has no CONFIG_CMDLINE" >&2; exit 1; }
 [ -f "$IMAGES/bzImage" ] || { echo "build-install-kernel: $IMAGES/bzImage missing" >&2; exit 1; }
 
-if [ -z "$FORCE" ] && [ -f "$IMAGES/bzImage.install" ] &&
-   [ "$IMAGES/bzImage.install" -nt "$IMAGES/bzImage" ]; then
-    echo "==> installed-path kernel is up to date ($(basename "$IMAGES/bzImage.install"))"
+# Up to date only if the installed-path kernel is newer than both the live kernel
+# and the initramfs it embeds - rootfs.cpio is regenerated whenever the rootfs
+# changes, and a kernel that embeds a stale initramfs would boot an old init.
+STAMP="$IMAGES/bzImage.install"
+if [ -z "$FORCE" ] && [ -f "$STAMP" ] &&
+   [ "$STAMP" -nt "$IMAGES/bzImage" ] &&
+   { [ ! -f "$IMAGES/rootfs.cpio" ] || [ "$STAMP" -nt "$IMAGES/rootfs.cpio" ]; }; then
+    echo "==> installed-path kernel is up to date ($(basename "$STAMP"))"
     exit 0
 fi
 

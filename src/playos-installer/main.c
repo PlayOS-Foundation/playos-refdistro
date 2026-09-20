@@ -51,6 +51,7 @@
 #include "playos-v1-client-protocol.h"
 #include "disk.h"
 #include "format.h"
+#include "install_lib.h"
 #include "efi.h"
 
 /* ── installer diagnostics ───────────────────────────────────────────────
@@ -486,10 +487,10 @@ enum installer_mode {
     MODE_ERROR,
 };
 
-static const char *const STEP_NAMES[8] = {
-    "Create GPT", "Format ESP", "Write system A", "Reserve system B",
-    "Format misc", "Format data", "Write EFI", "Sync"
-};
+/* S14.5-T1: the step names and the whole step sequence now live in the engine
+ * (install_lib.c), so both this front-end and the worker use one definition. */
+#define STEP_NAMES playos_install_step_names
+#define STEP_COUNT PLAYOS_INSTALL_STEP_COUNT
 
 struct installer {
     enum installer_mode mode;
@@ -499,6 +500,7 @@ struct installer {
     int  confirm_progress;
     int  step_index;
     int  step_error;          /* -1 when none, else the failing step index */
+    struct playos_install_ctx ictx;   /* S14.5-T1: the install engine */
     char step_name[64];
     char err_buf[512];
     char payload_mount[64];
@@ -508,102 +510,84 @@ struct installer {
     struct input_state input;
 };
 
+/* S14.5-T1: the step sequence moved to libplayos-install; this front-end only
+ * syncs its UI state with the engine and turns engine events into log lines. */
+static void
+installer_ctx_log(void *ud, const char *line)
+{
+    (void)ud;
+    installer_logf("%s", line);
+}
+
+/* Which authorized_keys to seed into a fresh install, and whether we had to
+ * mount the boot medium's own playos-data to reach it. This is front-end policy
+ * (it can mount things), so it stays here and reaches the engine by callback. */
+static int
+installer_ctx_resolve_seed_key(void *ud, char *path, size_t path_sz,
+                               int *mounted, int *present)
+{
+    (void)ud;
+    snprintf(path, path_sz, "/data/ssh/authorized_keys");
+    *mounted = 0;
+    *present = (access(path, R_OK) == 0);
+
+    /* /data is unmounted by init before the installer spawns, so the live
+     * session's key is not visible here. init preserves it at
+     * /tmp/playos-install-authorized_keys before the unmount. */
+    if (!*present && access("/tmp/playos-install-authorized_keys", R_OK) == 0) {
+        snprintf(path, path_sz, "/tmp/playos-install-authorized_keys");
+        *present = 1;
+    }
+
+    /* Last resort: mount the boot medium's own playos-data. */
+    if (!*present) {
+        char pd_mount[64];
+        if (find_and_mount_payload_data(pd_mount, sizeof(pd_mount)) == 0) {
+            snprintf(path, path_sz, "/mnt/payload-data/ssh/authorized_keys");
+            *mounted = 1;
+            *present = (access(path, R_OK) == 0);
+        }
+    }
+    return 0;
+}
+
+static void
+installer_ctx_release_seed_key(void *ud)
+{
+    (void)ud;
+    (void)umount("/mnt/payload-data");
+}
+
 static int
 run_install_step(struct installer *st)
 {
-    const char *dev = st->disks[st->cursor].device;
-    char *err = st->err_buf;
-    size_t errlen = sizeof(st->err_buf);
-    int rc = 0;
+    struct playos_install_ctx *c = &st->ictx;
 
-    if (st->step_index < 0 || st->step_index >= 8) {
-        snprintf(err, errlen, "invalid step index %d", st->step_index);
-        st->step_error = -1;
-        st->mode = MODE_ERROR;
-        return -1;
-    }
+    c->step_index  = st->step_index;
+    c->target_device = st->disks[st->cursor].device;
+    c->payload_mount = st->payload_mount;
+    c->log = installer_ctx_log;
+    c->log_ud = st;
+    c->resolve_seed_key = installer_ctx_resolve_seed_key;
+    c->release_seed_key = installer_ctx_release_seed_key;
+    c->seed_ud = st;
+    c->progress = NULL;            /* no sub-step reporting in this front-end */
+    c->progress_ud = NULL;
 
-    snprintf(st->step_name, sizeof(st->step_name), "%s",
-             STEP_NAMES[st->step_index]);
+    int rc = playos_install_run_step(c);
 
-    installer_logf("installer step %d/8 %s: begin (target=%s)",
-                   st->step_index, st->step_name, dev);
-
-    switch (st->step_index) {
-    case 0:
-        /* Make the target free first: a partition of it staying mounted (the
-         * ESP is mounted as /EFI by init on a live session) makes mkfs refuse
-         * the format and the kernel refuse to re-read the partition table. */
-        if (playos_format_release_target(dev, err, errlen) != 0) {
-            rc = -1;
-            break;
-        }
-        installer_logf("installer: target %s is free of mounts", dev);
-        rc = playos_format_partition_disk(dev, err, errlen);
-        break;
-    case 1: rc = playos_format_mkfs_fat(dev, 1, "ESP", err, errlen); break;
-    case 2: rc = playos_format_write_image(dev, 2, "/mnt/payload/rootfs.squashfs",
-                                           err, errlen); break;
-    case 3: rc = 0; break; /* system B is reserved for a future OTA */
-    case 4: rc = playos_format_mkfs_ext4(dev, 4, "misc", err, errlen); break;
-    case 5:
-        rc = playos_format_mkfs_ext4(dev, 5, "playos-data", err, errlen);
-        if (rc == 0) {
-            const char *src = "/data/ssh/authorized_keys";
-            int key_present = (access(src, R_OK) == 0);
-            char payload_key[192] = {0};
-            int payload_data_mounted = 0;
-
-            /* /data is unmounted by init before the installer spawns, so the
-             * live session's key is not visible here. init preserves it at
-             * /tmp/playos-install-authorized_keys before the unmount. */
-            if (!key_present &&
-                access("/tmp/playos-install-authorized_keys", R_OK) == 0) {
-                src = "/tmp/playos-install-authorized_keys";
-                key_present = 1;
-            }
-
-            /* Last resort: mount the boot medium's own playos-data. */
-            if (!key_present) {
-                char pd_mount[64];
-                if (find_and_mount_payload_data(pd_mount, sizeof(pd_mount)) == 0) {
-                    snprintf(payload_key, sizeof(payload_key),
-                             "/mnt/payload-data/ssh/authorized_keys");
-                    if (access(payload_key, R_OK) == 0) {
-                        src = payload_key;
-                        key_present = 1;
-                        payload_data_mounted = 1;
-                    }
-                }
-            }
-
-            fprintf(stdout, "AUTO: payload-data: step5 src=%s key_present=%d\n",
-                    src, key_present);
-            rc = playos_format_seed_ssh_keys(dev, 5, src, err, errlen);
-            installer_logf("installer step 5/8 Format data: ssh key source %s, seed rc=%d",
-                           key_present ? "present" : "absent", rc);
-            if (payload_data_mounted)
-                (void)umount("/mnt/payload-data");
-        }
-        break;
-    case 6: rc = playos_efi_write(dev, st->payload_mount, err, errlen); break;
-    case 7: playos_format_sync(); rc = 0; break;
-    default: rc = -1; break;
-    }
-
+    /* The UI draws from st, so mirror the engine's state back - including the
+     * error text, which the failure card displays. */
+    st->step_index = c->step_index;
+    snprintf(st->step_name, sizeof(st->step_name), "%s", c->step_name);
     if (rc != 0) {
-        installer_logf("installer step %d/8 %s: FAILED: %s",
-                       st->step_index, st->step_name, err);
-        st->step_error = st->step_index;
+        snprintf(st->err_buf, sizeof(st->err_buf), "%s", c->err);
+        st->step_error = c->step_error;
         st->mode = MODE_ERROR;
         return -1;
     }
 
-    installer_logf("installer step %d/8 %s: ok",
-                   st->step_index, st->step_name);
-
-    st->step_index++;
-    if (st->step_index >= 8)
+    if (st->step_index >= STEP_COUNT)
         st->mode = MODE_SUCCESS;
     return 0;
 }

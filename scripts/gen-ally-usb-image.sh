@@ -149,6 +149,17 @@ if [[ ! -f "$SQUASHFS" ]]; then
 fi
 sudo cp "$SQUASHFS" "$PAYLOAD_MOUNT/rootfs.squashfs"
 sudo cp "$BZIMAGE" "$PAYLOAD_MOUNT/BOOTX64.EFI"
+# S14-P1: the installed system gets a kernel that declares itself installed
+# (playos.installed=1), so its boots need no medium detection and no USB
+# enumeration wait. BOOTX64.EFI stays as the live kernel for compatibility with
+# installers that predate this file.
+INSTALL_KERNEL="$IMAGES_DIR/bzImage.install"
+if [ -f "$INSTALL_KERNEL" ]; then
+    sudo cp "$INSTALL_KERNEL" "$PAYLOAD_MOUNT/BOOTX64-INSTALL.EFI"
+    echo "==> Staged installed-path kernel (BOOTX64-INSTALL.EFI, playos.installed=1)"
+else
+    echo "==> WARN: $INSTALL_KERNEL missing - installed systems will use the live kernel" >&2
+fi
 echo "==> Staged install payload on playos-a ($FLAVOR rootfs + kernel)"
 
 sudo umount "$PAYLOAD_MOUNT"

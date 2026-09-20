@@ -110,7 +110,13 @@ playos_efi_write(const char *device, const char *payload_mount,
 
     char src[512];
     char dst[512];
-    snprintf(src, sizeof(src), "%s/BOOTX64.EFI", payload_mount);
+    /* S14-P1: prefer the installed-path kernel, which declares
+     * playos.installed=1 on its command line so the installed system's boots
+     * need no boot-medium detection and no USB enumeration wait. Fall back to
+     * the live kernel for payloads staged by older tooling. */
+    snprintf(src, sizeof(src), "%s/BOOTX64-INSTALL.EFI", payload_mount);
+    if (access(src, R_OK) != 0)
+        snprintf(src, sizeof(src), "%s/BOOTX64.EFI", payload_mount);
     snprintf(dst, sizeof(dst), "/mnt/efi/EFI/BOOT/BOOTX64.EFI");
 
     int rc = copy_file(src, dst, err, errlen);

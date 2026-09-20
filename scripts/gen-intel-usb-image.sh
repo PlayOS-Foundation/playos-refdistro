@@ -145,6 +145,10 @@ if [[ ! -f "$SQUASHFS" ]]; then
 fi
 sudo cp "$SQUASHFS" "$PAYLOAD_MOUNT/rootfs.squashfs"
 sudo cp "$BZIMAGE" "$PAYLOAD_MOUNT/BOOTX64.EFI"
+if [ -f "$IMAGES_DIR/bzImage.install" ]; then
+    sudo cp "$IMAGES_DIR/bzImage.install" "$PAYLOAD_MOUNT/BOOTX64-INSTALL.EFI"
+    echo "==> Staged installed-path kernel (BOOTX64-INSTALL.EFI)"
+fi
 echo "==> Staged install payload on playos-a ($FLAVOR rootfs + kernel)"
 
 sudo umount "$PAYLOAD_MOUNT"

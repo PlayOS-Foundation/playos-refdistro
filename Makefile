@@ -229,6 +229,7 @@ ally-production-build: ## Full production image build for ROG Ally (Sprint 12)
 
 .PHONY: ally-usb-image
 ally-usb-image: ally-build ## Produce a USB-bootable disk image for the ROG Ally
+	@bash "$(SCRIPTS_DIR)/build-install-kernel.sh" ally
 	@echo "==> Creating USB-bootable image for ROG Ally..."
 	@bash "$(SCRIPTS_DIR)/gen-ally-usb-image.sh" "$(ALLY_OUTPUT)"
 
@@ -279,6 +280,7 @@ intel-flash: intel-usb-image ## Flash Intel image to USB drive (prompts for devi
 # Dev images seed the SSH key; prod images do not (no Dropbear in prod).
 .PHONY: ally-dev-usb-image
 ally-dev-usb-image: ally-build ## Produce dev ROG Ally USB image (SSH + install payload)
+	@bash "$(SCRIPTS_DIR)/build-install-kernel.sh" ally
 	@bash "$(SCRIPTS_DIR)/gen-ally-usb-image.sh" "$(ALLY_OUTPUT)" playos-ally-dev-usb.img dev
 
 .PHONY: ally-prod-usb-image

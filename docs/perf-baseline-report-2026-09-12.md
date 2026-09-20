@@ -213,10 +213,25 @@ Measured on the installed path (Ally, 2026-09-20):
 | system ready | 9.231 s | 2.627 s |
 | ShellReady | 10.588 s | **3.283 s** |
 
-The live path is expected to be similar and is not yet confirmed (its log lives on
-the stick, which was detached for the installed boot). The boot accounting is now
-gated on the same declaration, so live sessions no longer advance the installed
-slot's counters.
+The live path is confirmed too (read from the stick's own `/data`):
+
+```
+[1.852] init starts (kernel hand-off: the 198 MB initramfs unpack)
+[2.094] pivot skipped: live image (cmdline)      <- token path, instant
+[2.094] /data mount start
+[4.717] /data mount done                         <- 2.62 s
+[4.821] compositor ready                         <- 0.10 s
+[5.767] ShellReady
+```
+
+So the live boot is **5.77 s** - 0.77 s over target, and the cause is not the
+system: it is `/data`'s mount retry loop (100 ms, 200 ms, 300 ms... backoff)
+waiting for the USB partition node, the same pattern already replaced with fast
+polling in the ESP stage. Fixing that should bring the live path to ~3.3 s, in
+line with the installed one.
+
+The boot accounting is now gated on the same declaration, so live sessions no
+longer advance the installed slot's counters.
 
 ### Still open from the original report
 

@@ -184,6 +184,40 @@ so they light up the moment the first init is current):
 - the second init honours that variable and only falls back to the check when it
   is absent — so older images behave exactly as before.
 
+## P1 result 2026-09-20 — installed boot 10.55 s → 3.28 s (target met)
+
+Root cause of the whole live-USB/P1 tangle, finally measured rather than inferred:
+the boot medium **cannot be detected at decision time** on this hardware.
+
+- The dock's hub chain means the stick's device node, interface and block device
+  all appear together at ~4.1 s (a hot-plug, hubs already up, is ~270 ms), while
+  the pivot decision runs at ~2.1 s - so at that moment the stick does not exist.
+- The firmware reports `BootCurrent = 0x0006`, an entry that does not exist, for
+  **both** a stick boot and an installed boot with the stick removed (it means
+  "fell back"). `playos_booted_from_usb()` therefore cannot answer the question.
+- The ESP stage's old ~5.5 s wait had been covering the enumeration gap by
+  accident; shortening it during the boot-time work is what made live boots start
+  pivoting into the installed slot.
+
+So each image now **declares** itself on its compiled-in command line (the Ally
+has no bootloader): `playos.live=1` for the live image, `playos.installed=1` for
+the payload the installer writes to the target ESP. The pivot's guards are now
+explicit declarations first, heuristics last, and only an image predating the
+markers pays for the bounded USB wait.
+
+Measured on the installed path (Ally, 2026-09-20):
+
+| | before | after |
+|---|---|---|
+| pivot decision | 2.090 s → 5.175 s (3.08 s wait) | 2.115 s (instant) |
+| system ready | 9.231 s | 2.627 s |
+| ShellReady | 10.588 s | **3.283 s** |
+
+The live path is expected to be similar and is not yet confirmed (its log lives on
+the stick, which was detached for the installed boot). The boot accounting is now
+gated on the same declaration, so live sessions no longer advance the installed
+slot's counters.
+
 ### Still open from the original report
 
 P1 only: cold boot 6.49 s against the 5 s target (see the follow-up above; the

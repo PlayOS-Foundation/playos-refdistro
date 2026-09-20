@@ -76,12 +76,39 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(playos-install PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
 
+# ── Trusted control library (playos-runtime) ────────────────────────────
+find_library(TRUSTED_LIB playos-trusted
+    HINTS ${CMAKE_SYSROOT}/usr/lib
+    REQUIRED)
+find_path(TRUSTED_INCLUDE_DIR playos-runtime/trusted_control.h
+    HINTS ${CMAKE_SYSROOT}/usr/include
+    REQUIRED)
+
 # ── Executable ──────────────────────────────────────────────────────────
 add_executable(playos-installer
     main.c
     disk.c
     ${GEN_DIR}/playos-v1-protocol.c)
 add_dependencies(playos-installer playos-installer-protocols)
+
+# S14.5-T3: the screen-less worker drives the same engine with no UI at all, so
+# it links no rayland and no protocol code - just libplayos-install and the
+# trusted control library it reports through.
+add_executable(playos-install-worker
+    worker.c)
+target_link_libraries(playos-install-worker PRIVATE
+    playos-install
+    ${TRUSTED_LIB}
+    ${FDISK_LIB}
+    m)
+target_include_directories(playos-install-worker PRIVATE
+    ${TRUSTED_INCLUDE_DIR})
+target_compile_definitions(playos-install-worker PRIVATE
+    _POSIX_C_SOURCE=199309L
+    _DEFAULT_SOURCE)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(playos-install-worker PRIVATE -Wall -Wextra -Wno-unused-parameter)
+endif()
 
 target_include_directories(playos-installer PRIVATE
     ${GEN_DIR}
@@ -113,4 +140,4 @@ endif()
 
 # ── Installation ───────────────────────────────────────────────────────
 include(GNUInstallDirs)
-install(TARGETS playos-installer RUNTIME DESTINATION bin)
+install(TARGETS playos-installer playos-install-worker RUNTIME DESTINATION bin)

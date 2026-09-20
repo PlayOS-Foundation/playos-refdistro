@@ -54,12 +54,32 @@ find_path(FDISK_INCLUDE_DIR libfdisk/libfdisk.h
     HINTS ${CMAKE_SYSROOT}/usr/include
     REQUIRED)
 
+# ── Install engine (Sprint 14.5, T1) ────────────────────────────────────
+# The destructive step sequence lives in one library so that the standalone
+# installer and (S14.5-T3) the screen-less worker drive exactly the same code.
+# The engine has no UI and no logging of its own: callers pass a context.
+add_library(playos-install STATIC
+    install_lib.c
+    format.c
+    efi.c)
+
+target_include_directories(playos-install PUBLIC
+    ${FDISK_INCLUDE_DIR}
+)
+
+target_compile_definitions(playos-install PRIVATE
+    _POSIX_C_SOURCE=199309L
+    _DEFAULT_SOURCE
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(playos-install PRIVATE -Wall -Wextra -Wno-unused-parameter)
+endif()
+
 # ── Executable ──────────────────────────────────────────────────────────
 add_executable(playos-installer
     main.c
     disk.c
-    format.c
-    efi.c
     ${GEN_DIR}/playos-v1-protocol.c)
 add_dependencies(playos-installer playos-installer-protocols)
 
@@ -75,6 +95,7 @@ target_link_directories(playos-installer PRIVATE
 )
 
 target_link_libraries(playos-installer PRIVATE
+    playos-install
     ${WAYLAND_CLIENT_LIBRARIES}
     ${RAYLIB_LIB}
     ${FDISK_LIB}

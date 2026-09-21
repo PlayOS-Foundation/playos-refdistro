@@ -23,8 +23,13 @@
 extern const char *const playos_install_step_names[PLAYOS_INSTALL_STEP_COUNT];
 
 struct playos_install_ctx {
-    /* What to install, and where the payload lives. */
-    const char *target_device;      /* e.g. /dev/nvme0n1 */
+    /* What to install, and where the payload lives. `target_device` is the string
+     * as the caller gave it (used in logs); `device` is the normalised form the
+     * step helpers want - they add "/dev/" themselves, so a caller that passes
+     * "/dev/nvme0n1" (the shell does) would otherwise become "/dev//dev/...".
+     * The standalone installer passes a bare name, where normalising is a no-op. */
+    const char *target_device;      /* as given: /dev/nvme0n1 or nvme0n1 */
+    char        device[96];         /* normalised: nvme0n1 */
     const char *payload_mount;      /* e.g. /mnt/payload (rootfs.squashfs + BOOTX64*.EFI) */
 
     /* Progress state, owned by the engine. */

@@ -43,6 +43,12 @@ playos_install_ctx_init(struct playos_install_ctx *ctx,
     memset(ctx, 0, sizeof(*ctx));
     ctx->target_device = target_device;
     ctx->payload_mount = payload_mount;
+
+    /* Normalise once, at the boundary: every step helper builds "/dev/<name>". */
+    const char *name = target_device ? target_device : "";
+    if (strncmp(name, "/dev/", 5) == 0)
+        name += 5;
+    snprintf(ctx->device, sizeof(ctx->device), "%s", name);
     ctx->step_error = -1;
     snprintf(ctx->step_name, sizeof(ctx->step_name), "%s",
              playos_install_step_names[0]);
@@ -51,7 +57,7 @@ playos_install_ctx_init(struct playos_install_ctx *ctx,
 int
 playos_install_run_step(struct playos_install_ctx *ctx)
 {
-    const char *dev = ctx->target_device;
+    const char *dev = ctx->device;
     char *err = ctx->err;
     size_t errlen = sizeof(ctx->err);
     int rc = 0;

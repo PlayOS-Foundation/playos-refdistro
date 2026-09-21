@@ -8,6 +8,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <string.h>
 
 #include "efi.h"
@@ -17,6 +18,25 @@ const char *const playos_install_step_names[PLAYOS_INSTALL_STEP_COUNT] = {
     "Create GPT", "Format ESP", "Write system A", "Reserve system B",
     "Format misc", "Format data", "Write EFI", "Sync"
 };
+
+/* The engine owns the mountpoints it mounts onto. The standalone front-end used to
+ * create them in its main(), which meant a second front-end (the screen-less
+ * worker) had to know that too - and it did not: step 6 died with
+ * "mount /dev/nvme0n1p1: No such file or directory" because /mnt/efi was missing,
+ * not the device. Creating them here makes both front-ends self-sufficient;
+ * mkdir on an existing directory is harmless.
+ *
+ * Audited against the engine's own code: efi.c mounts /mnt/efi; the payload is
+ * mounted by the caller (/mnt/payload, also created by init) and the front-end's
+ * seed-key callback owns /mnt/payload-data. */
+static void
+ensure_mountpoints(void)
+{
+    (void)mkdir("/mnt", 0755);
+    (void)mkdir("/mnt/efi", 0755);
+    (void)mkdir("/mnt/payload", 0755);
+    (void)mkdir("/mnt/payload-data", 0755);
+}
 
 /* The step log lines are byte-identical to the pre-14.5 installer's, so existing
  * logs, docs and comparisons keep working. */
@@ -70,6 +90,8 @@ playos_install_run_step(struct playos_install_ctx *ctx)
 
     snprintf(ctx->step_name, sizeof(ctx->step_name), "%s",
              playos_install_step_names[ctx->step_index]);
+
+    ensure_mountpoints();
 
     ilog(ctx, "installer step %d/8 %s: begin (target=%s)",
          ctx->step_index, ctx->step_name, dev);

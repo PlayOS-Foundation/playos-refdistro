@@ -100,6 +100,12 @@ playos_efi_write(const char *device, const char *payload_mount,
     char part[128];
     playos_format_partition_path(device, 1, part, sizeof(part));
 
+    /* Create the mountpoint ourselves, the way format.c does for its own
+     * (/mnt/data-target): a front-end must not have to set up the engine's
+     * mounts. Missing /mnt/efi made this fail with "mount <dev>: No such file or
+     * directory", which reads like a missing device but is a missing directory. */
+    (void)mkdir("/mnt/efi", 0755);
+
     if (mount(part, "/mnt/efi", "vfat", 0, NULL) != 0) {
         snprintf(err, errlen, "mount %s: %s", part, strerror(errno));
         return -1;

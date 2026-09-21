@@ -22,10 +22,10 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=4e8dbf5f6afc6390c9bc1f8610a70f83a3ef2a15
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
-PLAYOS_RUNTIME_COMMIT=f5067265e5ba14e98699ab5caac1ee96f580f051
-PLAYOS_INIT_COMMIT=8d03eff7c49ec1ef6c1272d00ad53de9ccc13840
+PLAYOS_RUNTIME_COMMIT=4b6426a0936bd93abb51e7adf9f3011bb10ffd60
+PLAYOS_INIT_COMMIT=1518021b90305fe0a25810ab39058d6cb6fce534
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging
-PLAYOS_SHELL_COMMIT=fc8bf09ecb59d038e00398429c9f8c139f1fd256
+PLAYOS_SHELL_COMMIT=f32727f86cfc2db80bc2f141bc1b46d01511844f
 PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

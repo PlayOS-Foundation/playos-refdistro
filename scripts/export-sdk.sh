@@ -26,6 +26,11 @@ if [ ! -d "$SYSROOT/usr/include/playos" ]; then
 fi
 
 echo "==> Exporting SDK from $OUT"
+# Fresh each run: Buildroot's sysroot files are read-only, so a plain re-copy onto
+# them fails with "Permission denied" rather than replacing them. Re-running the
+# export has to work - it is how the SDK is refreshed.
+rm -rf "$SDK/toolchain" "$SDK/lib" "$SDK/include" "$SDK/desktop"
+
 mkdir -p "$SDK/include/playos" "$SDK/lib" "$SDK/toolchain/bin" "$SDK/toolchain/$PREFIX"
 
 # Headers
@@ -82,6 +87,43 @@ done
 if ls "$TOOLCHAIN_SRC/bin/$PREFIX"-* >/dev/null 2>&1; then
     cp -a "$TOOLCHAIN_SRC/bin/$PREFIX"-* "$SDK/toolchain/bin/"
 fi
+
+# ── Desktop profile (host) ────────────────────────────────────────────────────
+# Built here rather than left to the developer:
+#   * raylib, from the same source the device uses, but with its default desktop
+#     backend - one source of truth, and no system raylib required.
+#   * libplayos with PLAYOS_BACKEND=stub, the host shim.
+# Decision and rationale: playos-spec/src/sdk-desktop-shim.md.
+DESKTOP="$SDK/desktop"
+BUILD_D="$DESKTOP/.build"
+RAYLIB_SRC="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)/playos-shell/external/raylib"
+API_SRC="$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)/playos-platform-api"
+
+mkdir -p "$DESKTOP/install/lib" "$DESKTOP/install/include" \
+         "$DESKTOP/raylib/lib" "$DESKTOP/raylib/include"
+
+if [ -d "$RAYLIB_SRC" ]; then
+    cmake -S "$RAYLIB_SRC" -B "$BUILD_D/raylib" \
+        -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF -DBUILD_SHARED_LIBS=ON \
+        > /dev/null
+    cmake --build "$BUILD_D/raylib" -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    cp -a "$BUILD_D/raylib/raylib/libraylib.so"* "$DESKTOP/raylib/lib/"
+    cp "$RAYLIB_SRC/src/raylib.h" "$DESKTOP/raylib/include/"
+else
+    echo "warning: no raylib source at $RAYLIB_SRC - desktop profile incomplete" >&2
+fi
+
+if [ -d "$API_SRC" ]; then
+    cmake -S "$API_SRC" -B "$BUILD_D/api" -DPLAYOS_BACKEND=stub \
+        -DCMAKE_BUILD_TYPE=Release > /dev/null
+    cmake --build "$BUILD_D/api" -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    cp -a "$BUILD_D/api/libplayos.so"* "$DESKTOP/install/lib/"
+    cp -a "$API_SRC/include/playos" "$DESKTOP/install/include/"
+else
+    echo "warning: no platform-api source at $API_SRC - desktop profile incomplete" >&2
+fi
+
+echo "==> Desktop profile: $(ls "$DESKTOP/raylib/lib" 2>/dev/null | wc -l) raylib file(s), $(ls "$DESKTOP/install/lib" 2>/dev/null | wc -l) libplayos file(s)"
 
 echo "==> SDK ready at $SDK"
 ls "$SDK/include/playos" | wc -l | xargs echo "    headers:"

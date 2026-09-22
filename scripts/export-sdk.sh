@@ -105,6 +105,7 @@ mkdir -p "$DESKTOP/install/lib" "$DESKTOP/install/include" \
 if [ -d "$RAYLIB_SRC" ]; then
     cmake -S "$RAYLIB_SRC" -B "$BUILD_D/raylib" \
         -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF -DBUILD_SHARED_LIBS=ON \
+        -DGLFW_BUILD_WAYLAND=ON -DGLFW_BUILD_X11=ON \
         > /dev/null
     cmake --build "$BUILD_D/raylib" -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
     cp -a "$BUILD_D/raylib/raylib/libraylib.so"* "$DESKTOP/raylib/lib/"

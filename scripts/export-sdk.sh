@@ -52,12 +52,38 @@ copy_lib libplayos.a
 copy_lib libraylib.so
 copy_lib libraylib.a
 
-# Toolchain: compiler wrapper symlinks + the cross prefix directory
+# Toolchain: the cross prefix directory, the wrapper the symlinks point at, and
+# the compiler proper.
+#
+# The bin/<prefix>-* entries are *symlinks* to bin/toolchain-wrapper, so copying
+# only them produced an SDK whose compiler could not run at all - "No such file or
+# directory", not even a wrong-path error. The real compiler lives in libexec/gcc
+# (cc1, cc1plus, collect2) and lib/gcc (specs and support files); the wrapper finds
+# them relative to its own location, which is what makes the tree relocatable, so
+# the whole set has to move together.
+cp -a "$TOOLCHAIN_SRC/$PREFIX/." "$SDK/toolchain/$PREFIX/"
+
+if [ -f "$TOOLCHAIN_SRC/bin/toolchain-wrapper" ]; then
+    cp -a "$TOOLCHAIN_SRC/bin/toolchain-wrapper" "$SDK/toolchain/bin/"
+else
+    echo "warning: no toolchain-wrapper in $TOOLCHAIN_SRC/bin" >&2
+fi
+
+for part in libexec/gcc lib/gcc; do
+    if [ -d "$TOOLCHAIN_SRC/$part" ]; then
+        mkdir -p "$SDK/toolchain/$(dirname "$part")"
+        cp -a "$TOOLCHAIN_SRC/$part" "$SDK/toolchain/$(dirname "$part")/"
+    else
+        echo "warning: $TOOLCHAIN_SRC/$part missing" >&2
+    fi
+done
+
+# The bin/<prefix>-* symlinks go last, once their target exists.
 if ls "$TOOLCHAIN_SRC/bin/$PREFIX"-* >/dev/null 2>&1; then
     cp -a "$TOOLCHAIN_SRC/bin/$PREFIX"-* "$SDK/toolchain/bin/"
 fi
-cp -a "$TOOLCHAIN_SRC/$PREFIX/." "$SDK/toolchain/$PREFIX/"
 
 echo "==> SDK ready at $SDK"
 ls "$SDK/include/playos" | wc -l | xargs echo "    headers:"
 ls "$SDK/lib" | sed 's/^/    /'
+du -sh "$SDK/toolchain" 2>/dev/null | sed 's/^/    toolchain: /'

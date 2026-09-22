@@ -110,6 +110,21 @@ if [ -d "$RAYLIB_SRC" ]; then
     cmake --build "$BUILD_D/raylib" -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
     cp -a "$BUILD_D/raylib/raylib/libraylib.so"* "$DESKTOP/raylib/lib/"
     cp "$RAYLIB_SRC/src/raylib.h" "$DESKTOP/raylib/include/"
+
+    # GLFW drops its Wayland backend silently when a dependency is missing (on
+    # Debian/Ubuntu that is usually libdecor-0-dev), which leaves the developer with
+    # an X11-only desktop profile and no explanation. Check the built library rather
+    # than the configure output, and say exactly what is wrong and how to fix it.
+    WL_SYMS=$(nm -D "$DESKTOP/raylib/lib/libraylib.so.6.0.0" 2>/dev/null | grep -c " wl_")
+    if [ "${WL_SYMS:-0}" -eq 0 ]; then
+        echo "WARN: the desktop raylib has NO Wayland backend (X11 only)." >&2
+        echo "WARN: GLFW needs libdecor-0, xkbcommon, wayland-protocols and" >&2
+        echo "WARN: wayland-client to build it. On Debian/Ubuntu:" >&2
+        echo "WARN:   apt install libdecor-0-dev libxkbcommon-dev wayland-protocols" >&2
+        echo "WARN: A Wayland-only desktop cannot run the desktop profile until then." >&2
+    else
+        echo "==> Desktop raylib: Wayland + X11 backends ($WL_SYMS Wayland symbols)"
+    fi
 else
     echo "warning: no raylib source at $RAYLIB_SRC - desktop profile incomplete" >&2
 fi

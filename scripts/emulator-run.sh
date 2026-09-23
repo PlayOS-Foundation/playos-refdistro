@@ -34,6 +34,7 @@ GAME_DIR=""
 GAME_ID=""
 OUTPUT="${QEMU_OUTPUT:-$REPO_DIR/output/emulator}"
 TIMEOUT=90
+TIMEOUT_SET=0
 DISPLAY_MODE="none"
 GAMEPAD=""
 KEEP=0
@@ -48,8 +49,8 @@ while [[ $# -gt 0 ]]; do
         --game-id=*)   GAME_ID="${1#*=}"; shift ;;
         --output)      OUTPUT="${2:-}"; shift 2 ;;
         --output=*)    OUTPUT="${1#*=}"; shift ;;
-        --timeout)     TIMEOUT="${2:-}"; shift 2 ;;
-        --timeout=*)   TIMEOUT="${1#*=}"; shift ;;
+        --timeout)     TIMEOUT="${2:-}"; TIMEOUT_SET=1; shift 2 ;;
+        --timeout=*)   TIMEOUT="${1#*=}"; TIMEOUT_SET=1; shift ;;
         --display)     DISPLAY_MODE="${2:-}"; shift 2 ;;
         --display=*)   DISPLAY_MODE="${1#*=}"; shift ;;
         --gamepad)     GAMEPAD="${2:-}"; shift 2 ;;
@@ -59,6 +60,14 @@ while [[ $# -gt 0 ]]; do
         *)             die "unknown option: $1 (try --help)" ;;
     esac
 done
+
+# Without /dev/kvm QEMU falls back to TCG, which is roughly an order of
+# magnitude slower to boot and render. Give the run room unless the caller
+# chose a timeout explicitly (`sudo usermod -aG kvm $USER` for the fast path).
+if [[ "$TIMEOUT_SET" == "0" && ! -r /dev/kvm ]]; then
+    TIMEOUT=300
+    echo "==> note: /dev/kvm is not readable — QEMU will use TCG; timeout extended to ${TIMEOUT}s" >&2
+fi
 
 [[ -n "$GAME_DIR" ]] || die "--game-dir is required"
 [[ -d "$GAME_DIR" ]] || die "game dir not found: $GAME_DIR"
@@ -164,7 +173,7 @@ timeout -k 5 "$TIMEOUT" qemu-system-x86_64 \
     -vga none \
     -drive if=none,id=data,format=raw,file="$DATA_IMG" \
     -device virtio-blk-pci,drive=data \
-    -device virtio-gpu-pci \
+    -device virtio-gpu-pci,xres=1280,yres=720 \
     -device virtio-keyboard-pci \
     -append "console=ttyS0,115200n8 earlyprintk=serial,ttyS0,115200n8 quiet playos.autostart=$GAME_ID" \
     -serial "file:$SERIAL_LOG" \

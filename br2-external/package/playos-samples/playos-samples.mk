@@ -3,7 +3,7 @@
 #
 # The samples (audio-sine, audio-module, controller-visualizer,
 # rotating-squares, bullet-hell, colors-palette, background-scrolling,
-# bunnymark, spotlight, fog, cel-shading) each ship their own
+# bunnymark, spotlight, fog, cel-shading, invaders) each ship their own
 # CMakeLists.txt targeting an
 # executable named `game`, so they
 # cannot be pulled in with `add_subdirectory` — a cmake-package would collide
@@ -71,6 +71,10 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	mkdir -p $(@D)/cel-shading/bin
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/cel-shading/bin/game $(@D)/cel-shading/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+	mkdir -p $(@D)/invaders/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/invaders/bin/game $(@D)/invaders/src/main.c \
 		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 endef
 
@@ -184,6 +188,13 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/resources/outline_hull.vs
 	$(INSTALL) -D -m 0644 $(@D)/cel-shading/resources/outline_hull.fs \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-cel-shading/resources/outline_hull.fs
+
+	$(INSTALL) -D -m 0755 $(@D)/invaders/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-invaders/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/invaders/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-invaders/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/invaders/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-invaders/assets/icon.png
 endef
 
 $(eval $(generic-package))

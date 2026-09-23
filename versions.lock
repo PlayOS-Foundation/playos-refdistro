@@ -21,7 +21,7 @@ LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
 PLAYOS_SPEC_COMMIT=2a152b35ead9d45b783dc7284dde80d79d5040cc  # spec: S16 firmware pinned to MT7922
-PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
+PLAYOS_PLATFORM_API_COMMIT=ff6ec10be8e87c7f89c52b2de2a7785660be93a3  # platform-api: evdev discovery no longer closes device nodes
 PLAYOS_RUNTIME_COMMIT=4b6426a0936bd93abb51e7adf9f3011bb10ffd60
 PLAYOS_INIT_COMMIT=4f9c59989a77052141dda949dc7a9d9d9d71f5bc  # init: playos.autostart for the emulator (S15-T7)
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging

@@ -1,0 +1,69 @@
+# PlayOS Emulator x86_64 Configuration (Sprint 15, T7)
+#
+# A minimal PlayOS session for the SDK `emulator` profile: boot a *device*
+# (musl) build under QEMU with the real init/compositor/seat/sandbox, and
+# without the dev image's debug tooling. The game arrives on the `playos-data`
+# disk (scripts/emulator-run.sh); init launches it with
+# `playos.autostart=<game-id>`.
+#
+# Design: playos-spec/src/sdk-emulator-profile.md
+# Built by `make emulator-build` -> output/emulator.
+#
+# Deliberately absent vs playos_qemu_x86_64_defconfig: BusyBox, Dropbear, the
+# installer, recovery, samples and the GRUB EFI disk. The emulator boots the
+# kernel directly with -kernel/-initrd (no bootloader), like the dev QEMU path.
+
+# ── Architecture ──────────────────────────────────────────────────
+BR2_x86_64=y
+BR2_x86_64_generic=y
+
+# ── System ────────────────────────────────────────────────────────
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
+BR2_ROOTFS_DEVICE_TABLE=""
+BR2_ROOTFS_POST_BUILD_SCRIPT=""
+BR2_TARGET_GENERIC_HOSTNAME="playos-emulator"
+BR2_TARGET_GENERIC_ISSUE="PlayOS Emulator (QEMU)"
+
+# ── Kernel ────────────────────────────────────────────────────────
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="6.12.103"
+BR2_LINUX_KERNEL_USE_CUSTOM_CONFIG=y
+BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="$(BR2_EXTERNAL_PlayOS_PATH)/board/qemu-x86_64/linux.config"
+BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_PlayOS_PATH)/board/patches"
+BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
+
+# ── Toolchain ─────────────────────────────────────────────────────
+BR2_TOOLCHAIN_BUILDROOT_MUSL=y
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+BR2_KERNEL_HEADERS_6_12=y
+
+# ── Initramfs ─────────────────────────────────────────────────────
+BR2_TARGET_ROOTFS_INITRAMFS=y
+BR2_TARGET_ROOTFS_INITRAMFS_CUSTOM=y
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PlayOS_PATH)/board/common/rootfs-overlay"
+
+# ── Filesystem images ─────────────────────────────────────────────
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="256M"
+
+# ── Packages — base system ────────────────────────────────────────
+BR2_PACKAGE_EUDEV=y
+
+# ── Packages — Graphics stack ─────────────────────────────────────
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_SOFTPIPE=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_OPENGL_ES=y
+
+# ── Packages — Audio ──────────────────────────────────────────────
+BR2_PACKAGE_ALSA_LIB=y
+
+# ── Packages — PlayOS components ──────────────────────────────────
+BR2_PACKAGE_PLAYOS_INIT=y
+BR2_PACKAGE_PLAYOS_PLATFORM_API=y
+BR2_PACKAGE_PLAYOS_RUNTIME=y
+BR2_PACKAGE_PLAYOS_COMPOSITOR=y
+BR2_PACKAGE_PLAYOS_SHELL=y
+BR2_PACKAGE_PLAYOS_RAYLIB=y
+BR2_PACKAGE_PLAYOS_OVERLAY=y

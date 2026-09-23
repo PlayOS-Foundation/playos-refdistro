@@ -20,10 +20,10 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=4e8dbf5f6afc6390c9bc1f8610a70f83a3ef2a15
+PLAYOS_SPEC_COMMIT=67f88de7143c427e08dadf301e6d578e00e6929d  # spec: S15-T7 emulator profile done and verified
 PLAYOS_PLATFORM_API_COMMIT=f3e629c58e9f08e5d33ac20288b9eae7594f3ef0  # platform-api: Doxygen docs + examples + getting-started (S14 T3)
 PLAYOS_RUNTIME_COMMIT=4b6426a0936bd93abb51e7adf9f3011bb10ffd60
-PLAYOS_INIT_COMMIT=1518021b90305fe0a25810ab39058d6cb6fce534
+PLAYOS_INIT_COMMIT=4f9c59989a77052141dda949dc7a9d9d9d71f5bc  # init: playos.autostart for the emulator (S15-T7)
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging
 PLAYOS_SHELL_COMMIT=f32727f86cfc2db80bc2f141bc1b46d01511844f
 PLAYOS_SAMPLES_COMMIT=651ed31de3363d795b1dc78ffa8c32220ae88f30  # samples: no B-quit — platform owns game exit (S14)

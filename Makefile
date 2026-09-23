@@ -17,6 +17,8 @@
 #   make ally-dev-usb-image / ally-prod-usb-image   Consolidated dev/prod live+installer images
 #   make ally-dev-flash / ally-prod-flash           Flash them
 #   make intel-dev-usb-image / intel-dev-flash      Intel dev flavor
+#   make emulator-build   Build the minimal SDK emulator image (S15-T7)
+#   make emulator-run     Boot a device game in the emulator (ARGS=...)
 #   make update-bundle    Build a dev-signed update bundle (.playosb)
 #   make clean            Remove build output (preserves dl/ cache)
 #   make distclean        Remove everything including dl/
@@ -34,6 +36,8 @@ ALLY_PRODUCTION_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_ally_production_defc
 ALLY_PRODUCTION_OUTPUT := $(CURDIR)/output/ally-production
 INTEL_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_intel_pc_defconfig
 INTEL_OUTPUT := $(CURDIR)/output/intel
+EMULATOR_DEFCONFIG := $(BR2_EXTERNAL)/configs/playos_emulator_defconfig
+EMULATOR_OUTPUT := $(CURDIR)/output/emulator
 SCRIPTS_DIR := $(CURDIR)/scripts
 # Local-site packages are rsync'd into the Buildroot output only on the first
 # build; Buildroot does NOT re-sync them when sources under src/ change. We
@@ -273,6 +277,39 @@ intel-usb-image: intel-build ## Produce a USB-bootable disk image for the Intel 
 intel-flash: intel-usb-image ## Flash Intel image to USB drive (prompts for device)
 	@echo "==> USB image: $(INTEL_OUTPUT)/images/playos-intel-usb.img"
 	@echo "==> Run: sudo bash scripts/flash-usb.sh $(INTEL_OUTPUT)/images/playos-intel-usb.img"
+
+# ── Emulator target (Sprint 15, T7) ────────────────────────────────────
+# The SDK `emulator` profile: a minimal PlayOS session that boots a device
+# (musl) build under QEMU. scripts/emulator-run.sh installs the game onto a
+# playos-data disk and boots with playos.autostart=<game-id>.
+.PHONY: emulator-config
+emulator-config: ## Open menuconfig for the emulator target
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(EMULATOR_OUTPUT)" \
+		$(notdir $(EMULATOR_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(EMULATOR_OUTPUT)" \
+		menuconfig
+
+.PHONY: emulator-build
+emulator-build: ## Build the emulator image (requires setup)
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(EMULATOR_OUTPUT)" \
+		$(notdir $(EMULATOR_DEFCONFIG))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(EMULATOR_OUTPUT)" \
+		$(addsuffix -dirclean,$(PLAYOS_LOCAL_PACKAGES))
+	@$(MAKE) -C "$(BUILDROOT_DIR)" \
+		BR2_EXTERNAL="$(BR2_EXTERNAL)" \
+		O="$(EMULATOR_OUTPUT)"
+
+.PHONY: emulator-run
+emulator-run: ## Boot a game in the emulator (ARGS='--game-dir DIR --game-id ID')
+	@bash "$(SCRIPTS_DIR)/emulator-run.sh" $(ARGS)
 
 # ── Consolidated dev/prod live+installer USB images (Sprint 13.7) ────────
 # Each image boots live to the shell AND carries the install payload on

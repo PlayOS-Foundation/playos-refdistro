@@ -26,7 +26,7 @@ PLAYOS_RUNTIME_COMMIT=4b6426a0936bd93abb51e7adf9f3011bb10ffd60
 PLAYOS_INIT_COMMIT=4f9c59989a77052141dda949dc7a9d9d9d71f5bc  # init: playos.autostart for the emulator (S15-T7)
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging
 PLAYOS_SHELL_COMMIT=f32727f86cfc2db80bc2f141bc1b46d01511844f
-PLAYOS_SAMPLES_COMMIT=1f90356fa5cd4e02f2189590a78cc319fb09f0ce  # samples: invaders frame-pacing diagnostics
+PLAYOS_SAMPLES_COMMIT=4e6138817867626b3465cb6c106107ca986884b7  # samples: invaders never skips EndDrawing while backgrounded
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
 # ── Key dependencies ──────────────────────────────────────────────────────

@@ -115,7 +115,10 @@ if [ -d "$RAYLIB_SRC" ]; then
     # Debian/Ubuntu that is usually libdecor-0-dev), which leaves the developer with
     # an X11-only desktop profile and no explanation. Check the built library rather
     # than the configure output, and say exactly what is wrong and how to fix it.
-    WL_SYMS=$(nm -D "$DESKTOP/raylib/lib/libraylib.so.6.0.0" 2>/dev/null | grep -c " wl_")
+    # `grep -c` exits 1 when it counts zero, which under `set -e` aborted the
+    # whole export right here (before the desktop libplayos was built and
+    # before this warning could print) on every host without libdecor.
+    WL_SYMS=$(nm -D "$DESKTOP/raylib/lib/libraylib.so.6.0.0" 2>/dev/null | grep -c " wl_" || true)
     if [ "${WL_SYMS:-0}" -eq 0 ]; then
         echo "WARN: the desktop raylib has NO Wayland backend (X11 only)." >&2
         echo "WARN: GLFW needs libdecor-0, xkbcommon, wayland-protocols and" >&2

@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=ff6ec10be8e87c7f89c52b2de2a7785660be93a3  # platform-
 PLAYOS_RUNTIME_COMMIT=abdbde2e70fcf571881deaf7f29533ab2bfad42c  # runtime: network control client helpers (S16-T6)
 PLAYOS_INIT_COMMIT=71653562a11ce1b948b8e5f6e7eb95f054618dd8  # init: wait for the radio before starting the net stack (S16-T5 fix)
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging
-PLAYOS_SHELL_COMMIT=37a49e01e51146cae41f57884283d43dd23abf14  # shell: Wi-Fi screen font/keyboard sizing (S16-T6)
+PLAYOS_SHELL_COMMIT=23f1d2097fca79ba1e732f44a5e2c6c26aa4a4af  # shell: Wi-Fi row layout + keyboard modes (S16-T6)
 PLAYOS_SAMPLES_COMMIT=d662b5f4f4764b05a7656f7157207c2ddc7d1371  # samples: invaders procedural SFX
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

@@ -20,10 +20,10 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=74fc032d0783aa9458a70fd4ee5b4cd4119d5e16  # spec: S16 T1 verified on hardware (wlp6s0)
+PLAYOS_SPEC_COMMIT=3f9c58051c2395c1378f84822c16824c7f086c67  # spec: S16 T3+T4 done
 PLAYOS_PLATFORM_API_COMMIT=ff6ec10be8e87c7f89c52b2de2a7785660be93a3  # platform-api: evdev discovery no longer closes device nodes
 PLAYOS_RUNTIME_COMMIT=4b6426a0936bd93abb51e7adf9f3011bb10ffd60
-PLAYOS_INIT_COMMIT=4f9c59989a77052141dda949dc7a9d9d9d71f5bc  # init: playos.autostart for the emulator (S15-T7)
+PLAYOS_INIT_COMMIT=7d2d9f95e88eaea5634328f365c8d75e373781e4  # init: network IPC message types (S16-T4)
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging
 PLAYOS_SHELL_COMMIT=c055e26d9331223a75ac8c98d4be8fa0883dbd1a  # shell: release the PCM to a foreground game (ADR-0007)
 PLAYOS_SAMPLES_COMMIT=d662b5f4f4764b05a7656f7157207c2ddc7d1371  # samples: invaders procedural SFX

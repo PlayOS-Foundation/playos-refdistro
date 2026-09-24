@@ -121,6 +121,8 @@ BR2_PACKAGE_WPA_SUPPLICANT_WPA_CLIENT_SO=y
 # BR2_PACKAGE_WPA_SUPPLICANT_DBUS is deliberately NOT set (ADR-0012).
 # Signed regulatory database, so cfg80211 gets a real reg domain (5 GHz/SAE).
 BR2_PACKAGE_WIRELESS_REGDB=y
+# The bridge daemon that owns wpa_supplicant and serves the control plane.
+BR2_PACKAGE_PLAYOS_NET=y
 
 # ── Host utilities ────────────────────────────────────────────────
 BR2_PACKAGE_HOST_DOSFSTOOLS=y

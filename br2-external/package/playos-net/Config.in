@@ -1,0 +1,10 @@
+config BR2_PACKAGE_PLAYOS_NET
+	bool "playos-net"
+	depends on BR2_PACKAGE_WPA_SUPPLICANT
+	help
+	  PlayOS Wi-Fi bridge daemon (Sprint 16).
+
+	  Owns wpa_supplicant's control socket and exposes scan / connect /
+	  disconnect / status over the trusted control protocol on
+	  /run/playos/net/bridge.sock. No D-Bus, and games cannot reach it
+	  (see ADR-0012).

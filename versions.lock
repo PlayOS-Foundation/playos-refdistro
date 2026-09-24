@@ -25,7 +25,7 @@ PLAYOS_PLATFORM_API_COMMIT=ff6ec10be8e87c7f89c52b2de2a7785660be93a3  # platform-
 PLAYOS_RUNTIME_COMMIT=4b6426a0936bd93abb51e7adf9f3011bb10ffd60
 PLAYOS_INIT_COMMIT=4f9c59989a77052141dda949dc7a9d9d9d71f5bc  # init: playos.autostart for the emulator (S15-T7)
 PLAYOS_COMPOSITOR_COMMIT=45cbeb0d5c273c1792fa1ddb16da47d5736d40a8  # compositor: P2 fps + P3 direct-scanout logging
-PLAYOS_SHELL_COMMIT=f32727f86cfc2db80bc2f141bc1b46d01511844f
+PLAYOS_SHELL_COMMIT=c055e26d9331223a75ac8c98d4be8fa0883dbd1a  # shell: release the PCM to a foreground game (ADR-0007)
 PLAYOS_SAMPLES_COMMIT=d662b5f4f4764b05a7656f7157207c2ddc7d1371  # samples: invaders procedural SFX
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 

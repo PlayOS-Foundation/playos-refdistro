@@ -274,10 +274,17 @@ int wpa_status(playos_wpa *w, char *state, size_t state_sz,
     if (cmd(w->ctrl, "STATUS", buf, sizeof(buf)) < 0)
         return -1;
 
+    /* wpa_supplicant omits ssid=/ip_address= while disconnected. Clear the
+     * caller's buffers first — leaving them untouched leaked uninitialised
+     * stack memory onto the wire (it showed up as "ssid":"\u0007"). */
+    if (ssid && ssid_sz)
+        ssid[0] = '\0';
+    if (ip && ip_sz)
+        ip[0] = '\0';
+
     kv(buf, "wpa_state", wpa_state, sizeof(wpa_state));
     kv(buf, "ssid", ssid, ssid_sz);
-    if (kv(buf, "ip_address", ip, ip_sz) != 0)
-        ip[0] = '\0';
+    kv(buf, "ip_address", ip, ip_sz);
 
     if (strcmp(wpa_state, "COMPLETED") == 0)
         snprintf(state, state_sz, "connected");

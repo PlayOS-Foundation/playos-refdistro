@@ -180,6 +180,13 @@ else
         -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
         -drive if=pflash,format=raw,file="$OVMF_VARS_TMP" \
         -kernel "$BZIMAGE" \
+        # Optional overlay: a cpio archive appended to the initramfs. The kernel unpacks
+        # concatenated archives in order, so this adds files to the guest's rootfs
+        # without rebuilding the image (Sprint 15, T7 uses it to deliver a game).
+        if [ -n "${PLAYOS_BOOT_CHECK_INITRD_OVERLAY:-}" ]; then
+            cat "$ROOTFS" "$PLAYOS_BOOT_CHECK_INITRD_OVERLAY" > "$TMPDIR/rootfs-overlay.cpio"
+            ROOTFS="$TMPDIR/rootfs-overlay.cpio"
+        fi
         -initrd "$INITRAMFS" \
         -drive if=none,id=data,format=raw,file="$DATA_DISK" \
         -device virtio-blk-pci,drive=data \

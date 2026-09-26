@@ -1,0 +1,9 @@
+config BR2_PACKAGE_PLAYOS_LVGL
+	bool "playos-lvgl"
+	help
+	  LVGL v9 as a shared library (liblvgl.so), with the PlayOS lv_conf.h.
+	  Used by the shell's UI spike (Sprint 22) and by the on-screen keyboard
+	  in playos-overlay. Linked, not vendored per-component, so both trusted
+	  UIs share one copy.
+
+	  https://lvgl.io/

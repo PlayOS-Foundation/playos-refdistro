@@ -22,6 +22,7 @@ PLAYOS_SHELL_CONF_OPTS = \
 # spike to inert stubs unless this is set, so the default build is unaffected.
 ifeq ($(BR2_PACKAGE_PLAYOS_SHELL_LVGL_SPIKE),y)
 PLAYOS_SHELL_CONF_OPTS += -DPLAYOS_SHELL_EXPERIMENTAL_LVGL=ON
+PLAYOS_SHELL_DEPENDENCIES += playos-lvgl
 endif
 
 $(eval $(cmake-package))

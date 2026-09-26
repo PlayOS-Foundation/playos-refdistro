@@ -6,3 +6,13 @@ config BR2_PACKAGE_PLAYOS_SHELL
 	  Always alive as a trusted Wayland client.
 
 	  https://github.com/PlayOS-Foundation/playos-shell
+
+config BR2_PACKAGE_PLAYOS_SHELL_LVGL_SPIKE
+	bool "LVGL widget layer (Sprint 22 spike, experimental)"
+	help
+	  Build the shell with LVGL v9 as a widget layer over raylib: raylib keeps the
+	  window/GL/vsync and LVGL draws into a texture (ADR-0013, Path 1). The shell
+	  still runs its normal UI unless PLAYOS_SHELL_LVGL_SPIKE=1 is set in the
+	  environment, so this changes nothing by default.
+	
+	  Experimental: not for release images.

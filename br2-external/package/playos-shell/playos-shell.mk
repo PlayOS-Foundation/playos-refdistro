@@ -18,4 +18,10 @@ PLAYOS_SHELL_CONF_OPTS = \
 	-DPLAYOS_SHELL_USE_RAYLIB=ON \
 	-DPLAYOS_RUNTIME_DIR=$(STAGING_DIR)/usr
 
+# Sprint 22: opt-in LVGL widget layer (see Config.in). The shell compiles the
+# spike to inert stubs unless this is set, so the default build is unaffected.
+ifeq ($(BR2_PACKAGE_PLAYOS_SHELL_LVGL_SPIKE),y)
+PLAYOS_SHELL_CONF_OPTS += -DPLAYOS_SHELL_EXPERIMENTAL_LVGL=ON
+endif
+
 $(eval $(cmake-package))

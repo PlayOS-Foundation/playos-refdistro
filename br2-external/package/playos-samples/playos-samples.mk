@@ -76,6 +76,11 @@ define PLAYOS_SAMPLES_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
 		-o $(@D)/invaders/bin/game $(@D)/invaders/src/main.c \
 		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
+
+	mkdir -p $(@D)/touch-demo/bin
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 \
+		-o $(@D)/touch-demo/bin/game $(@D)/touch-demo/src/main.c \
+		$(TARGET_LDFLAGS) -lraylib -lplayos -lm || exit 1
 endef
 
 # Install each sample into the read-only library seed location. playos-init
@@ -195,6 +200,13 @@ define PLAYOS_SAMPLES_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-invaders/manifest.json
 	$(INSTALL) -D -m 0644 $(@D)/invaders/assets/icon.png \
 		$(TARGET_DIR)/usr/share/playos/games/com.playos.sample-invaders/assets/icon.png
+
+	$(INSTALL) -D -m 0755 $(@D)/touch-demo/bin/game \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.touchdemo/bin/game
+	$(INSTALL) -D -m 0644 $(@D)/touch-demo/manifest.json \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.touchdemo/manifest.json
+	$(INSTALL) -D -m 0644 $(@D)/touch-demo/assets/icon.png \
+		$(TARGET_DIR)/usr/share/playos/games/com.playos.touchdemo/assets/icon.png
 endef
 
 $(eval $(generic-package))

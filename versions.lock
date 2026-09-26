@@ -20,12 +20,12 @@ LINUX_SOURCE=https://cdn.kernel.org/pub/linux/kernel/v6.x/
 LINUX_SHA256=f143aaade8877ba5616e788b4482576db28481bcf557ef537f4fcc3938fc3176
 
 # ── PlayOS components ─────────────────────────────────────────────────────
-PLAYOS_SPEC_COMMIT=9be560e55059ebda778438ea079d525261beb421  # ADR-0013 input delivery + Sprint 17 touch verified on a clean install
+PLAYOS_SPEC_COMMIT=9aef316f097e6351bbb03cb62f03570a0fbb6d3b  # Sprint 22 Path 1 confirmed + Sprint 17 OSK work list
 PLAYOS_PLATFORM_API_COMMIT=6fcc94d5a659fcf6432facc8f8d9f376beacf78d  # touch API via evdev (S17 touch)
 PLAYOS_RUNTIME_COMMIT=abdbde2e70fcf571881deaf7f29533ab2bfad42c  # runtime: network control client helpers (S16-T6)
 PLAYOS_INIT_COMMIT=df4d843ae6c7c557f47b96f86048fcfec9bb4c24  # dhcpcd manages every NIC; wired metric 2000
 PLAYOS_COMPOSITOR_COMMIT=5a174fb41af5a5f57903063454cf2ba7630ceec6  # WLR_BACKENDS fix (input devices) + scene-surface hit-test
-PLAYOS_SHELL_COMMIT=a30499a619fa4264199b6f12f808047442abcc1f  # raylib touch mapping (GetTouchPosition from libplayos)
+PLAYOS_SHELL_COMMIT=f6d470b41d33f0a8d6145d23ba0a5f009e54223c  # LVGL spike behind PLAYOS_SHELL_EXPERIMENTAL_LVGL
 PLAYOS_SAMPLES_COMMIT=fdbb2cce199f74261b1a8fb02d85df65f18820ac  # touch-demo sample
 PLAYOS_SAMPLES_SOURCE=https://github.com/PlayOS-Foundation/playos-samples
 
